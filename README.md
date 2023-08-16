@@ -35,7 +35,7 @@ Note that use of cloudformation template indicates acceptance of license agreeme
 
 
 ### PHP Configuration
-Based on public articles on PHP performance (many thanks to the authors), the following configuration were made to PHP installation
+Based on public articles about PHP performance (many thanks to the authors), the following changes were made to PHP configuration
 
 - PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [PHP 8.x: A Deep Dive for General PHP Performance Improvement Features](https://accesto.com/blog/php-performance-improvement-features/)
 - [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/) 
@@ -82,37 +82,42 @@ Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 
 
 ## Using Certbot to obtain LetsEncrypt certificate
-Do visit [Let's Encrypt] site if you are not familiar with [Certbot](https://certbot.eff.org/)
+Do visit [Let's Encrypt](https://letsencrypt.org/) site if you are not familiar with [Certbot](https://certbot.eff.org/)
 
 ### Using Certbot with apache plugin
 Ensure that `assignStaticIP` is configured to `Yes` and a DNS entry is associated with your EC2 instance IP address.
-From terminal, run the command and follow instructions.
-```
-sudo certbot --apache
-```
+
+- From terminal, run the below command and follow instructions
+  ```
+  sudo certbot --apache
+  ```
 
 ### Using Certbot with dns_route53 plugin
 Ensure that you have granted access to Route 53 hosted zone by specifying `r53ZoneID` value in your CloudFormation template, and a DNS entry is associated with your EC2 instance IP address.
 
-From terminal, execute the follwoing command and follow instructions.  
-```
-sudo certbot certonly --dns-route53
-```
-More information from [certbot-dns-route53 documentation site](https://certbot-dns-route53.readthedocs.io)
+- From terminal, execute the below command and follow instructions.  
+  ```
+  sudo certbot certonly --dns-route53
+  ```
+  More information from [certbot-dns-route53 documentation site](https://certbot-dns-route53.readthedocs.io)
 
-Execute command
-```
-sudo chmod 755 /etc/letsencrypt/live
-```
+- After certificate is issued, execute command
+  ```
+  sudo chmod 755 /etc/letsencrypt/live
+  ```
 
-Modify Apache SSL file (`/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2, `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux) as follows
-```
-SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/cert.pem
-SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
-SSLCertificateChainFile /etc/letsencrypt/live/<CERT-NAME>/chain.pem
-```
-Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
-Restart Apache (`sudo systemctl restart httpd`)
+- Modify Apache SSL file (`/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2, `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux) as follows
+  ```
+  SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/cert.pem
+  SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
+  SSLCertificateChainFile /etc/letsencrypt/live/<CERT-NAME>/chain.pem
+  ```
+  Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
+
+- Restart Apache
+  ```
+  sudo systemctl restart httpd
+  ```
 
 More information from [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates)
 
