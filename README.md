@@ -20,13 +20,15 @@ The template installs the following
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure remote terminal access
-- [CloudWatch Agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html)
+- [CodeDeploy](https://aws.amazon.com/codedeploy/) agent
+- [CloudWatch](https://aws.amazon.com/cloudwatch/) agent
+- [NFS](https://aws.amazon.com/efs/) client
+- [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) client
 - [AWS CLI v2](https://aws.amazon.com/blogs/developer/aws-cli-v2-is-now-generally-available/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
-- NFS and [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) clients
 - (Optional) S3 bucket access : access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
+- [Certbot](https://certbot.eff.org/)
 - (Optional) Route 53 hosted zone access : access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
-- [Certbot](https://certbot.eff.org/) for obtaining [Let’s Encrypt](https://letsencrypt.org/) certificates
 
   
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
@@ -75,10 +77,12 @@ The following are available on **Outputs** section
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
 
-#NICE DCV web browser client can be disabled by removing `nice-dcv-web-viewer` package. Native clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/)
+#Native NCIE DCV clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/)
+Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
+
 
 ## Using Certbot to obtain LetsEncrypt certificate
-Do visit [Certbot website](https://certbot.eff.org/) if you are not familiar.
+Do visit [Let's Encrypt] site if you are not familiar with [Certbot](https://certbot.eff.org/)
 
 ### Using Certbot with apache plugin
 Ensure that `assignStaticIP` is configured to `Yes` and a DNS entry is associated with your EC2 instance IP address.
