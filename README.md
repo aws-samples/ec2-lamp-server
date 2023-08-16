@@ -23,10 +23,10 @@ The template installs the following
 - [CloudWatch Agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html)
 - [AWS CLI v2](https://aws.amazon.com/blogs/developer/aws-cli-v2-is-now-generally-available/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
 - NFS and [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) clients
-- S3 bucket access (Optional): access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
+- (Optional) S3 bucket access : access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
-- Route 53 access (optional): access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with Certbot route 53 plugin
-- [Certbot](https://certbot.eff.org/) for installing [Let’s Encrypt](https://letsencrypt.org/) certificates on Apache
+- (Optional) Route 53 hosted zone access : access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
+- [Certbot](https://certbot.eff.org/) for obtaining [Let’s Encrypt](https://letsencrypt.org/) certificates
 
   
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
@@ -35,11 +35,10 @@ Note that use of cloudformation template indicates acceptance of license agreeme
 ### PHP Configuration
 Based on public articles on PHP performance (many thanks to the authors), the following configuration were made to PHP installation
 
+- PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [PHP 8.x: A Deep Dive for General PHP Performance Improvement Features](https://accesto.com/blog/php-performance-improvement-features/)
 - [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/) 
 - [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html) module
 - Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
-- PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [PHP 8.x: A Deep Dive for General PHP Performance Improvement Features](https://accesto.com/blog/php-performance-improvement-features/)
-
 
 ## Deployment via CloudFormation console
 Download desired .yaml file based on the operating system ([Amazon Linx 2](https://aws.amazon.com/amazon-linux-2/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
@@ -79,8 +78,7 @@ The following are available on **Outputs** section
 #NICE DCV web browser client can be disabled by removing `nice-dcv-web-viewer` package. Native clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/)
 
 ## Using Certbot to obtain LetsEncrypt certificate
-Do visit [certbot website](https://certbot.eff.org/) if you are not familiar.
-
+Do visit [Certbot website](https://certbot.eff.org/) if you are not familiar.
 
 ### Using Certbot with apache plugin
 Ensure that `assignStaticIP` is configured to `Yes` and a DNS entry is associated with your EC2 instance IP address.
@@ -88,8 +86,6 @@ From terminal, run the command and follow instructions.
 ```
 sudo certbot --apache
 ```
-More information from [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#apache)
-
 
 ### Using Certbot with dns_route53 plugin
 Ensure that you have granted access to Route 53 hosted zone by specifying `r53ZoneID` value in your CloudFormation template, and a DNS entry is associated with your EC2 instance IP address.
@@ -114,7 +110,7 @@ SSLCertificateChainFile /etc/letsencrypt/live/<CERT-NAME>/chain.pem
 Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
 Restart Apache (`sudo systemctl restart httpd`)
 
-More information from [Certbot site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates)
+More information from [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates)
 
 
 ## Security
