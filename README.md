@@ -47,7 +47,7 @@ Download desired .yaml file based on the operating system ([Amazon Linx 2](https
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Specify a **Stack name** and specify parameters values. 
 
 EC2 section
-- `processorArchitecture`: Intel/AMD or ARM64 using [AWS Graviton](https://aws.amazon.com/ec2/graviton/). Default is `Graviton ARM64 (aarch64)`
+- `processorArchitecture`: Intel/AMD or [Graviton ARM64](https://aws.amazon.com/ec2/graviton/). Default is `Graviton ARM64 (aarch64)`
 - `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure value matches CPU architecture. Default is `t4g.large`
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair] name. Value is mandatory
