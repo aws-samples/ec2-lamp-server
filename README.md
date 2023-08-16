@@ -24,7 +24,7 @@ The template installs the following
 - [AWS CLI v2](https://aws.amazon.com/blogs/developer/aws-cli-v2-is-now-generally-available/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
 - NFS and [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) clients
 - S3 bucket access (Optional): access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
-- [MountPoint for S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) for mounting S3 bucket
+- [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
 - Route 53 access (optional): access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with Certbot route 53 plugin
 - [Certbot](https://certbot.eff.org/) for installing [Let’s Encrypt](https://letsencrypt.org/) certificates on Apache
 
