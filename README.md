@@ -4,7 +4,7 @@ Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) template to 
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for Linux, Apache, MySQL/MariaDB and PHP. It is a common open source web platform for many of the web's popular applications.  A variation is the LAPP stack which include Linux, Apache, PostgreSQL (instead of MySQL) and PHP. 
 
-This repo provides starter CloudFormation template to provision single EC2 LAMP or LAPP server instance. The EC2 instance can be used for software development, or deployment of applications that use LAMP stack for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
+This repo provides starter CloudFormation template to provision single EC2 LAMP or LAPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
 
 For use cases that require high performance, reliability, scalability and high availability, users should re-architect their LAMP applications. Some resources that can help with the design includes:
 - [AWS Well-Architected](https://aws.amazon.com/architecture/well-architected/)
