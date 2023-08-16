@@ -275,6 +275,7 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSCodeDeployRole"
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -606,6 +607,12 @@ Resources:
 
           # Lustre: https://docs.aws.amazon.com/fsx/latest/LustreGuide/install-lustre-client.html
           amazon-linux-extras install -y lustre
+
+          # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-linux.html
+          yum install -q -y ruby
+          wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           yum install -q -y amazon-cloudwatch-agent
