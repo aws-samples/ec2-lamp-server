@@ -88,7 +88,7 @@ From terminal, run the command `sudo certbot --apache` and follow instructions.
 More information from [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#apache)
 
 ### Using Certbot with dns_route53 plugin
-Ensure that  EC2 instance have access to Route 53 hosted zone by specifying `r53ZoneID` value and a DNS entry is associated with your EC2 instance IP address.
+Ensure that you have granted access to Route 53 hosted zone by specifying `r53ZoneID` value in your CloudFormation template.
 From terminal, execute the command `sudo certbot certonly --dns-route53` and follow instructions.  
 
 More information from [certbot-dns-route53 documentation site](https://certbot-dns-route53.readthedocs.io)
@@ -99,14 +99,16 @@ You will need to configure Apache to use the issued cert.
 ### Amazon Linux 2
 Note: this is a possible configuration. 
 
+Ensure a DNS entry is associated with your EC2 instance IP address.
+
 Execute command `sudo chmod root:apache /etc/letsencrypt/live`
-Modify `/etc/httpd/conf.d/ssl.conf` to reference your generated TLS files.
+Modify `/etc/httpd/conf.d/ssl.conf` to reference your generated certificate replacing `<CERT-NAME>` with the actual value in your /etc/letsencrypt/live folder.
 ```
 SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/cert.pem
 SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
 SSLCertificateChainFile /etc/letsencrypt/live/<CERT-NAME>/chain.pem
 ```
-Restart Apache `systemctl restart httpd`
+Restart Apache by executing command `sudo systemctl restart httpd`
 
 ## Security
 
