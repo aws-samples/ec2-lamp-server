@@ -275,6 +275,7 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSCodeDeployRole"
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -530,6 +531,9 @@ Resources:
           a2enmod ssl
           a2enmod rewrite
 
+          cd /etc/apache2/sites-enabled
+          ln -s ../sites-available/default-ssl.conf default-ssl.conf
+
           # Database: MySQL, MariaDB or none
           export DB="${databaseOption}"
           case $DB in
@@ -562,6 +566,12 @@ Resources:
           echo "deb [signed-by=/usr/share/keyrings/fsx-ubuntu-public-key.gpg] https://fsx-lustre-client-repo.s3.amazonaws.com/ubuntu jammy main" > /etc/apt/sources.list.d/fsxlustreclientrepo.list 
           apt-get update
           apt install -y lustre-client-modules-aws
+
+          # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
+          apt-get install -q -y ruby-full
+          wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           if (uname -a | grep x86 1>/dev/null); then
