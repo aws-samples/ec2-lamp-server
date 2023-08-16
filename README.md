@@ -25,8 +25,8 @@ The template installs the following
 - NFS and [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) clients
 - S3 bucket access (Optional): access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) for mounting S3 bucket
-- [Certbot](https://certbot.eff.org/) for installing [Let’s Encrypt](https://letsencrypt.org/) certificates on Apache
 - Route 53 access (optional): access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with Certbot route 53 plugin
+- [Certbot](https://certbot.eff.org/) for installing [Let’s Encrypt](https://letsencrypt.org/) certificates on Apache
 
   
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
