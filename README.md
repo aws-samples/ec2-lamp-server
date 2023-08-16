@@ -14,7 +14,7 @@ For use cases that requires performance, reliability, scalability and high avail
 
 ## Overview of features
 The template installs the following
-- Graphical desktop with [NICE DCV protocol](https://aws.amazon.com/hpc/dcv/) for secure remote access
+- Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access
 - [Apache web server](https://www.apache.org/)
 - Choice of [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) and [PostgreSQL](https://www.postgresql.org/) database server
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
