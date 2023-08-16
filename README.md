@@ -72,9 +72,11 @@ Remote Administration
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `SSMSessionManager`: SSM Session Manager URL link to change login user password. Password change command is in *Description* field.
-- `DCVwebConsole`: NICE DCV web browser console URL link to login as the user specified in *Description* field. 
+- `DCVwebConsole`: NICE DCV web browser client URL link. Login as the user specified in *Description* field# 
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
+
+#NICE DCV web browser client can be disabled by removing `nice-dcv-web-viewer` package. Native clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/)
 
 ## Using Certbot to obtain LetsEncrypt certificate
 Do review [certbot website](https://certbot.eff.org/) if you are not familiar.
