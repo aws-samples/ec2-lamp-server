@@ -37,10 +37,12 @@ Note that use of cloudformation template indicates acceptance of license agreeme
 ### PHP Configuration
 Based on public articles about PHP performance (many thanks to the authors), the following changes were made to PHP configuration
 
-- PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [PHP 8.x: A Deep Dive for General PHP Performance Improvement Features](https://accesto.com/blog/php-performance-improvement-features/)
+- PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [Make your PHP 8 apps twice as fast (OPCache & JIT)](https://medium.com/@edouard.courty/make-your-php-8-apps-twice-as-fast-opcache-jit-8d3542276595)
 - [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/) 
 - [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html) module
 - Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
+
+CloudFormation default processor architecture is Graviton as per [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
 
 ## Deployment via CloudFormation console
 Download desired .yaml file based on the operating system ([Amazon Linx 2](https://aws.amazon.com/amazon-linux-2/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
