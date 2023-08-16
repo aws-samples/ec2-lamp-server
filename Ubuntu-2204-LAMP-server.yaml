@@ -275,7 +275,6 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSCodeDeployRole"
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -512,7 +511,7 @@ Resources:
           sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
           sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
 
-          systemctl restart php-fpm
+          systemctl restart php8.1-fpm
 
           # PHP CLI ini
           cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
@@ -533,6 +532,7 @@ Resources:
 
           cd /etc/apache2/sites-enabled
           ln -s ../sites-available/default-ssl.conf default-ssl.conf
+          cd /tmp/cfn
 
           # Database: MySQL, MariaDB or none
           export DB="${databaseOption}"
