@@ -78,7 +78,7 @@ The following are available on **Outputs** section
 
 ## Using Certbot to obtain LetsEncrypt certificate
 Do review [certbot website](https://certbot.eff.org/) if you are not familiar.
-Both apache and dns_route plugin are installed with Certbot.
+Both apache and dns_route plugins are installed with Certbot.
 
 ### Using Certbot with apache plugin
 Ensure that `assignStaticIP` is configured to `Yes` and a DNS entry is associated with your EC2 instance IP address.
