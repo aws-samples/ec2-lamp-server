@@ -77,7 +77,7 @@ The following are available on **Outputs** section
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
 
-#Native NCIE DCV clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/)
+#Native NCIE DCV clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/).
 Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 
 
@@ -85,7 +85,7 @@ Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 Do visit [Let's Encrypt](https://letsencrypt.org/) site if you are not familiar with [Certbot](https://certbot.eff.org/)
 
 ### Using Certbot with apache plugin
-Ensure that `assignStaticIP` is configured to `Yes` and a DNS entry is associated with your EC2 instance IP address.
+Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
 
 - From terminal, run the below command and follow instructions
   ```
@@ -93,7 +93,7 @@ Ensure that `assignStaticIP` is configured to `Yes` and a DNS entry is associate
   ```
 
 ### Using Certbot with dns_route53 plugin
-Ensure that you have granted access to Route 53 hosted zone by specifying `r53ZoneID` value in your CloudFormation template, and a DNS entry is associated with your EC2 instance IP address.
+Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack, and a DNS entry is associated with your EC2 instance IP address.
 
 - From terminal, execute the below command and follow instructions.  
   ```
