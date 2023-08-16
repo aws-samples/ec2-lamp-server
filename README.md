@@ -16,7 +16,7 @@ For use cases that requires performance, reliability, scalability and high avail
 The template installs the following
 - Graphical desktop with [NICE DCV protocol](https://aws.amazon.com/hpc/dcv/) for secure remote access
 - [Apache web server](https://www.apache.org/)
-- Choice of [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) and [PostgreSQL](https://www.postgresql.org/) database servers
+- Choice of [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) and [PostgreSQL](https://www.postgresql.org/) database server
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure remote terminal access
