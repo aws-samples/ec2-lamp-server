@@ -4,7 +4,7 @@ Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for Linux, Apache, MySQL/MariaDB and PHP. It is a common open source web platform for many of the web's popular applications.  A variation is the LAPP stack which include Linux, Apache, PostgreSQL (instead of MySQL) and PHP. 
 
-This repo provides starter CloudFormation template to provision single EC2 LAMP or LAPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
+This repo provides starter CloudFormation template to provision a EC2 LAMP or LAPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
 
 For use cases that require high performance, reliability, scalability and high availability, users should re-architect their LAMP applications. Some resources that can help with the design includes:
 - [AWS Well-Architected](https://aws.amazon.com/architecture/well-architected/)
@@ -25,10 +25,10 @@ The template installs the following
 - [NFS](https://aws.amazon.com/efs/) client
 - [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) client
 - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
-- (Optional) [Amazon S3](https://aws.amazon.com/s3/) bucket access : access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
+- [Amazon S3](https://aws.amazon.com/s3/) bucket access (optional): access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
 - [Certbot](https://certbot.eff.org/)
-- (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access : access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
+- [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access (optional): access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
 
   
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
@@ -46,7 +46,7 @@ CloudFormation default processor architecture option is Graviton as per [arm64 v
 
 
 ## Deployment via CloudFormation console
-Download desired .yaml file based on the operating system ([Amazon Linx 2](https://aws.amazon.com/amazon-linux-2/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
+Download desired .yaml file based on desired operating system ([Amazon Linx 2](https://aws.amazon.com/amazon-linux-2/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Specify a **Stack name** and specify parameters values. 
 
@@ -59,7 +59,7 @@ EC2 section
 
 VPC section
 - `vpcID`: [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) with internet connectivity. Select [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) if unsure
-- `subnetID`: subnet with internet connectivity. Select subnet in default VPC if unsure. If you specify a different `instanceType`, ensure that it is available in AZ subnet you select. 
+- `subnetID`: subnet with internet connectivity. Select subnet in default VPC if unsure
 - `assignStaticIP`: associates a static public IPv4 address using [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html). Default is `Yes`
 - `displayPublicIP`: set this to `No` if you provision EC2 instance in a subnet that will not receive [public IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses). EC2 private IP will be displayed in CloudFormation Outputs section instead. Default is `Yes`
 
@@ -76,7 +76,7 @@ Remote Administration
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `SSMSessionManager`: SSM Session Manager URL link. Use this for terminal access and to change login user password. Password change command is in *Description* field.
-- `DCVwebConsole`: NICE DCV web browser client URL link#. Login as the user specified in *Description* field# 
+- `DCVwebConsole`: NICE DCV web browser client URL link#. Login as the user specified in *Description* field 
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
 
