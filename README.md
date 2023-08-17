@@ -25,7 +25,7 @@ The template installs the following
 - [NFS](https://aws.amazon.com/efs/) client
 - [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) client
 - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
-- (Optional) S3 bucket access : access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
+- (Optional) [Amazon S3](https://aws.amazon.com/s3/) bucket access : access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
 - [Certbot](https://certbot.eff.org/)
 - (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access : access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
