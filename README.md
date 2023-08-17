@@ -90,7 +90,7 @@ Do visit [Let's Encrypt](https://letsencrypt.org/) site if you are not familiar 
 ### Using Certbot with apache plugin
 Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
 
-- From terminal, run the below command and follow instructions
+- From terminal, run the below command and read instructions carefully. You may need to configure your Apache site settings.
   ```
   sudo certbot --apache
   ```
