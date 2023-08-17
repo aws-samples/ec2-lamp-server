@@ -85,7 +85,7 @@ Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 
 
 ## Using Certbot to obtain LetsEncrypt certificate
-Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are not familiar. 
+Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are not familiar and [need help](https://certbot.eff.org/pages/help) with this tool.  
 
 ### Using Certbot with apache plugin
 Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
