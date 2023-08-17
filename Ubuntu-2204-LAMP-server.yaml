@@ -522,17 +522,18 @@ Resources:
           systemctl enable apache2
 
           # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
-          a2dismod php8.1 mpm_prefork
+          a2dismod php8.1 
+          a2dismod mpm_prefork
           a2enmod mpm_event proxy_fcgi setenvif
           a2enconf php8.1-fpm
-          systemctl restart apache2
 
+          # Enable HTTPS 
           a2enmod ssl
           a2enmod rewrite
+          a2enmod http2
+          a2ensite default-ssl
 
-          cd /etc/apache2/sites-enabled
-          ln -s ../sites-available/default-ssl.conf default-ssl.conf
-          cd /tmp/cfn
+          systemctl restart apache2
 
           # Database: MySQL, MariaDB or none
           export DB="${databaseOption}"
