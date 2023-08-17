@@ -84,7 +84,7 @@ The following are available on **Outputs** section
 Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 
 
-## Using Certbot to obtain LetsEncrypt certificate
+## Using Certbot to obtain HTTPS certificate
 Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are not familiar and/or [need help](https://certbot.eff.org/pages/help) with this tool.  
 
 
