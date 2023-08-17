@@ -63,7 +63,7 @@ VPC section
 - `displayPublicIP`: set this to `No` if you provision EC2 instance in a subnet that will not receive [public IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses). EC2 private IP will be displayed in CloudFormation Outputs section instead. Default is `Yes`
 
 LAMP configuration
-- `databaseOption`: option to install database engine of choice;  MySQL, MariaDB, PostgreSQL or none. For Amazon Linux 2, template will use [MySQL Community Edition](https://www.mysql.com/products/community/) repository to install MySQL Server with randomly generated password stored in `\var\log\mysql.log` file
+- `databaseOption`: option to install database engine of choice;  MySQL, MariaDB, PostgreSQL or none. MySQL option for Amazon Linux 2 use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to via IAM policy as per [Writing IAM Policies: How to Grant Access to an Amazon S3 Bucket](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant EC2 instance to all S3 buckets in your AWS account and is not recommended. Default is empty.
 - `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant EC2 instance to. This is to be used if your domain DNS is hosted by Route 53 and you want to use Certbot to get SSL/TLS certificate using [dns_route53](https://certbot-dns-route53.readthedocs.io/) plugin
 
