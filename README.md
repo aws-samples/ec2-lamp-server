@@ -75,7 +75,7 @@ Remote Administration
 
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
-- `SSMSessionManager`: SSM Session Manager URL link to change login user password. Password change command is in *Description* field.
+- `SSMSessionManager`: SSM Session Manager URL link. Use this for terminal access and to change login user password. Password change command is in *Description* field.
 - `DCVwebConsole`: NICE DCV web browser client URL link. Login as the user specified in *Description* field# 
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
