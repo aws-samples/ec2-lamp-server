@@ -69,8 +69,8 @@ LAMP configuration
 - `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant EC2 instance to. This is to be used if your domain DNS is hosted by Route 53 and you want to use Certbot to get SSL/TLS certificate using [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin. A `*` value will grant the EC2 instance access to all Route 53 zones in your AWS account. Default is empty.
 
 Remote Administration
-- `ingressIPv4`: allowed IPv4 source prefix, e.g. `1.2.3.4/32`. Get source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com)
-- `ingressIPv6`: allowed IPv6 source prefix. Use `::1/128` to block all incoming IPv6 access
+- `ingressIPv4`: allowed IPv4 source prefix to SSH and NICE DCV ports, e.g. `1.2.3.4/32`. Get source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`
+- `ingressIPv6`: allowed IPv6 source prefix to SSH and NICE DCV ports. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
 
 
 ### CloudFormation Outputs
