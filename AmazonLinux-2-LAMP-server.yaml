@@ -556,7 +556,7 @@ Resources:
           sed -i "s/^SSLProtocol/#&/" /etc/httpd/conf.d/ssl.conf
           sed -i "/^#SSLProtocol/a SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.d/ssl.conf
           sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
-          sed -i "/^#SSLCipherSuite/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
+          sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
 
           # virtual host: for CertBot
           cat << EoF > /etc/httpd/conf.d/www.conf
