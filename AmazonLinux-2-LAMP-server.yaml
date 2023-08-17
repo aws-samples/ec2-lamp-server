@@ -237,11 +237,7 @@ Resources:
                 Resource: !Sub
                   - "arn:${AWS::Partition}:s3:::${bucketName}"
                   - bucketName:
-                      !If [
-                        hasS3Bucket,
-                        !Ref s3BucketName,
-                        "NONEXISTENT-FAKE-BUCKET",
-                      ]
+                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -251,11 +247,7 @@ Resources:
                 Resource: !Sub
                   - "arn:${AWS::Partition}:s3:::${bucketName}/*"
                   - bucketName:
-                      !If [
-                        hasS3Bucket,
-                        !Ref s3BucketName,
-                        "NONEXISTENT-FAKE-BUCKET",
-                      ]
+                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
         - PolicyName: R53ZoneAccess
           PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
             Version: "2012-10-17"
@@ -271,7 +263,11 @@ Resources:
                 Resource: !Sub
                   - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
                   - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-FAKE-ZONE"]
+                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
+                Condition:
+                  ForAllValues:StringEquals:
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -558,7 +554,7 @@ Resources:
           sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
           sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
 
-          # virtual host: for CertBot
+          # virtual host: for Certbot
           cat << EoF > /etc/httpd/conf.d/www.conf
           <VirtualHost *:80>
               ServerAdmin webmaster@localhost
