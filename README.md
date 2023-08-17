@@ -116,6 +116,11 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
 
+- Verify your Apache configuration
+  ```
+  sudo apachectl -t
+  ```
+  
 - Restart Apache
   ```
   sudo systemctl restart httpd
