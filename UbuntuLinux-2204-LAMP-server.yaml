@@ -1,0 +1,711 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Ubuntu Linux 22.04 with LAMP stack (login as ubuntu)
+
+Metadata:
+  License:
+    Description: >
+      Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+      SPDX-License-Identifier: MIT-0
+
+      Permission is hereby granted, free of charge, to any person obtaining a copy of this
+      software and associated documentation files (the "Software"), to deal in the Software
+      without restriction, including without limitation the rights to use, copy, modify,
+      merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+      permit persons to whom the Software is furnished to do so.
+
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+      INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+      PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+      HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+      OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+      SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: EC2
+        Parameters:
+          - processorArchitecture
+          - instanceType
+          - ec2Name
+          - ec2KeyPair
+          - volumeSize
+      - Label:
+          default: VPC
+        Parameters:
+          - vpcID
+          - subnetID
+          - assignStaticIP
+          - displayPublicIP
+      - Label:
+          default: LAMP configuration
+        Parameters:
+          - databaseOption
+          - s3BucketName
+          - r53ZoneID
+      - Label:
+          default: Remote administration
+        Parameters:
+          - ingressIPv4
+          - ingressIPv6
+
+Parameters:
+  processorArchitecture:
+    Type: String
+    Description: Processor architecture
+    AllowedValues:
+      - Intel/AMD AMD64 (x86_64)
+      - Graviton ARM64 (aarch64)
+    Default: Graviton ARM64 (aarch64)
+  instanceType:
+    Type: String
+    Description: Instance Type (x86_64 or arm64) ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html )
+    Default: t4g.large
+
+  ec2Name:
+    Type: String
+    Description: EC2 instance name
+    Default: UbuntuLinux-22.04-LAMP-Stack
+  ec2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Key Pair name
+    ConstraintDescription: Specify a Key pairs
+    AllowedPattern: ".+"
+  volumeSize:
+    Type: Number
+    Description: Volume size in GiBs
+    Default: 20
+
+  vpcID:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC with internet connectivity
+    ConstraintDescription: Do specify a valid value
+    AllowedPattern: ".+"
+  subnetID:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet with internet connectivity
+    ConstraintDescription: Do specify a valid value
+    AllowedPattern: ".+"
+  assignStaticIP:
+    Type: String
+    Description: Associate static public IPv4 address ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html )
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+  displayPublicIP:
+    Type: String
+    Description: Display EC2 public IP in CloudFormation Outputs (select No if EC2 has no public IP)
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+
+  ingressIPv4:
+    Type: String
+    Description: Allowed source prefix (IPv4) to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )
+    Default: 0.0.0.0/0
+  ingressIPv6:
+    Type: String
+    Description: Allowed source prefix (IPv6) to SSH and NICE DCV
+    Default: ::/0
+
+  s3BucketName:
+    Type: String
+    Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
+    Default: ""
+  r53ZoneID:
+    Type: String
+    Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
+    Default: ""
+  databaseOption:
+    Type: String
+    Description: Database to install
+    Default: MySQL
+    AllowedValues:
+      - "MySQL"
+      - "MariaDB"
+      - "PostgreSQL"
+      - "none"
+
+Conditions:
+  useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
+  useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
+  displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
+  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
+  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+
+Resources:
+  securityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound DCV
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: SSH (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref ingressIPv4
+        - Description: SSH (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIpv6: !Ref ingressIPv6
+        - Description: NICE DCV (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: !Ref ingressIPv4
+        - Description: NICE DCV (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 8443
+          ToPort: 8443
+          CidrIpv6: !Ref ingressIPv6
+        - Description: NICE DCV QUIC (IPv4)
+          IpProtocol: "udp"
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: !Ref ingressIPv4
+        - Description: NICE DCV QUIC (IPv6)
+          IpProtocol: "udp"
+          FromPort: 8443
+          ToPort: 8443
+          CidrIpv6: !Ref ingressIPv6
+        - Description: HTTP (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - Description: HTTP (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIpv6: ::/0
+        - Description: HTTPS (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - Description: HTTPS (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIpv6: ::/0
+      SecurityGroupEgress:
+        - Description: Allow all outbound traffic (IPv4)
+          IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+        - Description: Allow all outbound traffic (IPv6)
+          IpProtocol: "-1"
+          CidrIpv6: ::/0
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+        - PolicyName: dcvLicensing
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
+        - PolicyName: S3BucketAccess
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}"
+                  - bucketName:
+                      !If [
+                        hasS3Bucket,
+                        !Ref s3BucketName,
+                        "NONEXISTENT-FAKE-BUCKET",
+                      ]
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
+                  - bucketName:
+                      !If [
+                        hasS3Bucket,
+                        !Ref s3BucketName,
+                        "NONEXISTENT-FAKE-BUCKET",
+                      ]
+        - PolicyName: R53ZoneAccess
+          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - route53:ListHostedZones
+                  - route53:GetChange
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
+                  - hostedZone:
+                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-FAKE-ZONE"]
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref instanceIamRole
+
+  ec2Instance:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT90M
+    Properties:
+      ImageId:
+        !If [
+          useARM64,
+          "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+          "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+        ]
+      InstanceType: !Ref instanceType
+      IamInstanceProfile: !Ref instanceProfile
+      KeyName: !Ref ec2KeyPair
+      SubnetId: !Ref subnetID
+      Monitoring: true
+      SecurityGroupIds:
+        - !Ref securityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref volumeSize
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          mkdir -p /tmp/cfn
+          cd /tmp/cfn
+
+          # https://stackoverflow.com/questions/33370297/apt-get-update-non-interactive
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+          # https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-ubuntu.html#agent-install-ubuntu-tabs
+
+          apt-get install -q -y wget tmux unzip tar curl sed
+          # https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/        
+          apt-get install -q -y python3 python3-setuptools python3-docutils python3-daemon
+          wget -4 -nv https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          tar -xf aws-cfn-bootstrap-py3-latest.tar.gz
+          cd aws-cfn-bootstrap-2.0
+          python3 setup.py build
+          python3 setup.py install
+
+          # cfn-init
+          python3 /usr/local/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+
+          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+          systemctl isolate multi-user.target
+
+          apt-get -q -y install ubuntu-desktop-minimal
+          apt-get -q -y install gdm3
+          apt-get -q -y install pulseaudio-utils epiphany-browser
+
+          # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
+          apt-get -q -y install dpkg-dev
+
+          sed -i "s/^#WaylandEnable=false/WaylandEnable=false/g" /etc/gdm3/custom.conf
+
+          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+          wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+          gpg --import NICE-GPG-KEY
+
+          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html#linux-server-install
+          if ((uname -a | grep x86 1>/dev/null) && (cat /etc/os-release | grep 22.04 1>/dev/null)); then
+            wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
+            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
+          else
+            wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
+            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
+          fi
+
+          apt-get -q -y install ./nice-dcv-server_*.deb
+          apt-get -q -y install ./nice-dcv-web-viewer_*.deb
+          usermod -aG video dcv 
+          apt-get -q -y install ./nice-xdcv_*.deb
+
+          # https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
+          cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
+          sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+
+          # session storage: https://docs.aws.amazon.com/dcv/latest/userguide/using-transfer.html
+          # https://docs.aws.amazon.com/dcv/latest/adminguide/managing-sessions-start.html#managing-sessions-start-manual
+          cat << EoF > /etc/systemd/system/dcv-virtual-session.service
+          [Unit]
+          Description=Create DCV virtual session
+          After=default.target network.target
+
+          [Service]
+          ExecStart=/opt/dcv-virtual-session.sh
+
+          [Install]
+          WantedBy=default.target
+          EoF
+
+          cat << EoF > /opt/dcv-virtual-session.sh
+          #!/bin/bash
+          dcvUser=ubuntu
+          while true;
+          do
+            if (/usr/bin/dcv list-sessions | grep \$dcvUser 1>/dev/null); then
+              sleep 5
+            else
+              /usr/bin/dcv create-session \$dcvUser --owner \$dcvUser --storage-root /home/\$dcvUser
+              /usr/bin/dcv list-sessions
+            fi
+          done
+          EoF
+          chmod +x /opt/dcv-virtual-session.sh
+
+          cd /tmp/cfn
+
+          # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+          apt-get autoremove -y
+          if (uname -a | grep x86 1>/dev/null); then
+            curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+          else
+            curl -s https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
+          fi
+          unzip -q -o awscliv2.zip
+          ./aws/install -b /usr/bin
+          echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
+
+          # DCV update script
+          cat << EoF > /home/ubuntu/update-dcv
+          #!/bin/bash
+          cd /tmp
+          if ((uname -a | grep x86 1>/dev/null) && (cat /etc/os-release | grep 22.04 1>/dev/null)); then
+            rm -f /tmp/ubuntu2204-x86_64.tgz
+            wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
+            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
+          else
+            rm -f /tmp/nice-dcv-ubuntu2204-aarch64.tgz
+            wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
+            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
+          fi
+          sudo dcv close-session ubuntu
+          sudo systemctl stop dcvserver dcv-virtual-session
+          sudo apt-get install -y ./nice-dcv-server_*.deb
+          sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
+          sudo apt-get install -y ./nice-xdcv_*.deb
+          sudo sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+          sudo systemctl restart dcvserver dcv-virtual-session
+          EoF
+          chmod +x /home/ubuntu/update-dcv
+          chown ubuntu:ubuntu /home/ubuntu/update-dcv
+
+          # AWS CLI update script
+          cat << EoF > /home/ubuntu/update-awscli
+          #!/bin/bash
+          cd /tmp
+          rm -f awscliv2.zip
+          if (uname -a | grep x86 1>/dev/null); then
+            curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+          else
+            curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
+          fi
+          unzip -q -o awscliv2.zip
+          sudo ./aws/install --update -b /usr/bin
+          EoF
+          chmod +x /home/ubuntu/update-awscli
+          chown ubuntu:ubuntu /home/ubuntu/update-awscli
+
+          # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
+          if (uname -a | grep x86 1>/dev/null); then
+            wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+          else
+            wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
+          fi
+          apt-get -q -y install ./mount-s3.deb
+
+          # Mountpoint update script
+          cat << EoF > /home/ubuntu/update-mountpoint-s3
+          #!/bin/bash
+          cd /tmp
+          if (uname -a | grep x86 1>/dev/null); then
+            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+          else
+            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
+          fi
+          sudo apt-get install -y ./mount-s3.deb
+          EoF
+          chmod +x /home/ubuntu/update-mount-s3
+          chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
+
+          # PHP install
+          apt-get install -q -y php8.1 php8.1-common php8.1-fpm php8.1-opcache
+          apt-get install -q -y php8.1-memcached php8.1-redis
+          apt-get install -q -y php8.1-mysql php8.1-pgsql
+          apt-get install -q -y php8.1-xml php8.1-xmlrpc php8.1-xsl php8.1-soap php8.1-ldap php8.1-zip php8.1-bz2 php8.1-intl php8.1-curl
+          apt-get install -q -y php8.1-mbstring php8.1-bcmath php8.1-imagick php8.1-gd
+          apt-get install -q -y composer
+
+          systemctl enable --now php8.1-fpm
+          systemctl stop php8.1-fpm
+
+          # PHP-FPM ini
+          cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
+
+          # https://www.php.net/manual/en/opcache.configuration.php
+          sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+          sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
+          sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
+
+          sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
+          sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
+          sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
+          sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
+
+          # Redis & Memcached
+          apt-get install -q -y redis-server memcached
+          systemctl enable --now redis-server memcached
+
+          # https://www.php.net/manual/en/class.sessionhandler.php
+          sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
+          sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
+          sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
+          sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
+
+          systemctl restart php8.1-fpm
+
+          # PHP CLI ini
+          cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
+          cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
+
+          # Apache
+          apt-get install -q -y apache2 libapache2-mod-fcgid
+          systemctl enable apache2
+
+          # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
+          a2dismod php8.1 
+          a2dismod mpm_prefork
+          a2enmod mpm_event proxy_fcgi setenvif
+          a2enconf php8.1-fpm
+
+          # Enable HTTPS 
+          a2enmod ssl
+          a2enmod rewrite
+          a2enmod http2
+          a2ensite default-ssl
+
+          systemctl restart apache2
+
+          # Database: MySQL, MariaDB or none
+          export DB="${databaseOption}"
+          case $DB in
+            MySQL)
+              apt-get install -q -y mysql-server-8.0
+              systemctl enable --now mysql
+              ;;
+            MariaDB)
+              apt-get install -q -y mariadb-server-10.6
+              systemctl enable --now mariadb
+              ;;
+            PostgreSQL)
+              apt-get install -q -y postgresql
+              systemctl enable --now postgresql
+          esac
+
+          # Certbot
+          apt-get install -q -y certbot python3-certbot-apache
+          apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
+
+          # NFS client
+          apt-get install -q -y nfs-common
+
+          # cachefilesd
+          apt-get install -q -y cachefilesd
+          systemctl enable --now cachefilesd
+
+          # Lustre: https://docs.aws.amazon.com/fsx/latest/LustreGuide/install-lustre-client.html
+          wget -O - https://fsx-lustre-client-repo-public-keys.s3.amazonaws.com/fsx-ubuntu-public-key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/fsx-ubuntu-public-key.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/fsx-ubuntu-public-key.gpg] https://fsx-lustre-client-repo.s3.amazonaws.com/ubuntu jammy main" > /etc/apt/sources.list.d/fsxlustreclientrepo.list 
+          apt-get update
+          apt install -y lustre-client-modules-aws
+
+          # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
+          apt-get install -q -y ruby-full
+          wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
+
+          # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
+          if (uname -a | grep x86 1>/dev/null); then
+            wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+          else
+            wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
+          fi
+          apt-get install -q -y ./amazon-cloudwatch-agent.deb
+
+          cat << EoF > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+          {
+            "agent": {
+              "metrics_collection_interval": 60,
+              "run_as_user": "cwagent"
+            },
+            "metrics": {
+              "aggregation_dimensions": [
+                [
+                  "InstanceId"
+                ]
+              ],
+              "append_dimensions": {
+                "AutoScalingGroupName": "\${!aws:AutoScalingGroupName}",
+                "ImageId": "\${!aws:ImageId}",
+                "InstanceId": "\${!aws:InstanceId}",
+                "InstanceType": "\${!aws:InstanceType}"
+              },
+              "metrics_collected": {
+                "disk": {
+                  "measurement": [
+                    "used_percent"
+                  ],
+                  "metrics_collection_interval": 60,
+                    "resources": [
+                      "/"
+                    ]
+                },
+                "mem": {
+                  "measurement": [
+                    "mem_used_percent"
+                  ],
+                  "metrics_collection_interval": 60
+                },                
+                "diskio": {
+                  "measurement": [
+                    "io_time"
+                  ],
+                  "metrics_collection_interval": 60,
+                  "resources": [
+                    "nvme0n1"
+                  ]
+                },
+                "cpu": {
+                  "measurement": [
+                    "cpu_usage_idle",
+                    "cpu_usage_iowait",
+                    "cpu_usage_user",
+                    "cpu_usage_system"
+                  ],
+                  "metrics_collection_interval": 60
+                }
+              }
+            }
+          }
+          EoF
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+          systemctl enable --now amazon-cloudwatch-agent
+
+          systemctl stop php8.1-fpm apache2
+          systemctl start php8.1-fpm apache2
+
+          # text console: DCV virtual sessions only
+          systemctl isolate multi-user.target
+          systemctl set-default multi-user.target
+
+          systemctl daemon-reload
+          systemctl enable --now dcvserver dcv-virtual-session.service
+
+          # cfn-init completed so signal success or not
+          python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: !Ref ec2Name
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  elasticIP:
+    Condition: useElasticIP
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref ec2Instance
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+Outputs:
+  EC2Instance:
+    Description: EC2 instance console
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
+
+  SSMsessionManager:
+    Description: SSM Session Manager login ("sudo passwd ubuntu" to change password)
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  DCVwebConsole:
+    Description: NICE DCV web browser client (login as ubuntu)
+    Value: !Sub
+      - "https://${IpAddress}:8443"
+      - IpAddress:
+          !If [
+            displayPublicIP,
+            !GetAtt ec2Instance.PublicIp,
+            !GetAtt ec2Instance.PrivateIp,
+          ]
+
+  WebUrl:
+    Description: Website
+    Value: !Sub
+      - "http://${IpAddress}"
+      - IpAddress:
+          !If [
+            displayPublicIP,
+            !GetAtt ec2Instance.PublicIp,
+            !GetAtt ec2Instance.PrivateIp,
+          ]
