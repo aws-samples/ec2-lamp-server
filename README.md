@@ -111,9 +111,8 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 
 - Modify Apache SSL configuration file (`/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2, `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux) as follows
   ```
-  SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/cert.pem
+  SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/fullchain.pem
   SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
-  SSLCertificateChainFile /etc/letsencrypt/live/<CERT-NAME>/chain.pem
   ```
   Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
 
