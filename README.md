@@ -87,13 +87,6 @@ Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 ## Using Certbot to obtain LetsEncrypt certificate
 Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are not familiar and [need help](https://certbot.eff.org/pages/help) with this tool.  
 
-### Using Certbot with apache plugin
-Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
-
-- From terminal, run the below command and read instructions carefully. You may need to reconfigure your Apache site settings.
-  ```
-  sudo certbot --apache
-  ```
 
 ### Using Certbot with certbot-dns-route53 plugin
 Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack, and a DNS entry is associated with your EC2 instance IP address.
@@ -124,6 +117,15 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 - Restart Apache
   ```
   sudo systemctl restart httpd
+  ```
+
+
+### Using Certbot with apache plugin
+Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
+
+- From terminal, run the below command and read instructions carefully. You may need to reconfigure your Apache site settings.
+  ```
+  sudo certbot --apache
   ```
 
 More information from [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates)
