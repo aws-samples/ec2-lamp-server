@@ -42,7 +42,7 @@ Based on public articles about PHP performance (many thanks to the authors), the
 - [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html) module
 - Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
 
-CloudFormation default processor architecture is Graviton as per [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
+CloudFormation default processor architecture option is Graviton as per [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
 
 
 ## Deployment via CloudFormation console
