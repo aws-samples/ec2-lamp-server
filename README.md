@@ -44,6 +44,7 @@ Based on public articles about PHP performance (many thanks to the authors), the
 
 CloudFormation default processor architecture is Graviton as per [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
 
+
 ## Deployment via CloudFormation console
 Download desired .yaml file based on the operating system ([Amazon Linx 2](https://aws.amazon.com/amazon-linux-2/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
 
