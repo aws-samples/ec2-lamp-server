@@ -65,7 +65,7 @@ VPC section
 LAMP configuration
 - `databaseOption`: option to install database engine of choice;  MySQL, MariaDB, PostgreSQL or none. MySQL option for Amazon Linux 2 use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to via IAM policy as per [Writing IAM Policies: How to Grant Access to an Amazon S3 Bucket](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant EC2 instance to all S3 buckets in your AWS account and is not recommended. Default is empty.
-- `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant EC2 instance to. This is to be used if your domain DNS is hosted by Route 53 and you want to use Certbot to get SSL/TLS certificate using [dns_route53](https://certbot-dns-route53.readthedocs.io/) plugin
+- `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant EC2 instance to. This is to be used if your domain DNS is hosted by Route 53 and you want to use Certbot to get SSL/TLS certificate using [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin
 
 Remote Administration
 - `ingressIPv4`: allowed IPv4 source prefix, e.g. `1.2.3.4/32`. Get source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com)
@@ -94,7 +94,7 @@ Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and 
   sudo certbot --apache
   ```
 
-### Using Certbot with dns_route53 plugin
+### Using Certbot with certbot-dns-route53 plugin
 Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack, and a DNS entry is associated with your EC2 instance IP address.
 
 - From terminal, execute the below command and follow instructions.  
