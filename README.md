@@ -115,9 +115,15 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   
 - Restart Apache
+  Amazon Linux 
   ```
   sudo systemctl restart httpd
   ```
+  Ubuntu Linux 
+  ```
+  sudo systemctl restart apache2
+  ```
+
 
 
 ### Using Certbot with apache plugin
