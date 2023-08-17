@@ -73,7 +73,7 @@ Parameters:
   volumeSize:
     Type: Number
     Description: Volume size in GiBs
-    Default: 50
+    Default: 20
 
   vpcID:
     Type: AWS::EC2::VPC::Id
