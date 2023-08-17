@@ -20,15 +20,15 @@ The template installs the following
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure remote terminal access
-- [CodeDeploy](https://aws.amazon.com/codedeploy/) agent
-- [CloudWatch](https://aws.amazon.com/cloudwatch/) agent
+- [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
+- [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) agent
 - [NFS](https://aws.amazon.com/efs/) client
 - [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) client
-- [AWS CLI v2](https://aws.amazon.com/blogs/developer/aws-cli-v2-is-now-generally-available/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
+- [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
 - (Optional) S3 bucket access : access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
 - [Certbot](https://certbot.eff.org/)
-- (Optional) Route 53 hosted zone access : access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
+- (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access : access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
 
   
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
