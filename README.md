@@ -76,11 +76,11 @@ Remote Administration
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `SSMSessionManager`: SSM Session Manager URL link. Use this for terminal access and to change login user password. Password change command is in *Description* field.
-- `DCVwebConsole`: NICE DCV web browser client URL link. Login as the user specified in *Description* field# 
+- `DCVwebConsole`: NICE DCV web browser client URL link#. Login as the user specified in *Description* field# 
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
 
-#Native NCIE DCV clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/).
+#Native NICE DCV clients can be downloaded from [https://download.nice-dcv.com/](https://download.nice-dcv.com/).
 Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 
 
@@ -97,12 +97,8 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   More information from [certbot-dns-route53 documentation site](https://certbot-dns-route53.readthedocs.io)
 
-- After certificate is issued, execute command
-  ```
-  sudo chmod 755 /etc/letsencrypt/live
-  ```
 
-- Modify Apache SSL configuration file (`/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2, `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux) and replace the existing values with the following 
+- Once certificate is issued, modify Apache SSL configuration file (`/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2, `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux) and replace the existing values with the following 
   ```
   SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/fullchain.pem
   SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
@@ -115,11 +111,11 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   
 - Restart Apache
-  Amazon Linux 
+  - Amazon Linux 
   ```
   sudo systemctl restart httpd
   ```
-  Ubuntu Linux 
+  - Ubuntu Linux 
   ```
   sudo systemctl restart apache2
   ```
@@ -129,12 +125,13 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 ### Using Certbot with apache plugin
 Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
 
-- From terminal, run the below command and read instructions carefully. You may need to reconfigure your Apache site settings.
+- From terminal, run the below command and read instructions carefully
   ```
   sudo certbot --apache
   ```
+  You may need to reconfigure your Apache site settings
 
-More information from [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates)
+Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates) for more information
 
 
 ## Security
