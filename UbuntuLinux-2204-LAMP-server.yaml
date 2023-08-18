@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux 22.04 with LAMP stack (login as ubuntu)
+Description: Ubuntu Linux 22.04 with LAMP stack
 
 Metadata:
   License:
@@ -335,8 +335,6 @@ Resources:
           python3 /usr/local/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
-          systemctl isolate multi-user.target
-
           apt-get -q -y install ubuntu-desktop-minimal
           apt-get -q -y install gdm3
           apt-get -q -y install pulseaudio-utils epiphany-browser
@@ -469,7 +467,7 @@ Resources:
           fi
           sudo apt-get install -y ./mount-s3.deb
           EoF
-          chmod +x /home/ubuntu/update-mount-s3
+          chmod +x /home/ubuntu/update-mountpoint-s3
           chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
 
           # PHP install
@@ -526,6 +524,8 @@ Resources:
           a2enmod ssl
           a2enmod rewrite
           a2enmod http2
+
+          # HTTPS site: for Certbot
           a2ensite default-ssl
 
           systemctl restart apache2
@@ -697,6 +697,6 @@ Outputs:
     Value:
       !If [
         displayPublicIP,
-        !Sub "https://${ec2Instance.PublicIp}",
-        !Sub "https://${ec2Instance.PrivateIp}",
+        !Sub "http://${ec2Instance.PublicIp}",
+        !Sub "http://${ec2Instance.PrivateIp}",
       ]
