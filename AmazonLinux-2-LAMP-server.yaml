@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Amazon Linux 2 with LAMP stack (login as ec2-user)
+Description: Amazon Linux 2 with LAMP stack
 
 Metadata:
   License:
@@ -40,6 +40,7 @@ Metadata:
           default: LAMP configuration
         Parameters:
           - databaseOption
+          - phpVersion
           - s3BucketName
           - r53ZoneID
       - Label:
@@ -63,7 +64,7 @@ Parameters:
 
   ec2Name:
     Type: String
-    Description: EC2 instance name
+    # Description: EC2 instance name
     Default: AmazonLinux-2-LAMP-Stack
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
@@ -126,6 +127,13 @@ Parameters:
       - "MySQL"
       - "PostgreSQL"
       - "none"
+  phpVersion:
+    Type: String
+    Description: PHP version to install
+    Default: php8.1
+    AllowedValues:
+      - "php8.1"
+      - "php8.2"
 
 Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
@@ -267,7 +275,6 @@ Resources:
                 Condition:
                   ForAllValues:StringEquals:
                     "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -460,11 +467,11 @@ Resources:
           fi
           sudo yum install -y ./mount-s3.rpm
           EoF
-          chmod +x /home/ec2-user/update-mount-s3
+          chmod +x /home/ec2-user/update-mountpoint-s3
           chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3
 
           # PHP install
-          amazon-linux-extras enable php8.1
+          amazon-linux-extras enable ${phpVersion}
           yum clean metadata
           yum install -q -y php-cli php-fpm php-opcache php-intl
           yum install -q -y php-mysqlnd php-pgsql php-pdo
@@ -611,6 +618,7 @@ Resources:
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           yum install -q -y amazon-cloudwatch-agent
+
           cat << EoF > /opt/aws/amazon-cloudwatch-agent/bin/config.json
           {
             "agent": {
@@ -670,13 +678,13 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
 
+          systemctl stop php-fpm httpd
+          systemctl start php-fpm httpd
+
           # yum-cron
           yum install -q -y yum-cron
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
           systemctl enable --now yum-cron
-
-          systemctl stop php-fpm httpd
-          systemctl start php-fpm httpd
 
           # text console: DCV virtual sessions only
           systemctl isolate multi-user.target
@@ -724,22 +732,18 @@ Outputs:
 
   DCVwebConsole:
     Description: NICE DCV web browser client (login as ec2-user)
-    Value: !Sub
-      - "https://${IpAddress}:8443"
-      - IpAddress:
-          !If [
-            displayPublicIP,
-            !GetAtt ec2Instance.PublicIp,
-            !GetAtt ec2Instance.PrivateIp,
-          ]
+    Value:
+      !If [
+        displayPublicIP,
+        !Sub "https://${ec2Instance.PublicIp}:8443",
+        !Sub "https://${ec2Instance.PrivateIp}:8443",
+      ]
 
   WebUrl:
     Description: Website
-    Value: !Sub
-      - "http://${IpAddress}"
-      - IpAddress:
-          !If [
-            displayPublicIP,
-            !GetAtt ec2Instance.PublicIp,
-            !GetAtt ec2Instance.PrivateIp,
-          ]
+    Value:
+      !If [
+        displayPublicIP,
+        !Sub "http://${ec2Instance.PublicIp}",
+        !Sub "http://${ec2Instance.PrivateIp}",
+      ]
