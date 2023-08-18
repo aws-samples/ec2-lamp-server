@@ -23,12 +23,11 @@ The template installs the following
 - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
 - [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) agent
 - [NFS](https://aws.amazon.com/efs/) client
-- [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) client
 - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
-- [Amazon S3](https://aws.amazon.com/s3/) bucket access (optional): access to specific S3 bucket via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
+- (Optional) [Amazon S3](https://aws.amazon.com/s3/) bucket access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
 - [Certbot](https://certbot.eff.org/)
-- [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access (optional): access to specific Route 53 hosted zone via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
+- (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
 
   
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
@@ -39,7 +38,7 @@ Based on public articles about PHP performance (many thanks to the authors), the
 
 - PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [Make your PHP 8 apps twice as fast (OPCache & JIT)](https://medium.com/@edouard.courty/make-your-php-8-apps-twice-as-fast-opcache-jit-8d3542276595)
 - [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/) 
-- [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html) module
+- [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html)
 - Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
 
 CloudFormation default processor architecture option is Graviton as per [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php). 
@@ -50,14 +49,14 @@ Download desired .yaml file based on desired operating system ([Amazon Linx 2](h
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Specify a **Stack name** and specify parameters values. 
 
-EC2 section
+EC2
 - `processorArchitecture`: Intel/AMD or [Graviton ARM64](https://aws.amazon.com/ec2/graviton/). Default is `Graviton ARM64 (aarch64)`
 - `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, use [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
 - `ec2Name`: EC2 instance name 
-- `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. Value is mandatory
+- `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
 
-VPC section
+VPC
 - `vpcID`: [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) with internet connectivity. Select [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) if unsure
 - `subnetID`: subnet with internet connectivity. Select subnet in default VPC if unsure
 - `assignStaticIP`: associates a static public IPv4 address using [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html). Default is `Yes`
