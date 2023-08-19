@@ -4,9 +4,9 @@ Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. 
 
-This repo provides starter CloudFormation template to provision a EC2 LAMP/LEMP/LAPP/LEPP server instance. The EC2 instance can be used for software development, or deployment of LAMP/LAPP/LEMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
+This repo provides starter CloudFormation template to provision a EC2 LAMP/LEMP/LAPP/LEPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
 
-For use cases that require high performance, reliability, scalability and high availability, users should re-architect their LAMP applications. Some resources that can help with the design includes:
+For use cases that require high performance, reliability, scalability and high availability, users should re-architect their applications. Some resources that can help with the design includes:
 - [AWS Well-Architected](https://aws.amazon.com/architecture/well-architected/)
 - [AWS Architecture Center](https://aws.amazon.com/architecture) including [Scaling PHP Applications on AWS](https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/scaling-PHP-applications-on-AWS-ra.pdf)
 - [Moodle Reference Architecture](https://docs.aws.amazon.com/architecture-diagrams/latest/moodle-learning-management-system-on-aws/moodle-learning-management-system-on-aws.html)
