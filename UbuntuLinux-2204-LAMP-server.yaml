@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux 22.04 with LAMP/LAPP/LEPP stack
+Description: Ubuntu Linux 22.04 with LAMP/LEPP/LAPP/LEPP stack
 
 Metadata:
   License:
