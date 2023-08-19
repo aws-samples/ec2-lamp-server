@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Amazon Linux 2 with LAMP/LAPP/LEPP stack
+Description: Amazon Linux 2 with LAMP/LEPP/LAPP/LEPP stack
 
 Metadata:
   License:
