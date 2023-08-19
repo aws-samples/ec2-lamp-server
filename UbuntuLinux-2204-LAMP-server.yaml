@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux 22.04 with LAMP stack
+Description: Ubuntu Linux 22.04 with LAMP/LAPP/LEPP stack
 
 Metadata:
   License:
@@ -39,6 +39,7 @@ Metadata:
       - Label:
           default: LAMP configuration
         Parameters:
+          - webOption
           - databaseOption
           - s3BucketName
           - r53ZoneID
@@ -109,6 +110,22 @@ Parameters:
     Description: Allowed source prefix (IPv6) to SSH and NICE DCV
     Default: ::/0
 
+  webOption:
+    Type: String
+    Description: Web server to install
+    AllowedValues:
+      - "Apache"
+      - "Nginx"
+    Default: "Apache"
+  databaseOption:
+    Type: String
+    Description: Database to install
+    AllowedValues:
+      - "MariaDB"
+      - "MySQL"
+      - "PostgreSQL"
+      - "none"
+    Default: "MySQL"
   s3BucketName:
     Type: String
     Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
@@ -117,15 +134,6 @@ Parameters:
     Type: String
     Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
     Default: ""
-  databaseOption:
-    Type: String
-    Description: Database to install
-    Default: MySQL
-    AllowedValues:
-      - "MySQL"
-      - "MariaDB"
-      - "PostgreSQL"
-      - "none"
 
 Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
@@ -471,11 +479,11 @@ Resources:
           chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
 
           # PHP install
-          apt-get install -q -y php8.1 php8.1-common php8.1-fpm php8.1-opcache
-          apt-get install -q -y php8.1-memcached php8.1-redis
-          apt-get install -q -y php8.1-mysql php8.1-pgsql
-          apt-get install -q -y php8.1-xml php8.1-xmlrpc php8.1-xsl php8.1-soap php8.1-ldap php8.1-zip php8.1-bz2 php8.1-intl php8.1-curl
-          apt-get install -q -y php8.1-mbstring php8.1-bcmath php8.1-imagick php8.1-gd
+          apt-get install -q -y php8.1 php8.1-{common,fpm,opcache}
+          apt-get install -q -y php8.1-{memcached,redis}
+          apt-get install -q -y php8.1-{mysql,pgsql}
+          apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
+          apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
           apt-get install -q -y composer
 
           systemctl enable --now php8.1-fpm
@@ -510,25 +518,52 @@ Resources:
           cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
           cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
 
-          # Apache
-          apt-get install -q -y apache2 libapache2-mod-fcgid
-          systemctl enable apache2
+          # Certbot
+          apt-get install -q -y certbot 
+          apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
 
-          # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
-          a2dismod php8.1 
-          a2dismod mpm_prefork
-          a2enmod mpm_event proxy_fcgi setenvif
-          a2enconf php8.1-fpm
+          # Web server: Apache or Nginx
+          export WEB="${webOption}"
+          case $WEB in
+            Apache)
+              apt-get install -q -y python3-certbot-apache
+              apt-get install -q -y apache2 libapache2-mod-fcgid
+              systemctl enable apache2
 
-          # Enable HTTPS 
-          a2enmod ssl
-          a2enmod rewrite
-          a2enmod http2
+              # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
+              a2dismod php8.1
+              a2dismod mpm_prefork
+              a2enmod mpm_event proxy_fcgi setenvif
+              a2enconf php8.1-fpm
 
-          # HTTPS site: for Certbot
-          a2ensite default-ssl
+              # Enable HTTPS 
+              a2enmod ssl
+              a2enmod rewrite
+              a2enmod http2
 
-          systemctl restart apache2
+              # HTTPS site: for Certbot
+              a2ensite default-ssl
+
+              systemctl restart apache2
+              ;;
+
+            Nginx)
+              apt-get install -q -y python3-certbot-nginx
+              apt-get install -q -y nginx-full
+              systemctl enable nginx
+
+              # Enable HTTPS and PHP8.1-FPM
+              cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
+              sed -i "27,28s/#//g" /etc/nginx/sites-available/default
+              sed -i "39,39s/#//g" /etc/nginx/sites-available/default
+              sed -i "56,57s/#//g" /etc/nginx/sites-available/default
+              sed -i "60,60s/#//g" /etc/nginx/sites-available/default
+              sed -i "s/7.4/8.1/g" /etc/nginx/sites-available/default
+              sed -i "63,63s/#//g" /etc/nginx/sites-available/default
+
+              systemctl restart nginx
+              ;;
+          esac
 
           # Database: MySQL, MariaDB or none
           export DB="${databaseOption}"
@@ -545,10 +580,6 @@ Resources:
               apt-get install -q -y postgresql
               systemctl enable --now postgresql
           esac
-
-          # Certbot
-          apt-get install -q -y certbot python3-certbot-apache
-          apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
 
           # NFS client
           apt-get install -q -y nfs-common
@@ -636,8 +667,6 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
 
-          systemctl stop php8.1-fpm apache2
-          systemctl start php8.1-fpm apache2
 
           # text console: DCV virtual sessions only
           systemctl isolate multi-user.target
