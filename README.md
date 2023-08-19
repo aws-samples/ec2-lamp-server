@@ -87,9 +87,10 @@ Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 ## Using Certbot to obtain HTTPS certificate
 Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are not familiar and/or [need help](https://certbot.eff.org/pages/help) with this tool.  
 
+Create a DNS A record entry that resolves to your EC2 instance IP address, and ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack. 
 
 ### Using Certbot with certbot-dns-route53 plugin
-Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack, and a DNS entry is associated with your EC2 instance public IP address.
+Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack
 
 - From terminal, execute the below command and follow instructions.  
   ```
@@ -123,7 +124,6 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 
 
 ### Using Certbot with apache plugin
-Ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack and a DNS entry is associated with your EC2 instance IP address.
 
 - From terminal, run the below command and read instructions carefully
   ```
