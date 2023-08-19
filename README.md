@@ -103,7 +103,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 - Modify your web server configuration file to use the issued cert.
   - Apache
   
-  Edit either `/etc/httpd/conf.d/ssl.conf` (Amazon Linux) or `/etc/apache2/sites-available/default-ssl.conf` (Ubuntu Linux), and replace the existing entries with the following 
+    Edit either `/etc/httpd/conf.d/ssl.conf` (Amazon Linux) or `/etc/apache2/sites-available/default-ssl.conf` (Ubuntu Linux), and replace the existing entries with the following 
   ```
   SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/fullchain.pem
   SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
@@ -111,7 +111,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
   - Nginx 
   
-  Edit `/etc/nginx/nginx.conf` and replace the existing entries with the following
+    Edit `/etc/nginx/nginx.conf` (Amazon Linux) or `/etc/nginx/sites-available/default` (Ubuntu Linux), and replace the existing entries with the following
   ```
   ssl_certificate "/etc/letsencrypt/live/<CERT-NAME>/fullchain.pem";
   ssl_certificate_key "/etc/letsencrypt/live/<CERT-NAME>/privkey.pem";
@@ -166,8 +166,8 @@ Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stab
 
 ## Securing your EC2 instance
 To futher secure your EC2 instance, you may want to
-- Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote into your console
-- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://aws.amazon.com/waf/) to protect your EC2 from DDoS attacks. 
+- Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote in
+- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://aws.amazon.com/waf/) to protect your EC2 from DDoS attacks 
 
 
 ## Security
