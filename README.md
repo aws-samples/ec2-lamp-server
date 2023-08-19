@@ -129,15 +129,15 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   
 - Restart web server
-  - Apache: Amazon Linux 
+  - Apache (Amazon Linux) 
   ```
   sudo systemctl restart httpd
   ```
-  - Apache: Ubuntu Linux 
+  - Apache (Ubuntu Linux)
   ```
   sudo systemctl restart apache2
   ```
-  - Nginx: Amazon Linux / Ubuntu Linux
+  - Nginx
   ```
   sudo systemctl restart nginx
   ```
