@@ -99,26 +99,46 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   More information from [certbot-dns-route53 documentation site](https://certbot-dns-route53.readthedocs.io)
 
 
-- Once certificate is issued, modify Apache SSL configuration file (`/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2, `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux) and replace the existing values with the following 
+- Modify your web server configuration file to use the issued cert.
+  - Apache
+  
+  Edit `/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2 or `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux, and replace the existing entries with the following 
   ```
   SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/fullchain.pem
   SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
   ```
   Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
-
-- Verify your Apache configuration
+  - Nginx 
+  
+  Edit `/etc/nginx/nginx.conf` and replace the existing entries with the following
+  ```
+  ssl_certificate "/etc/letsencrypt/live/<CERT-NAME>/fullchain.pem";
+  ssl_certificate_key "/etc/letsencrypt/live/<CERT-NAME>/privkey.pem";
+  ```
+  Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
+  
+- Verify your configuration
+  - Apache 
   ```
   sudo apachectl -t
   ```
+  - Nginx
+  ```
+  sudo nginx -t
+  ```
   
-- Restart Apache
-  - Amazon Linux 
+- Restart web server
+  - Apache: Amazon Linux 
   ```
   sudo systemctl restart httpd
   ```
-  - Ubuntu Linux 
+  - Apache: Ubuntu Linux 
   ```
   sudo systemctl restart apache2
+  ```
+  - Nginx: Amazon Linux / Ubuntu Linux
+  ```
+  sudo systemctl restart nginx
   ```
 
 
@@ -129,7 +149,16 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   sudo certbot --apache
   ```
-  You may need to reconfigure your Apache site settings
+  You may need to reconfigure your Apache site settings after certificate is issued
+
+### Using Certbot with nginx plugin
+
+- From terminal, run the below command and read instructions carefully
+  ```
+  sudo certbot --nginx
+  ```
+  You may need to reconfigure your Nginx site settings after certificate is issued
+
 
 Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates) for more information
 
