@@ -167,7 +167,7 @@ Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stab
 ## Securing your EC2 instance
 To futher secure your EC2 instance, you may want to
 - Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote in
-- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://aws.amazon.com/waf/) to protect your EC2 from DDoS attacks 
+- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://aws.amazon.com/waf/) to protect your EC2 from DDoS attacks. If you need help setting up CloudFront, you can try [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template. 
 
 
 ## Security
