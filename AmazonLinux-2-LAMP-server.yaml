@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Amazon Linux 2 with LAMP stack
+Description: Amazon Linux 2 with LAMP/LAPP/LEPP stack
 
 Metadata:
   License:
@@ -39,8 +39,9 @@ Metadata:
       - Label:
           default: LAMP configuration
         Parameters:
-          - databaseOption
+          - webOption
           - phpVersion
+          - databaseOption
           - s3BucketName
           - r53ZoneID
       - Label:
@@ -64,7 +65,7 @@ Parameters:
 
   ec2Name:
     Type: String
-    # Description: EC2 instance name
+    Description: EC2 instance name
     Default: AmazonLinux-2-LAMP-Stack
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
@@ -110,6 +111,29 @@ Parameters:
     Description: Allowed source prefix (IPv6) to SSH and NICE DCV
     Default: ::/0
 
+  webOption:
+    Type: String
+    Description: Web server to install
+    AllowedValues:
+      - "Apache"
+      - "Nginx"
+    Default: "Apache"
+  databaseOption:
+    Type: String
+    Description: Database to install
+    AllowedValues:
+      - "MariaDB"
+      - "MySQL"
+      - "PostgreSQL"
+      - "none"
+    Default: "MariaDB"
+  phpVersion:
+    Type: String
+    Description: PHP version to install
+    AllowedValues:
+      - "php8.1"
+      - "php8.2"
+    Default: "php8.1"
   s3BucketName:
     Type: String
     Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
@@ -118,22 +142,6 @@ Parameters:
     Type: String
     Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
     Default: ""
-  databaseOption:
-    Type: String
-    Description: Database to install
-    Default: MariaDB
-    AllowedValues:
-      - "MariaDB"
-      - "MySQL"
-      - "PostgreSQL"
-      - "none"
-  phpVersion:
-    Type: String
-    Description: PHP version to install
-    Default: php8.1
-    AllowedValues:
-      - "php8.1"
-      - "php8.2"
 
 Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
@@ -473,10 +481,11 @@ Resources:
           # PHP install
           amazon-linux-extras enable ${phpVersion}
           yum clean metadata
-          yum install -q -y php-cli php-fpm php-opcache php-intl
-          yum install -q -y php-mysqlnd php-pgsql php-pdo
-          yum install -q -y php-xml php-soap php-ldap 
-          yum install -q -y php-mbstring php-bcmath php-gd
+          yum install -q -y php-{cli,fpm,opcache}
+          yum install -q -y php-{mysqlnd,pgsql,pdo}
+          yum install -q -y php-{xml,soap,ldap,intl}
+          yum install -q -y php-{mbstring,bcmath,gd}
+          yum remove -y mod_php
 
           systemctl enable --now php-fpm
           systemctl stop php-fpm
@@ -544,37 +553,70 @@ Resources:
 
           systemctl restart php-fpm
 
-          # Apache
-          yum install -q -y httpd mod_ssl mod_fcgid
-          yum remove -y mod_php
-          systemctl enable --now httpd
-
-          # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
-          cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
-          sed -i "s/^LoadModule mpm_prefork_module/#&/" /etc/httpd/conf.modules.d/00-mpm.conf
-          sed -i "/^#LoadModule mpm_event_module/a LoadModule mpm_event_module modules/mod_mpm_event.so" /etc/httpd/conf.modules.d/00-mpm.conf
-
-          # Harden TLS
-          cp /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf."`date +"%Y-%m-%d"`"
-          sed -i "s/^SSLProtocol/#&/" /etc/httpd/conf.d/ssl.conf
-          sed -i "/^#SSLProtocol/a SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.d/ssl.conf
-          sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
-          sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
-
-          # virtual host: for Certbot
-          cat << EoF > /etc/httpd/conf.d/www.conf
-          <VirtualHost *:80>
-              ServerAdmin webmaster@localhost
-              DocumentRoot /var/www/html
-          </VirtualHost>
-          EoF
-
-          systemctl stop httpd
-          systemctl start httpd
-
           # EPEL
           amazon-linux-extras install -y epel
           yum install -q -y composer
+
+          # Certbot
+          yum install -q -y certbot
+          yum install -q -y python2-certbot-dns-route53
+
+          # Web server: Apache or Nginx
+          export WEB="${webOption}"
+          case $WEB in
+            Apache)
+              yum install -q -y python2-certbot-apache
+              yum install -q -y httpd mod_ssl mod_fcgid
+
+              # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
+              cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
+              sed -i "s/^LoadModule mpm_prefork_module/#&/" /etc/httpd/conf.modules.d/00-mpm.conf
+              sed -i "/^#LoadModule mpm_event_module/a LoadModule mpm_event_module modules/mod_mpm_event.so" /etc/httpd/conf.modules.d/00-mpm.conf
+
+              # Harden TLS
+              cp /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf."`date +"%Y-%m-%d"`"
+              sed -i "s/^SSLProtocol/#&/" /etc/httpd/conf.d/ssl.conf
+              sed -i "/^#SSLProtocol/a SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.d/ssl.conf
+              sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
+              sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
+
+              # virtual host: for Certbot
+              cat << EoF > /etc/httpd/conf.d/www.conf
+          <VirtualHost *:80>
+            ServerAdmin webmaster@localhost
+            DocumentRoot /var/www/html
+          </VirtualHost>
+          EoF
+
+              systemctl enable --now httpd
+              ;;
+            Nginx)
+              yum install -q -y python2-certbot-nginx
+              amazon-linux-extras install -y nginx1
+              systemctl enable nginx
+              systemctl stop nginx
+              cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
+
+              # Enable HTTPS
+              sed -i "58,82s/^#//g" /etc/nginx/nginx.conf
+              
+              # Ciphers
+              sed -i "s/ssl_ciphers/#&/" /etc/nginx/nginx.conf
+              sed -i "/#ssl_ciphers/a \        \ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;" /etc/nginx/nginx.conf
+
+              # Dummy Certificate
+              mkdir -p /etc/pki/tls/nginx
+              cd /etc/pki/tls/nginx
+              /etc/pki/tls/certs/make-dummy-cert server.pem
+              sed -i "s/ssl_certificate/#&/" /etc/nginx/nginx.conf
+              sed -i "/#ssl_certificate /a \        \ssl_certificate \"/etc/pki/tls/nginx/server.pem\";" /etc/nginx/nginx.conf
+              sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-enabled/ssl.conf
+              sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/server.pem\";" /etc/nginx/nginx.conf
+              cd /tmp/cfn
+
+              systemctl restart nginx
+              ;;
+          esac
 
           # Database: MySQL, MariaDB or none
           export DB="${databaseOption}"
@@ -594,11 +636,8 @@ Resources:
               yum install -y postgresql postgresql-server
               /usr/bin/postgresql-setup --initdb
               systemctl enable --now postgresql
+              ;;
           esac
-
-          # Certbot
-          yum install -q -y certbot python2-certbot-apache
-          yum install -q -y python2-certbot-dns-route53
 
           # NFS client
           yum install -q -y amazon-efs-utils
@@ -677,9 +716,6 @@ Resources:
           EoF
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
-
-          systemctl stop php-fpm httpd
-          systemctl start php-fpm httpd
 
           # yum-cron
           yum install -q -y yum-cron
