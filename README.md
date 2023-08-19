@@ -67,7 +67,7 @@ LAMP configuration
 - `webOption`: option to select Apache or Nginx web server
 - `databaseOption`: option to install either MySQL, MariaDB, PostgreSQL database server or none. MySQL option for Amazon Linux 2 use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to [via IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is not recommended. Default is empty.
-- `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access to. Enable this if your DNS is on Route 53 and you want to use Certbot with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin to get HTTPS certificates. A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to TXT DNS records only using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty. 
+- `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access to. Enable this if your DNS is on Route 53 and you want to use Certbot with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin to get HTTPS certificate. A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to TXT DNS records only using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty. 
 
 Remote Administration
 - `ingressIPv4`: allowed IPv4 source prefix to SSH and NICE DCV ports, e.g. `1.2.3.4/32`. Get source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`
@@ -76,7 +76,7 @@ Remote Administration
 
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
-- `SSMSessionManager`: SSM Session Manager URL link. Use this for terminal access and to change login user password. Password change command is in *Description* field.
+- `SSMSessionManager`: SSM Session Manager URL link. Use this for [shell access](https://aws.amazon.com/blogs/aws/new-session-manager/) and to change login user password. Password change command is in *Description* field.
 - `DCVwebConsole`: NICE DCV web browser client URL link#. Login as the user specified in *Description* field 
 - `EC2Instance`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
 - `WebUrl`: EC2 web server URL link
@@ -88,9 +88,9 @@ Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 ## Using Certbot to obtain HTTPS certificate
 Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are not familiar and/or [need help](https://certbot.eff.org/pages/help) with this tool.  
 
-Create a DNS A record entry that resolves to your EC2 instance IP address, and ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack. 
+[Create a DNS A record entry](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html) that resolves to your EC2 instance IP address, and ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack. 
 
-### With certbot-dns-route53 plugin
+### Using certbot-dns-route53 plugin
 Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack
 
 - From terminal, execute the below command and follow instructions.  
@@ -144,7 +144,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 
 
 
-### With apache plugin
+### Using apache plugin
 
 - From terminal, run the below command and read instructions carefully
   ```
@@ -152,7 +152,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   You may need to reconfigure your Apache site settings after certificate is issued
 
-### With nginx plugin
+### Using nginx plugin
 
 - From terminal, run the below command and read instructions carefully
   ```
@@ -167,8 +167,9 @@ Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stab
 ## Securing your EC2 instance
 To futher secure your EC2 instance, you may want to
 - Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote in
-- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://aws.amazon.com/waf/) to protect your EC2 from DDoS attacks. If you need help setting up CloudFront, you can try [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template. 
-
+- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF security protections](https://aws.amazon.com/blogs/networking-and-content-delivery/mitigate-common-web-threats-with-one-click-in-amazon-cloudfront/) to protect your instance from DDoS attacks. The [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template may help with initial setup.
+- Backup data on your EBS volumes with [EBS snapshots](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html). You can setup automatic snapshots using [Amazon Data Lifecycle Manager](https://aws.amazon.com/blogs/storage/automating-amazon-ebs-snapshots-management-using-data-lifecycle-manager/) or [AWS Backup](https://aws.amazon.com/blogs/aws/aws-backup-ec2-instances-efs-single-file-restore-and-cross-region-backup/)
+- Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) threat detection
 
 ## Security
 
