@@ -48,23 +48,54 @@ Metadata:
         Parameters:
           - ingressIPv4
           - ingressIPv6
+    ParameterLabels:
+      processorArchitecture:
+        default: "Processor architecture (x86_64 or arm64)"
+      instanceType:
+        default: "Instance type"
+      ec2Name:
+        default: "Instance name"
+      ec2KeyPair:
+        default: "Keypair name"
+      volumeSize:
+        default: "Volume size"
+      vpcID:
+        default: "VPC with internet connectivity"
+      subnetID:
+        default: "Subnet with internet connectivity"
+      assignStaticIP:
+        default: "Assign static internet IPv4 address?"
+      displayPublicIP:
+        default: "Display public internet IP?"
+      ingressIPv4:
+        default: "Allowed IPv4 prefix to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )"
+      ingressIPv6:
+        default: "Allowed IPv6 prefix to SSH and NICE DCV"
+      webOption:
+        default: "Web server to install?"
+      databaseOption:
+        default: "Database server to install?"
+      s3BucketName:
+        default: "(optional) S3 bucket name to grant access to"
+      r53ZoneID:
+        default: "(optional) Route 53 hosted zone to grant access to"
 
 Parameters:
   processorArchitecture:
     Type: String
-    Description: Processor architecture
+    #Description: Processor architecture
     AllowedValues:
       - Intel/AMD AMD64 (x86_64)
       - Graviton ARM64 (aarch64)
     Default: Graviton ARM64 (aarch64)
   instanceType:
     Type: String
-    Description: Instance Type (x86_64 or arm64) ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html )
+    #Description: Instance Type (x86_64 or arm64) ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html )
     Default: t4g.large
 
   ec2Name:
     Type: String
-    Description: EC2 instance name
+    #Description: EC2 instance name
     Default: UbuntuLinux-22.04-LAMP-Stack
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
@@ -73,29 +104,29 @@ Parameters:
     AllowedPattern: ".+"
   volumeSize:
     Type: Number
-    Description: Volume size in GiBs
+    #Description: Volume size in GiBs
     Default: 20
 
   vpcID:
     Type: AWS::EC2::VPC::Id
-    Description: VPC with internet connectivity
+    #Description: VPC with internet connectivity
     ConstraintDescription: Do specify a valid value
     AllowedPattern: ".+"
   subnetID:
     Type: AWS::EC2::Subnet::Id
-    Description: Subnet with internet connectivity
+    #Description: Subnet with internet connectivity
     ConstraintDescription: Do specify a valid value
     AllowedPattern: ".+"
   assignStaticIP:
     Type: String
-    Description: Associate static public IPv4 address ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html )
+    #Description: Associate static public IPv4 address ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html )
     AllowedValues:
       - "Yes"
       - "No"
     Default: "Yes"
   displayPublicIP:
     Type: String
-    Description: Display EC2 public IP in CloudFormation Outputs (select No if EC2 has no public IP)
+    #Description: Display EC2 public IP in CloudFormation Outputs (select No if EC2 has no public IP)
     AllowedValues:
       - "Yes"
       - "No"
@@ -103,23 +134,23 @@ Parameters:
 
   ingressIPv4:
     Type: String
-    Description: Allowed source prefix (IPv4) to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )
+    #Description: Allowed source prefix (IPv4) to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )
     Default: 0.0.0.0/0
   ingressIPv6:
     Type: String
-    Description: Allowed source prefix (IPv6) to SSH and NICE DCV
+    #Description: Allowed source prefix (IPv6) to SSH and NICE DCV
     Default: ::/0
 
   webOption:
     Type: String
-    Description: Web server to install
+    #Description: Web server to install
     AllowedValues:
       - "Apache"
       - "Nginx"
     Default: "Apache"
   databaseOption:
     Type: String
-    Description: Database to install
+    #Description: Database to install
     AllowedValues:
       - "MariaDB"
       - "MySQL"
@@ -128,11 +159,11 @@ Parameters:
     Default: "MySQL"
   s3BucketName:
     Type: String
-    Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
+    #Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
     Default: ""
   r53ZoneID:
     Type: String
-    Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
+    #Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
     Default: ""
 
 Conditions:
@@ -546,14 +577,13 @@ Resources:
 
               systemctl restart apache2
               ;;
-
             Nginx)
               apt-get install -q -y python3-certbot-nginx
               apt-get install -q -y nginx-full
               systemctl enable nginx
 
-              # Enable HTTPS and PHP8.1-FPM
               cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
+              # Enable HTTPS and PHP8.1-FPM
               sed -i "27,28s/#//g" /etc/nginx/sites-available/default
               sed -i "39,39s/#//g" /etc/nginx/sites-available/default
               sed -i "56,57s/#//g" /etc/nginx/sites-available/default
@@ -579,6 +609,7 @@ Resources:
             PostgreSQL)
               apt-get install -q -y postgresql
               systemctl enable --now postgresql
+              ;;
           esac
 
           # NFS client
