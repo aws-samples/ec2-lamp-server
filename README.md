@@ -90,7 +90,7 @@ Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are n
 
 Create a DNS A record entry that resolves to your EC2 instance IP address, and ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack. 
 
-### Using Certbot with certbot-dns-route53 plugin
+### With certbot-dns-route53 plugin
 Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack
 
 - From terminal, execute the below command and follow instructions.  
@@ -144,7 +144,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 
 
 
-### Using Certbot with apache plugin
+### With apache plugin
 
 - From terminal, run the below command and read instructions carefully
   ```
@@ -152,7 +152,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   You may need to reconfigure your Apache site settings after certificate is issued
 
-### Using Certbot with nginx plugin
+### With nginx plugin
 
 - From terminal, run the below command and read instructions carefully
   ```
