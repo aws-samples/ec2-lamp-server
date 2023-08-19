@@ -1,5 +1,5 @@
 ## ec2-lamp-server
-Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision [Amazon EC2](https://aws.amazon.com/ec2/) instance with LAMP or LAPP stack.
+Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision [Amazon EC2](https://aws.amazon.com/ec2/) instance with LAMP, LAPP or LEMP stack.
 
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL; and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LAPP which uses PostgreSQL as the database server and LEMP which uses Nginx as web server. 
