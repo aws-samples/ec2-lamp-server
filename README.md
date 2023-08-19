@@ -2,9 +2,9 @@
 Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision [Amazon EC2](https://aws.amazon.com/ec2/) instance with LAMP or LAPP stack.
 
 ## Description
-[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for Linux, Apache, MySQL/MariaDB and PHP. It is a common open source web platform for many of the web's popular applications.  A variation is the LAPP stack which include Linux, Apache, PostgreSQL (instead of MySQL) and PHP. 
+[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL; and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LAPP which uses PostgreSQL as the database server and LEMP which uses Nginx as web server. 
 
-This repo provides starter CloudFormation template to provision a EC2 LAMP or LAPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
+This repo provides starter CloudFormation template to provision a EC2 LAMP, LAPP or LEMP server instance. The EC2 instance can be used for software development, or deployment of LAMP/LAPP/LEMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
 
 For use cases that require high performance, reliability, scalability and high availability, users should re-architect their LAMP applications. Some resources that can help with the design includes:
 - [AWS Well-Architected](https://aws.amazon.com/architecture/well-architected/)
@@ -13,10 +13,10 @@ For use cases that require high performance, reliability, scalability and high a
 - [Best Practices for WordPress on AWS](https://docs.aws.amazon.com/whitepapers/latest/best-practices-wordpress/reference-architecture.html)
 
 ## Overview of features
-The template installs the following
+The template provides the following features:
 - Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access
-- [Apache web server](https://www.apache.org/)
-- Choice of [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) and [PostgreSQL](https://www.postgresql.org/) database server
+- [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
+- [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure remote terminal access
@@ -64,7 +64,8 @@ VPC
 - `displayPublicIP`: set this to `No` if you provision EC2 instance in a subnet that will not receive [public IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses). EC2 private IP will be displayed in CloudFormation Outputs section instead. Default is `Yes`
 
 LAMP configuration
-- `databaseOption`: option to install database engine of choice;  MySQL, MariaDB, PostgreSQL or none. MySQL option for Amazon Linux 2 use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
+- `webOption`: option to select Apache or Nginx web server
+- `databaseOption`: option to install either MySQL, MariaDB, PostgreSQL database server or none. MySQL option for Amazon Linux 2 use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to [via IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is not recommended. Default is empty.
 - `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access to. Enable this if your DNS is on Route 53 and you want to use Certbot with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin to get HTTPS certificates. A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to TXT DNS records only using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty. 
 
@@ -102,7 +103,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 - Modify your web server configuration file to use the issued cert.
   - Apache
   
-  Edit `/etc/httpd/conf.d/ssl.conf` for Amazon Linux 2 or `/etc/apache2/sites-available/default-ssl.conf` for Ubuntu Linux, and replace the existing entries with the following 
+  Edit either `/etc/httpd/conf.d/ssl.conf` (Amazon Linux) or `/etc/apache2/sites-available/default-ssl.conf` (Ubuntu Linux), and replace the existing entries with the following 
   ```
   SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/fullchain.pem
   SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
