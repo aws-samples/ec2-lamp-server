@@ -164,6 +164,12 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates) for more information
 
 
+## Securing your EC2 instance
+To futher secure your EC2 instance, you may want to
+- Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote into your console
+- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://aws.amazon.com/waf/) to protect your EC2 from DDoS attacks. 
+
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
