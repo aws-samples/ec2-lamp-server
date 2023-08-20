@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Amazon Linux 2 with LAMP/LEPP/LAPP/LEPP stack
+Description: Amazon Linux 2 with LAMP/LEMP/LAPP/LEPP stack
 
 Metadata:
   License:
@@ -655,7 +655,13 @@ Resources:
               sed -i "/#ssl_certificate /a \        \ssl_certificate \"/etc/pki/tls/nginx/server.pem\";" /etc/nginx/sites-available/default
               sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-available/default
               sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/server.pem\";" /etc/nginx/sites-available/default
-              
+
+              cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
+              # merge http and https and set default_server
+              sed -i "18,20d;23,24d;36,45d" /etc/nginx/sites-available/default
+              sed -i "s/80;/80 default_server;/g" /etc/nginx/sites-available/default
+              sed -i "s/http2;/http2 default_server;/g" /etc/nginx/sites-available/default
+
               systemctl restart nginx
               ;;
           esac
