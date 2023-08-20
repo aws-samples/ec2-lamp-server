@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux 22.04 with LAMP/LEPP/LAPP/LEPP stack
+Description: Ubuntu Linux 22.04 with LAMP/LEMP/LAPP/LEPP stack
 
 Metadata:
   License:
@@ -590,6 +590,10 @@ Resources:
               sed -i "60,60s/#//g" /etc/nginx/sites-available/default
               sed -i "s/7.4/8.1/g" /etc/nginx/sites-available/default
               sed -i "63,63s/#//g" /etc/nginx/sites-available/default
+
+              cp /etc/nginx/nginx.conf  /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
+              # disable gzip as per https://bugs.debian.org/773332
+              sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
 
               systemctl restart nginx
               ;;
