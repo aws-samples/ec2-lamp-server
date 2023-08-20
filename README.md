@@ -111,7 +111,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
   - Nginx 
   
-    Edit `/etc/nginx/nginx.conf` (Amazon Linux) or `/etc/nginx/sites-available/default` (Ubuntu Linux), and replace the existing entries with the following
+    Edit `/etc/nginx/sites-available/default`, and replace the existing entries with the following
   ```
   ssl_certificate "/etc/letsencrypt/live/<CERT-NAME>/fullchain.pem";
   ssl_certificate_key "/etc/letsencrypt/live/<CERT-NAME>/privkey.pem";
