@@ -641,11 +641,10 @@ Resources:
               mkdir -p /etc/pki/tls/nginx
               cd /etc/pki/tls/nginx
               /etc/pki/tls/certs/make-dummy-cert server.pem
+              cd /tmp/cfn
               sed -i "s/ssl_certificate/#&/" /etc/nginx/nginx.conf
               sed -i "/#ssl_certificate /a \        \ssl_certificate \"/etc/pki/tls/nginx/server.pem\";" /etc/nginx/nginx.conf
-              sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-enabled/ssl.conf
               sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/server.pem\";" /etc/nginx/nginx.conf
-              cd /tmp/cfn
 
               systemctl restart nginx
               ;;
