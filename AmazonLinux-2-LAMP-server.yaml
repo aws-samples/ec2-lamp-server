@@ -527,14 +527,10 @@ Resources:
           cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
 
           # https://www.php.net/manual/en/opcache.configuration.php
-          sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php.ini
-          sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
-
           cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-          sed -i '1 i\opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-          sed -i '1 i\opcache.enable_cli=1' /etc/php.d/10-opcache.ini
+          sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
 
-          sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
+          sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
           sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
           sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
           sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
@@ -643,12 +639,12 @@ Resources:
               # build sites-available/default config
               sed -i "1,36s/^/#/g" /etc/nginx/sites-available/default
               sed -i "83,84s/^/#/g" /etc/nginx/sites-available/default
-              sed -i "/^#/d" default
-
+              
               # default: enable HTTPS
               sed -i "58,82s/^#//g" /etc/nginx/sites-available/default
               sed -i "s/ssl_ciphers/#&/" /etc/nginx/sites-available/default
               sed -i "/#ssl_ciphers/a \        \ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;" /etc/nginx/sites-available/default
+              sed -i "/^#/d" /etc/nginx/sites-available/default
 
               # default: dummy cert
               mkdir -p /etc/pki/tls/nginx
