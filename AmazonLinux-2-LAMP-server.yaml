@@ -589,6 +589,7 @@ Resources:
           # Certbot
           yum install -q -y certbot
           yum install -q -y python2-certbot-dns-route53
+          systemctl enable --now certbot-renew.timer
 
           # Web server: Apache or Nginx
           export WEB="${webOption}"
