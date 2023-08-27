@@ -2,7 +2,7 @@
 Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision [Amazon EC2](https://aws.amazon.com/ec2/) instance with LAMP, LEMP, LAPP or LEPP stack.
 
 ## Description
-[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. 
+[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), PHP is used by [77.2%](https://w3techs.com/technologies/overview/programming_language), and either Nginx or Apache is used by more than [65%](https://w3techs.com/technologies/overview/web_server) of websites as of 27th August 2023.
 
 This repo provides starter CloudFormation template to provision a EC2 LAMP/LEMP/LAPP/LEPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
 
@@ -35,11 +35,11 @@ Note that use of cloudformation template indicates acceptance of license agreeme
 
 
 ### PHP Configuration
-Based on public articles about PHP performance (many thanks to the authors), the following changes were made to PHP configuration
+Based on public articles about PHP performance (many thanks to the authors), the following changes were made:
 
 - PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [Make your PHP 8 apps twice as fast (OPCache & JIT)](https://medium.com/@edouard.courty/make-your-php-8-apps-twice-as-fast-opcache-jit-8d3542276595)
 - [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/) 
-- [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html)
+- [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html): from [Apache Performance Tuning: MPM Modules](https://www.liquidweb.com/kb/apache-performance-tuning-apache-mpm-modules/#best)
 - Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
 
 CloudFormation default processor architecture option is Graviton as per [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php). 
