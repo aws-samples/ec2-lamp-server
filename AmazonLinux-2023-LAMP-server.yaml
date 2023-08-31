@@ -1,0 +1,717 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Amazon Linux 2023 with LAMP/LEMP/LAPP/LEPP stack
+
+Metadata:
+  License:
+    Description: >
+      Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+      SPDX-License-Identifier: MIT-0
+
+      Permission is hereby granted, free of charge, to any person obtaining a copy of this
+      software and associated documentation files (the "Software"), to deal in the Software
+      without restriction, including without limitation the rights to use, copy, modify,
+      merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+      permit persons to whom the Software is furnished to do so.
+
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+      INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+      PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+      HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+      OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+      SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: EC2
+        Parameters:
+          - processorArchitecture
+          - instanceType
+          - ec2Name
+          - ec2KeyPair
+          - volumeSize
+      - Label:
+          default: VPC
+        Parameters:
+          - vpcID
+          - subnetID
+          - assignStaticIP
+          - displayPublicIP
+      - Label:
+          default: LAMP configuration
+        Parameters:
+          - webOption
+          - phpVersion
+          - databaseOption
+          - s3BucketName
+          - r53ZoneID
+      - Label:
+          default: Remote administration
+        Parameters:
+          - ingressIPv4
+          - ingressIPv6
+    ParameterLabels:
+      processorArchitecture:
+        default: "Processor architecture (x86_64 or arm64)"
+      instanceType:
+        default: "Instance type"
+      ec2Name:
+        default: "Instance name"
+      ec2KeyPair:
+        default: "Keypair name"
+      volumeSize:
+        default: "Volume size (GiB)"
+      vpcID:
+        default: "VPC with internet connectivity"
+      subnetID:
+        default: "Subnet with internet connectivity"
+      assignStaticIP:
+        default: "Assign static internet IPv4 address?"
+      displayPublicIP:
+        default: "Display public internet IP?"
+      ingressIPv4:
+        default: "Allowed IPv4 prefix to SSH ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )"
+      ingressIPv6:
+        default: "Allowed IPv6 prefix to SSH"
+      webOption:
+        default: "Web server to install?"
+      databaseOption:
+        default: "Database server to install?"
+      phpVersion:
+        default: "PHP version to install?"
+      s3BucketName:
+        default: "(optional) S3 bucket name to grant access to"
+      r53ZoneID:
+        default: "(optional) Route 53 hosted zone to grant access to"
+
+Parameters:
+  processorArchitecture:
+    Type: String
+    #Description: Processor architecture
+    AllowedValues:
+      - Intel/AMD AMD64 (x86_64)
+      - Graviton ARM64 (aarch64)
+    Default: Graviton ARM64 (aarch64)
+  instanceType:
+    Type: String
+    #Description: Instance Type (x86_64 or arm64) ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html )
+    Default: t4g.large
+
+  ec2Name:
+    Type: String
+    #Description: EC2 instance name
+    Default: AmazonLinux-2-LAMP-Stack
+  ec2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    #Description: Key Pair name
+    ConstraintDescription: Specify a Key pairs
+    AllowedPattern: ".+"
+  volumeSize:
+    Type: Number
+    #Description: Volume size in GiBs
+    MinValue: 10
+    MaxValue: 16384
+    Default: 20
+
+  vpcID:
+    Type: AWS::EC2::VPC::Id
+    #Description: VPC with internet connectivity
+    ConstraintDescription: Do specify a valid value
+    AllowedPattern: ".+"
+  subnetID:
+    Type: AWS::EC2::Subnet::Id
+    #Description: Subnet with internet connectivity
+    ConstraintDescription: Do specify a valid value
+    AllowedPattern: ".+"
+  assignStaticIP:
+    Type: String
+    #Description: Associate static public IPv4 address ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html )
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+  displayPublicIP:
+    Type: String
+    #Description: Display EC2 public IP in CloudFormation Outputs (select No if EC2 has no public IP)
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+
+  ingressIPv4:
+    Type: String
+    #Description: Allowed source prefix (IPv4) to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )
+    Default: 0.0.0.0/0
+  ingressIPv6:
+    Type: String
+    #Description: Allowed source prefix (IPv6) to SSH and NICE DCV
+    Default: ::/0
+
+  webOption:
+    Type: String
+    #Description: Web server to install
+    AllowedValues:
+      - "Apache"
+      - "Nginx"
+      - "none"
+    Default: "Apache"
+  databaseOption:
+    Type: String
+    #Description: Database to install
+    AllowedValues:
+      - "MariaDB"
+      - "MySQL"
+      - "PostgreSQL"
+      - "none"
+    Default: "MariaDB"
+  phpVersion:
+    Type: String
+    #Description: PHP version to install
+    AllowedValues:
+      - "php8.1"
+      - "php8.2"
+    Default: "php8.1"
+  s3BucketName:
+    Type: String
+    #Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
+    Default: ""
+  r53ZoneID:
+    Type: String
+    #Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
+    Default: ""
+
+Conditions:
+  useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
+  useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
+  displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
+  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
+  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+
+Resources:
+  securityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound DCV
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: SSH (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref ingressIPv4
+        - Description: SSH (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIpv6: !Ref ingressIPv6
+        - Description: HTTP (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - Description: HTTP (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIpv6: ::/0
+        - Description: HTTPS (IPv4)
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - Description: HTTPS (IPv6)
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIpv6: ::/0
+      SecurityGroupEgress:
+        - Description: Allow all outbound traffic (IPv4)
+          IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+        - Description: Allow all outbound traffic (IPv6)
+          IpProtocol: "-1"
+          CidrIpv6: ::/0
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+        - PolicyName: dcvLicensing
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
+        - PolicyName: S3BucketAccess
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
+        - PolicyName: R53ZoneAccess
+          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - route53:ListHostedZones
+                  - route53:GetChange
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
+                  - hostedZone:
+                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
+                Condition:
+                  ForAllValues:StringEquals:
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref instanceIamRole
+
+  ec2Instance:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT90M
+    Properties:
+      ImageId: # https://github.com/amazonlinux/amazon-linux-2023
+        !If [
+          useARM64,
+          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-arm64}}",
+          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64}}",
+        ]
+      InstanceType: !Ref instanceType
+      IamInstanceProfile: !Ref instanceProfile
+      KeyName: !Ref ec2KeyPair
+      SubnetId: !Ref subnetID
+      Monitoring: true
+      SecurityGroupIds:
+        - !Ref securityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref volumeSize
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          mkdir -p /tmp/cfn
+          cd /tmp/cfn
+
+          # https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-al2.html
+          if (uname -a | grep x86 1>/dev/null); then
+            dnf install -q -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/latest/linux_amd64/amazon-ssm-agent.rpm
+          else
+            dnf install -q -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/latest/linux_arm64/amazon-ssm-agent.rpm
+          fi
+
+          # cfn-init
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+
+          dnf install -q -y wget tmux unzip tar curl-minimal sed
+
+          # Enable crontab
+          dnf install -y cronie
+          systemctl enable crond
+          systemctl start crond
+
+          # No graphical desktop: https://github.com/amazonlinux/amazon-linux-2023/issues/47
+          echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
+
+          # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
+          if (uname -a | grep x86 1>/dev/null); then
+            wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+          else
+            wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+          fi
+          dnf install -q -y ./mount-s3.rpm
+
+          # Mountpoint update script
+          cat << EoF > /home/ec2-user/update-mountpoint-s3
+          #!/bin/bash
+          cd /tmp
+          if (uname -a | grep x86 1>/dev/null); then
+            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+          else
+            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+          fi
+          dnf install -q -y ./mount-s3.rpm
+          EoF
+          chmod +x /home/ec2-user/update-mountpoint-s3
+          chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3
+
+          # PHP install : will install httpd
+          dnf install -q -y php ${phpVersion}-{cli,fpm,opcache}
+          dnf install -q -y ${phpVersion}-{mysqlnd,pgsql,pdo}
+          dnf install -q -y ${phpVersion}-{xml,soap,ldap,intl}
+          dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd}
+
+          systemctl enable --now php-fpm
+          systemctl stop php-fpm
+
+          # PHP.INI
+          cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
+
+          # https://www.php.net/manual/en/opcache.configuration.php
+          cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+          sed -i '1 i\opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+
+          sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
+          sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
+          sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
+          sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
+
+          dnf install -q -y php-devel php-pear gcc
+          pear update-channels
+          pecl update-channels
+
+          # Redis & Memcached
+          dnf install -q -y redis6 memcached
+          systemctl enable --now redis6 memcached
+
+          # Install ElastiCache client
+          if [ $(uname -a | grep -c x86_64) == "1" ]; then
+            wget -4 -nv https://elasticache-downloads.s3.amazonaws.com/ClusterClient/PHP-8.1/latest-64bit-X86-openssl3
+            tar -xf latest-64bit-X86-openssl3
+          else 
+            wget  -4 -nv https://elasticache-downloads.s3.amazonaws.com/ClusterClient/PHP-8.2/latest-64bit-arm-X86-openssl3
+            tar -xf latest-64bit-arm-X86-openssl3
+          fi
+          mv amazon-elasticache-cluster-client.so /usr/lib64/php/modules/
+          echo 'extension=amazon-elasticache-cluster-client.so;' > /etc/php.d/50-elasticache.ini
+
+          # php-igbinary: https://pecl.php.net/package/igbinary
+          pecl install igbinary
+          echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+
+          # php-imagick: https://pecl.php.net/package/imagick
+          dnf install -q -y ImageMagick-devel ImageMagick
+          /usr/bin/yes | pecl install imagick
+          echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+
+          # php-msgpack: https://pecl.php.net/package/msgpack
+          pecl install msgpack
+          echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+
+          # php-redis: https://pecl.php.net/package/redis
+          dnf install -q -y redis6-devel libzstd-devel libzstd
+          /usr/bin/yes | pecl install redis
+          echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+
+          # php-zip: https://pecl.php.net/package/zip
+          dnf install -q -y libzip-devel libzip
+          /usr/bin/yes | pecl install zip
+          echo 'extension=zip.so' > /etc/php.d/20-zip.ini
+
+          # libsodium: https://pecl.php.net/package/libsodium
+          wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
+          tar -xzf LATEST.tar.gz
+          cd libsodium-stable
+          ./configure
+          make
+          make install
+          pecl install -f libsodium
+          echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+
+          cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+          # https://www.php.net/manual/en/class.sessionhandler.php
+          sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+          sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+          sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+          sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+          cd /tmp/cfn
+          systemctl restart php-fpm
+
+          # Certbot
+          dnf install -q -y augeas-libs
+          python3 -m venv /opt/certbot/
+          /opt/certbot/bin/pip install --upgrade pip
+          /opt/certbot/bin/pip install certbot
+          /opt/certbot/bin/pip install certbot-dns-route53
+          ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+          # https://certbot.org/renewal-setup: use systemd timer
+          cat << EoF > /usr/lib/systemd/system/certbot-renew.timer
+          [Unit]
+          Description=This is the timer to set the schedule for automated renewals
+
+          [Timer]
+          OnCalendar=*-*-* 00/12:00:00
+          RandomizedDelaySec=12hours
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+          EoF
+
+          cat << EoF > /usr/lib/systemd/system/certbot-renew.service
+          [Unit]
+          Description=This service automatically renews any certbot certificates found
+
+          [Service]
+          EnvironmentFile=/etc/sysconfig/certbot
+          Type=oneshot
+          ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+          EoF
+
+          systemctl daemon-reload
+          systemctl enable --now certbot-renew.timer
+
+          # Web server: Apache or Nginx
+          export WEB="${webOption}"
+          case $WEB in
+            Apache)
+              /opt/certbot/bin/pip install certbot-apache
+              dnf install -q -y httpd mod_ssl mod_fcgid
+              systemctl enable httpd
+
+              # virtual host: for Certbot
+              cat << EoF > /etc/httpd/conf.d/www.conf
+          <VirtualHost *:80>
+            ServerAdmin webmaster@localhost
+            DocumentRoot /var/www/html
+          </VirtualHost>
+          EoF
+
+              systemctl restart httpd
+              ;;
+            Nginx)
+              dnf remove -q -y httpd
+              dnf install -q -y nginx
+              /opt/certbot/bin/pip install certbot-nginx
+              systemctl enable nginx
+
+              cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
+              # enable sites-enabled and sites-available folders
+              mkdir -p /etc/nginx/sites-enabled
+              mkdir -p /etc/nginx/sites-available
+              cp /etc/nginx/nginx.conf /etc/nginx/sites-available/default
+              ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+              # nginx.conf: comment out http site
+              sed -i "37,54s/^/##/g" /etc/nginx/nginx.conf
+              sed -i "/^http/a \    \include /etc/nginx/sites-enabled/*;" /etc/nginx/nginx.conf
+
+              # build sites-available/default
+              sed -i "1,36s/^/#/g" /etc/nginx/sites-available/default
+              sed -i "80s/^#//g" /etc/nginx/sites-available/default
+              cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
+
+              # default: enable HTTPS
+              sed -i "53,54s/^/#/g" /etc/nginx/sites-available/default
+              sed -i "58,59s/^#//g" /etc/nginx/sites-available/default
+              sed -i "81,83s/^/#/g" /etc/nginx/sites-available/default
+
+              # dummy HTTPS cert
+              mkdir -p /etc/pki/tls/nginx
+              openssl req -x509 -newkey rsa:2048 -keyout /etc/pki/tls/nginx/key.pem -out /etc/pki/tls/nginx/cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=State/L=City/O=Company/OU=Dept/CN=Host"
+              sed -i "s/ssl_certificate /#&/" /etc/nginx/sites-available/default
+              sed -i "/#ssl_certificate /a \        \ssl_certificate \"/etc/pki/tls/nginx/cert.pem\";" /etc/nginx/sites-available/default
+              sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-available/default
+              sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/key.pem\";" /etc/nginx/sites-available/default
+              sed -i "/#ssl_certificate_key/a \        \ssl_ciphers PROFILE=SYSTEM;" /etc/nginx/sites-available/default
+              # set default_server
+              sed -i "s/80;/80 default_server;/g" /etc/nginx/sites-available/default
+              sed -i "s/http2;/http2 default_server;/g" /etc/nginx/sites-available/default
+              # remove leading white spaces and commented lines
+              sed -i "/^#/d" /etc/nginx/sites-available/default
+              sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
+
+              systemctl restart nginx
+              ;;
+            none)
+              dnf remove -q -y httpd
+              ;;
+          esac
+
+          # Database: MySQL, MariaDB or none
+          export DB="${databaseOption}"
+          case $DB in
+            MySQL)
+              dnf install -y https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm
+              dnf install -q -y mysql-community-server
+              systemctl enable --now mysqld
+              ;;
+            MariaDB)
+              dnf install -q -y mariadb105-server
+              systemctl enable --now mariadb
+              ;;
+            PostgreSQL)
+              dnf clean metadata
+              dnf install -q -y postgresql15-server
+              /usr/bin/postgresql-setup --initdb
+              systemctl enable --now postgresql
+              ;;
+          esac
+
+          # NFS client
+          dnf install -q -y amazon-efs-utils
+
+          # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-linux.html
+          dnf install -q -y ruby
+          wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
+
+          # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
+          dnf install -q -y amazon-cloudwatch-agent
+
+          cat << EoF > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+          {
+            "agent": {
+              "metrics_collection_interval": 60,
+              "run_as_user": "cwagent"
+            },
+            "metrics": {
+              "aggregation_dimensions": [
+                [
+                  "InstanceId"
+                ]
+              ],
+              "append_dimensions": {
+                "AutoScalingGroupName": "\${!aws:AutoScalingGroupName}",
+                "ImageId": "\${!aws:ImageId}",
+                "InstanceId": "\${!aws:InstanceId}",
+                "InstanceType": "\${!aws:InstanceType}"
+              },
+              "metrics_collected": {
+                "disk": {
+                  "measurement": [
+                    "used_percent"
+                  ],
+                  "metrics_collection_interval": 60,
+                    "resources": [
+                      "/"
+                    ]
+                },
+                "mem": {
+                  "measurement": [
+                    "mem_used_percent"
+                  ],
+                  "metrics_collection_interval": 60
+                },                
+                "diskio": {
+                  "measurement": [
+                    "io_time"
+                  ],
+                  "metrics_collection_interval": 60,
+                  "resources": [
+                    "nvme0n1"
+                  ]
+                },
+                "cpu": {
+                  "measurement": [
+                    "cpu_usage_idle",
+                    "cpu_usage_iowait",
+                    "cpu_usage_user",
+                    "cpu_usage_system"
+                  ],
+                  "metrics_collection_interval": 60
+                }
+              }
+            }
+          }
+          EoF
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+          systemctl enable --now amazon-cloudwatch-agent
+
+          # dnf-automatic
+          yum install -q -y dnf-automatic
+          sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
+          systemctl enable --now dnf-automatic-install.timer
+
+          # cfn-init completed so signal success or not
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: !Ref ec2Name
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  elasticIP:
+    Condition: useElasticIP
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref ec2Instance
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+Outputs:
+  EC2Instance:
+    Description: EC2 instance console
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
+
+  SSMsessionManager:
+    Description: SSM Session Manager login ("sudo passwd ec2-user" to change password)
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  WebUrl:
+    Description: Website
+    Value:
+      !If [
+        displayPublicIP,
+        !Sub "http://${ec2Instance.PublicIp}",
+        !Sub "http://${ec2Instance.PrivateIp}",
+      ]
