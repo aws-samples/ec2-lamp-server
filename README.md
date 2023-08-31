@@ -52,7 +52,7 @@ Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformat
 
 EC2
 - `processorArchitecture`: Intel/AMD or [Graviton ARM64](https://aws.amazon.com/ec2/graviton/). Default is `Graviton ARM64 (aarch64)`
-- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, use [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
+- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider non burstable instance types such [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
@@ -64,9 +64,9 @@ VPC
 - `displayPublicIP`: set this to `No` if you provision EC2 instance in a subnet that will not receive [public IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses). EC2 private IP will be displayed in CloudFormation Outputs section instead. Default is `Yes`
 
 LAMP configuration
-- `webOption`: option to select Apache, Nginx web server or none.
-- `databaseOption`: option to install either MySQL, MariaDB, PostgreSQL database server or none. MySQL option for Amazon Linux 2 and Amazon Linux 2023 uses [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
-- `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to [via IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is not recommended. Default is empty.
+- `webOption`: option to install either `Apache`, `Nginx` web server or `none`.
+- `databaseOption`: option to install either `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux 2 and Amazon Linux 2023 uses [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
+- `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to [via IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is usually not recommended. Default is empty.
 - `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access to. Enable this if your DNS is on Route 53 and you want to use Certbot with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin to get HTTPS certificate. A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to TXT DNS records only using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty. 
 
 Remote Administration
@@ -90,9 +90,6 @@ Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are n
 
 [Create a DNS A record entry](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html) that resolves to your EC2 instance IP address, and ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack. 
 
-
-### About certbot plugins
-Both apache and nginx plugins use HTTP-01 challenge type. certbot-dns-route53 plugin uses DNS-01 challenge type and supports wildcard certificates. Refer to [Challenge Types](https://letsencrypt.org/docs/challenge-types/) for more information. 
 
 
 ### Using certbot-dns-route53 plugin 
@@ -124,13 +121,18 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   
 
-Refer to [Certbot documentation site](https://letsencrypt.org/docs/) for more information
+
+### About certbot plugins
+Both apache and nginx plugins use [HTTP-01 challenge type](https://letsencrypt.org/docs/challenge-types/#http-01-challenge). certbot-dns-route53 plugin uses [DNS-01 challenge type](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and supports wildcard certificates. 
+
+
+Refer to [Certbot documentation](https://letsencrypt.org/docs/) for more information
 
 
 ## Securing your EC2 instance
 To futher secure your EC2 instance, you may want to
 - Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote in
-- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF security protections](https://aws.amazon.com/blogs/networking-and-content-delivery/mitigate-common-web-threats-with-one-click-in-amazon-cloudfront/) to protect your instance from DDoS attacks. The [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template may help with initial setup.
+- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF security protections](https://aws.amazon.com/blogs/networking-and-content-delivery/mitigate-common-web-threats-with-one-click-in-amazon-cloudfront/) to protect your instance from DDoS attacks and common web threats. The [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template may help with initial setup.
 - Backup data on your EBS volumes with [EBS snapshots](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html). You can setup automatic snapshots using [Amazon Data Lifecycle Manager](https://aws.amazon.com/blogs/storage/automating-amazon-ebs-snapshot-and-ami-management-using-amazon-dlm/) or [AWS Backup](https://aws.amazon.com/blogs/aws/aws-backup-ec2-instances-efs-single-file-restore-and-cross-region-backup/)
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) threat detection
 
