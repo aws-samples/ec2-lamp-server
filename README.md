@@ -14,7 +14,7 @@ For use cases that require high performance, reliability, scalability and high a
 
 ## Overview of features
 The template provides the following features:
-- Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access
+- Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access (not available for Amazon Linux 2023)
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
@@ -27,10 +27,10 @@ The template provides the following features:
 - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
 - [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
 - (Optional) [Amazon S3](https://aws.amazon.com/s3/) bucket access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
-- [Certbot](https://certbot.eff.org/)
+- [Certbot](https://certbot.eff.org/) with apache, nginx and certbot-dns-route53 plugins
 - (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
 
-  
+
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
 
 
@@ -46,7 +46,7 @@ CloudFormation default processor architecture option is Graviton as per [arm64 v
 
 
 ## Deployment via CloudFormation console
-Download .yaml file for your operating system ([Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
+Download .yaml file for your operating system ([Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Edit a **Stack name** and specify parameters values. 
 
@@ -64,8 +64,8 @@ VPC
 - `displayPublicIP`: set this to `No` if you provision EC2 instance in a subnet that will not receive [public IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses). EC2 private IP will be displayed in CloudFormation Outputs section instead. Default is `Yes`
 
 LAMP configuration
-- `webOption`: option to select Apache or Nginx web server
-- `databaseOption`: option to install either MySQL, MariaDB, PostgreSQL database server or none. MySQL option for Amazon Linux 2 use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
+- `webOption`: option to select Apache, Nginx web server or none.
+- `databaseOption`: option to install either MySQL, MariaDB, PostgreSQL database server or none. MySQL option for Amazon Linux 2 and Amazon Linux 2023 uses [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`.
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to [via IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is not recommended. Default is empty.
 - `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access to. Enable this if your DNS is on Route 53 and you want to use Certbot with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin to get HTTPS certificate. A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to TXT DNS records only using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty. 
 
@@ -97,7 +97,7 @@ Both apache and nginx plugins use HTTP-01 challenge type. certbot-dns-route53 pl
 
 ### Using certbot-dns-route53 plugin 
 
-Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack. Run the below command based on web server type and read instructions carefully.
+Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack. From terminal, run the below command based on installed web server type and follow instructions.
 
 - Apache
   ```
@@ -111,14 +111,14 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
 
 ### Using apache plugin
 
-- From terminal, run the below command and read instructions carefully.
+- From terminal, run the below command and follow instructions.
   ```
   sudo certbot --apache
   ```
   
 ### Using nginx plugin
 
-- From terminal, run the below command and read instructions carefully.
+- From terminal, run the below command and follow instructions.
   ```
   sudo certbot --nginx
   ```
