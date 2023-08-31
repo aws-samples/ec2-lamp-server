@@ -58,7 +58,7 @@ Metadata:
       ec2KeyPair:
         default: "Keypair name"
       volumeSize:
-        default: "Volume size"
+        default: "Volume size (GiB)"
       vpcID:
         default: "VPC with internet connectivity"
       subnetID:
@@ -99,12 +99,14 @@ Parameters:
     Default: UbuntuLinux-22.04-LAMP-Stack
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
-    Description: Key Pair name
+    #Description: Key Pair name
     ConstraintDescription: Specify a Key pairs
     AllowedPattern: ".+"
   volumeSize:
     Type: Number
     #Description: Volume size in GiBs
+    MinValue: 10
+    MaxValue: 16384
     Default: 20
 
   vpcID:
@@ -147,6 +149,7 @@ Parameters:
     AllowedValues:
       - "Apache"
       - "Nginx"
+      - "none"
     Default: "Apache"
   databaseOption:
     Type: String
@@ -504,7 +507,7 @@ Resources:
           else
             wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
           fi
-          sudo apt-get install -y ./mount-s3.deb
+          apt-get install -q -y ./mount-s3.deb
           EoF
           chmod +x /home/ubuntu/update-mountpoint-s3
           chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
@@ -550,7 +553,7 @@ Resources:
           cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
 
           # Certbot
-          apt-get install -q -y certbot 
+          apt-get install -q -y certbot
           apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
 
           # Web server: Apache or Nginx
@@ -596,6 +599,9 @@ Resources:
               sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
 
               systemctl restart nginx
+              ;;
+            none)
+              apt-get remove -y apache2
               ;;
           esac
 
