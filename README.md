@@ -90,78 +90,41 @@ Please refer to [Certbot site](https://certbot.eff.org/pages/about) if you are n
 
 [Create a DNS A record entry](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html) that resolves to your EC2 instance IP address, and ensure `assignStaticIP` is configured to `Yes` in your CloudFormation stack. 
 
-### Using certbot-dns-route53 plugin
-Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack
 
-- From terminal, execute the below command and follow instructions.  
-  ```
-  sudo certbot certonly --dns-route53
-  ```
-  More information from [certbot-dns-route53 documentation site](https://certbot-dns-route53.readthedocs.io)
+### About certbot plugins
+Both apache and nginx plugins use HTTP-01 challenge type. certbot-dns-route53 plugin uses DNS-01 challenge type and supports wildcard certificates. Refer to [Challenge Types](https://letsencrypt.org/docs/challenge-types/) for more information. 
 
 
-- Modify your web server configuration file to use the issued cert.
-  - Apache
-  
-    Edit either `/etc/httpd/conf.d/ssl.conf` (Amazon Linux) or `/etc/apache2/sites-available/default-ssl.conf` (Ubuntu Linux), and replace the existing entries with the following 
+### Using certbot-dns-route53 plugin 
+
+Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneID` value in your CloudFormation stack. Run the below command based on web server type and read instructions carefully.
+
+- Apache
   ```
-  SSLCertificateFile /etc/letsencrypt/live/<CERT-NAME>/fullchain.pem
-  SSLCertificateKeyFile /etc/letsencrypt/live/<CERT-NAME>/privkey.pem
+  sudo certbot --dns-route53 --installer apache
   ```
-  Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
-  - Nginx 
-  
-    Edit `/etc/nginx/sites-available/default`, and replace the existing entries with the following
+- Nginx
   ```
-  ssl_certificate "/etc/letsencrypt/live/<CERT-NAME>/fullchain.pem";
-  ssl_certificate_key "/etc/letsencrypt/live/<CERT-NAME>/privkey.pem";
-  ```
-  Replace `<CERT-NAME>` with the actual value in your `/etc/letsencrypt/live` folder.
-  
-- Verify your configuration
-  - Apache 
-  ```
-  sudo apachectl -t
-  ```
-  - Nginx
-  ```
-  sudo nginx -t
+  sudo certbot --dns-route53 --installer nginx
   ```
   
-- Restart web server
-  - Apache (Amazon Linux) 
-  ```
-  sudo systemctl restart httpd
-  ```
-  - Apache (Ubuntu Linux)
-  ```
-  sudo systemctl restart apache2
-  ```
-  - Nginx
-  ```
-  sudo systemctl restart nginx
-  ```
-
-
 
 ### Using apache plugin
 
-- From terminal, run the below command and read instructions carefully
+- From terminal, run the below command and read instructions carefully.
   ```
   sudo certbot --apache
   ```
-  You may need to reconfigure your Apache site settings after certificate is issued
-
+  
 ### Using nginx plugin
 
-- From terminal, run the below command and read instructions carefully
+- From terminal, run the below command and read instructions carefully.
   ```
   sudo certbot --nginx
   ```
-  You may need to reconfigure your Nginx site settings after certificate is issued
+  
 
-
-Refer to [Certbot documentation site](https://eff-certbot.readthedocs.io/en/stable/using.html#where-are-my-certificates) for more information
+Refer to [Certbot documentation site](https://letsencrypt.org/docs/) for more information
 
 
 ## Securing your EC2 instance
