@@ -46,7 +46,7 @@ CloudFormation default processor architecture option is Graviton as per [arm64 v
 
 
 ## Deployment via CloudFormation console
-Download .yaml file for your operating system ([Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu Linux 22.04 LTS server](https://releases.ubuntu.com/jammy/)) 
+Download .yaml file for your operating system ([Amazon Linux 2](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2-LAMP-server.yaml), [Amazon Linux 2023](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu Linux 22.04 LTS server](https://github.com/aws-samples/ec2-lamp-server/blob/main/UbuntuLinux-2204-LAMP-server.yaml)) 
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Edit a **Stack name** and specify parameters values. 
 
