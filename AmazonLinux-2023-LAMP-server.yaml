@@ -419,17 +419,6 @@ Resources:
           dnf install -q -y redis6 memcached
           systemctl enable --now redis6 memcached
 
-          # Install ElastiCache client
-          if [ $(uname -a | grep -c x86_64) == "1" ]; then
-            wget -4 -nv https://elasticache-downloads.s3.amazonaws.com/ClusterClient/PHP-8.1/latest-64bit-X86-openssl3
-            tar -xf latest-64bit-X86-openssl3
-          else 
-            wget  -4 -nv https://elasticache-downloads.s3.amazonaws.com/ClusterClient/PHP-8.2/latest-64bit-arm-X86-openssl3
-            tar -xf latest-64bit-arm-X86-openssl3
-          fi
-          mv amazon-elasticache-cluster-client.so /usr/lib64/php/modules/
-          echo 'extension=amazon-elasticache-cluster-client.so;' > /etc/php.d/50-elasticache.ini
-
           # php-igbinary: https://pecl.php.net/package/igbinary
           pecl install igbinary
           echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
