@@ -18,6 +18,7 @@ The template provides the following features:
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
 - [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
+- [Composer](https://getcomposer.org/)
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure remote terminal access
 - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
@@ -52,7 +53,7 @@ Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformat
 
 EC2
 - `processorArchitecture`: Intel/AMD or [Graviton ARM64](https://aws.amazon.com/ec2/graviton/). Default is `Graviton ARM64 (aarch64)`
-- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider non burstable instance types such [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
+- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider newer generation instance types such [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
@@ -131,7 +132,7 @@ Refer to [Certbot documentation](https://letsencrypt.org/docs/) for more informa
 
 ## Securing your EC2 instance
 To futher secure your EC2 instance, you may want to
-- Disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager or NICE DCV to remote in
+- Restrict or disable SSH inbound from the internet by modifying your Security Groups. You can use SSM Session Manager from [EC2 console](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#start-ec2-console). If you have [Session Manager plugin for the AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) and [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed, you can start a session using [AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-cli) or [SSH](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-ssh) 
 - Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF security protections](https://aws.amazon.com/blogs/networking-and-content-delivery/mitigate-common-web-threats-with-one-click-in-amazon-cloudfront/) to protect your instance from DDoS attacks and common web threats. The [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template may help with initial setup.
 - Backup data on your EBS volumes with [EBS snapshots](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html). You can setup automatic snapshots using [Amazon Data Lifecycle Manager](https://aws.amazon.com/blogs/storage/automating-amazon-ebs-snapshot-and-ami-management-using-amazon-dlm/) or [AWS Backup](https://aws.amazon.com/blogs/aws/aws-backup-ec2-instances-efs-single-file-restore-and-cross-region-backup/)
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) threat detection
