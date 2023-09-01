@@ -462,6 +462,11 @@ Resources:
           cd /tmp/cfn
           systemctl restart php-fpm
 
+          # Composer: https://getcomposer.org/download/
+          wget -nv https://getcomposer.org/installer
+          export COMPOSER_HOME=/root && php installer --quiet
+          mv ./composer.phar /usr/local/bin/composer
+
           # Certbot
           dnf install -q -y augeas-libs
           python3 -m venv /opt/certbot/
