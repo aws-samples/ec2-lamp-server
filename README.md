@@ -17,7 +17,7 @@ The template provides the following features:
 - Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access (not available for Amazon Linux 2023)
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
-- [PHP 8.1](https://www.php.net/releases/8.1/en.php) with common PHP extensions
+- [PHP 8.1](https://www.php.net/releases/8.1/en.php) or [PHP 8.2](https://www.php.net/releases/8.2/en.php)(for Amazon Linux) with common PHP extensions
 - [Composer](https://getcomposer.org/)
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure remote terminal access
