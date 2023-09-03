@@ -169,6 +169,7 @@ Parameters:
     AllowedValues:
       - "php8.1"
       - "php8.2"
+      - "none"
     Default: "php8.1"
   s3BucketName:
     Type: String
@@ -515,91 +516,100 @@ Resources:
           chmod +x /home/ec2-user/update-mountpoint-s3
           chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3
 
-          # PHP install
-          amazon-linux-extras enable ${phpVersion}
-          yum clean metadata
-          yum install -q -y php-{cli,fpm,opcache}
-          yum install -q -y php-{mysqlnd,pgsql,pdo}
-          yum install -q -y php-{xml,soap,ldap,intl}
-          yum install -q -y php-{mbstring,bcmath,gd}
-          yum remove -y mod_php
-
-          systemctl enable --now php-fpm
-          systemctl stop php-fpm
-
-          # PHP.INI
-          cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
-
-          # https://www.php.net/manual/en/opcache.configuration.php
-          cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-          sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-
-          sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
-          sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
-          sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
-          sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
-
-          yum install -q -y php-devel php-pear gcc
-          pear update-channels
-          pecl update-channels
-
           # Redis & Memcached
           amazon-linux-extras install -y redis6 memcached1.5
           systemctl enable --now redis memcached
 
-          # php-igbinary: https://pecl.php.net/package/igbinary
-          pecl install igbinary
-          echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+          # PHP
+          export PHP="${phpVersion}"
+          case $PHP in
+            none)
+              ;;
+            *)
+              amazon-linux-extras enable ${phpVersion}
+              yum clean metadata
+              yum install -q -y php-{cli,fpm,opcache}
+              yum install -q -y php-{mysqlnd,pgsql,pdo}
+              yum install -q -y php-{xml,soap,ldap,intl}
+              yum install -q -y php-{mbstring,bcmath,gd}
+              yum remove -y mod_php
 
-          # php-imagick: https://pecl.php.net/package/imagick
-          yum install -q -y ImageMagick-devel ImageMagick
-          /usr/bin/yes | pecl install imagick
-          echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+              systemctl enable --now php-fpm
+              systemctl stop php-fpm
 
-          # php-msgpack: https://pecl.php.net/package/msgpack
-          pecl install msgpack
-          echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+              # PHP.INI
+              cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
 
-          # php-redis: https://pecl.php.net/package/redis
-          yum install -q -y redis-devel libzstd-devel libzstd
-          /usr/bin/yes | pecl install redis
-          echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+              # https://www.php.net/manual/en/opcache.configuration.php
+              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+              sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
 
-          # php-memcached: https://pecl.php.net/package/memcached
-          yum install -q -y memcached-devel libmemcached-devel libmemcached zlib-devel zlib
-          /usr/bin/yes 'no'| pecl install memcached
-          echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+              sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
+              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
+              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
+              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
 
-          # libsodium: https://pecl.php.net/package/libsodium
-          wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
-          tar -xzf LATEST.tar.gz
-          cd libsodium-stable
-          ./configure
-          make
-          make install
-          pecl install -f libsodium
-          echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+              yum install -q -y php-devel php-pear gcc
+              pear update-channels
+              pecl update-channels
 
-          cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
-          # https://www.php.net/manual/en/class.sessionhandler.php
-          sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-          sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-          sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-          sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+              # php-igbinary: https://pecl.php.net/package/igbinary
+              pecl install igbinary
+              echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
 
-          cd /tmp/cfn
-          systemctl restart php-fpm
+              # php-imagick: https://pecl.php.net/package/imagick
+              yum install -q -y ImageMagick-devel ImageMagick
+              /usr/bin/yes | pecl install imagick
+              echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
-          # EPEL
-          amazon-linux-extras install -y epel
-          yum install -q -y composer
+              # php-msgpack: https://pecl.php.net/package/msgpack
+              pecl install msgpack
+              echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+
+              # php-redis: https://pecl.php.net/package/redis
+              yum install -q -y redis-devel libzstd-devel libzstd
+              /usr/bin/yes | pecl install redis
+              echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+
+              # php-memcached: https://pecl.php.net/package/memcached
+              yum install -q -y memcached-devel libmemcached-devel libmemcached zlib-devel zlib
+              /usr/bin/yes 'no'| pecl install memcached
+              echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+
+              # libsodium: https://pecl.php.net/package/libsodium
+              wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
+              tar -xzf LATEST.tar.gz
+              cd libsodium-stable
+              ./configure
+              make
+              make install
+              pecl install -f libsodium
+              echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+
+              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+              # https://www.php.net/manual/en/class.sessionhandler.php
+              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+              cd /tmp/cfn
+              systemctl restart php-fpm
+
+              # EPEL
+              amazon-linux-extras install -y epel
+              yum install -q -y composer
+
+              ;;
+            esac
 
           # Certbot
+          amazon-linux-extras install -y epel
           yum install -q -y certbot
           yum install -q -y python2-certbot-dns-route53
           systemctl enable --now certbot-renew.timer
 
-          # Web server: Apache or Nginx
+          # Web server
           export WEB="${webOption}"
           case $WEB in
             Apache)
@@ -679,7 +689,7 @@ Resources:
               ;;
           esac
 
-          # Database: MySQL, MariaDB or none
+          # Database
           export DB="${databaseOption}"
           case $DB in
             MySQL)

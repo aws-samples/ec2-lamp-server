@@ -40,6 +40,7 @@ Metadata:
           default: LAMP configuration
         Parameters:
           - webOption
+          - phpVersion
           - databaseOption
           - s3BucketName
           - r53ZoneID
@@ -75,6 +76,8 @@ Metadata:
         default: "Web server to install?"
       databaseOption:
         default: "Database server to install?"
+      phpVersion:
+        default: "PHP version to install?"
       s3BucketName:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
@@ -160,6 +163,13 @@ Parameters:
       - "PostgreSQL"
       - "none"
     Default: "MySQL"
+  phpVersion:
+    Type: String
+    #Description: PHP version to install
+    AllowedValues:
+      - "php8.1"
+      - "none"
+    Default: "php8.1"
   s3BucketName:
     Type: String
     #Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
@@ -513,51 +523,60 @@ Resources:
           chmod +x /home/ubuntu/update-mountpoint-s3
           chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
 
-          # PHP install
-          apt-get install -q -y php8.1 php8.1-{common,fpm,opcache}
-          apt-get install -q -y php8.1-{memcached,redis}
-          apt-get install -q -y php8.1-{mysql,pgsql}
-          apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
-          apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
-          apt-get install -q -y composer
-
-          systemctl enable --now php8.1-fpm
-          systemctl stop php8.1-fpm
-
-          # PHP-FPM ini
-          cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
-
-          # https://www.php.net/manual/en/opcache.configuration.php
-          sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
-          sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
-          sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
-
-          sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
-          sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
-          sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
-          sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
-
           # Redis & Memcached
           apt-get install -q -y redis-server memcached
           systemctl enable --now redis-server memcached
 
-          # https://www.php.net/manual/en/class.sessionhandler.php
-          sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
-          sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
-          sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
-          sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
+          # PHP
+          export PHP="${phpVersion}"
+          case $PHP in
+            none)
+              ;;
+            *)
+              # PHP install
+              apt-get install -q -y php8.1 php8.1-{common,fpm,opcache}
+              apt-get install -q -y php8.1-{memcached,redis}
+              apt-get install -q -y php8.1-{mysql,pgsql}
+              apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
+              apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
+              apt-get install -q -y composer
 
-          systemctl restart php8.1-fpm
+              systemctl enable --now php8.1-fpm
+              systemctl stop php8.1-fpm
 
-          # PHP CLI ini
-          cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
-          cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
+              # PHP-FPM ini
+              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
+
+              # https://www.php.net/manual/en/opcache.configuration.php
+              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+              sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
+              sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
+
+              sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
+              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
+              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
+              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
+
+              # https://www.php.net/manual/en/class.sessionhandler.php
+              sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
+              sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
+              sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
+              sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
+
+              systemctl restart php8.1-fpm
+
+              # PHP CLI ini
+              cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
+              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
+
+              ;;
+            esac
 
           # Certbot
           apt-get install -q -y certbot
           apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
 
-          # Web server: Apache or Nginx
+          # Web server
           export WEB="${webOption}"
           case $WEB in
             Apache)
@@ -606,7 +625,7 @@ Resources:
               ;;
           esac
 
-          # Database: MySQL, MariaDB or none
+          # Database
           export DB="${databaseOption}"
           case $DB in
             MySQL)
@@ -638,7 +657,7 @@ Resources:
 
           # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
           apt-get install -q -y ruby-full
-          wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          wget -4 -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
           chmod +x ./install
           ./install auto
 

@@ -169,6 +169,7 @@ Parameters:
     AllowedValues:
       - "php8.1"
       - "php8.2"
+      - "none"
     Default: "php8.1"
   s3BucketName:
     Type: String
@@ -250,15 +251,7 @@ Resources:
               Service: [ec2.amazonaws.com]
             Action: ["sts:AssumeRole"]
       Path: /
-      Policies: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
-        - PolicyName: dcvLicensing
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
+      Policies:
         - PolicyName: S3BucketAccess
           PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
             Version: "2012-10-17"
@@ -391,82 +384,91 @@ Resources:
           chmod +x /home/ec2-user/update-mountpoint-s3
           chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3
 
-          # PHP install : will install httpd
-          dnf install -q -y php ${phpVersion}-{cli,fpm,opcache}
-          dnf install -q -y ${phpVersion}-{mysqlnd,pgsql,pdo}
-          dnf install -q -y ${phpVersion}-{xml,soap,ldap,intl}
-          dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd}
-
-          systemctl enable --now php-fpm
-          systemctl stop php-fpm
-
-          # PHP.INI
-          cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
-
-          # https://www.php.net/manual/en/opcache.configuration.php
-          cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-          sed -i '1 i\opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-
-          sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
-          sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
-          sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
-          sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
-
-          dnf install -q -y php-devel php-pear gcc
-          pear update-channels
-          pecl update-channels
-
           # Redis & Memcached
           dnf install -q -y redis6 memcached
           systemctl enable --now redis6 memcached
 
-          # php-igbinary: https://pecl.php.net/package/igbinary
-          pecl install igbinary
-          echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+          # PHP
+          export PHP="${phpVersion}"
+          case $PHP in
+            none)
+              ;;
+            *)
+              # Will install httpd
+              dnf install -q -y php ${phpVersion}-{cli,fpm,opcache}
+              dnf install -q -y ${phpVersion}-{mysqlnd,pgsql,pdo}
+              dnf install -q -y ${phpVersion}-{xml,soap,ldap,intl}
+              dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd}
 
-          # php-imagick: https://pecl.php.net/package/imagick
-          dnf install -q -y ImageMagick-devel ImageMagick
-          /usr/bin/yes | pecl install imagick
-          echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+              systemctl enable --now php-fpm
+              systemctl stop php-fpm
 
-          # php-msgpack: https://pecl.php.net/package/msgpack
-          pecl install msgpack
-          echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+              # PHP.INI
+              cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
 
-          # php-redis: https://pecl.php.net/package/redis
-          dnf install -q -y redis6-devel libzstd-devel libzstd
-          /usr/bin/yes | pecl install redis
-          echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+              # https://www.php.net/manual/en/opcache.configuration.php
+              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+              sed -i '1 i\opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
 
-          # php-zip: https://pecl.php.net/package/zip
-          dnf install -q -y libzip-devel libzip
-          /usr/bin/yes | pecl install zip
-          echo 'extension=zip.so' > /etc/php.d/20-zip.ini
+              sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
+              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
+              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
+              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
 
-          # libsodium: https://pecl.php.net/package/libsodium
-          wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
-          tar -xzf LATEST.tar.gz
-          cd libsodium-stable
-          ./configure
-          make
-          make install
-          pecl install -f libsodium
-          echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+              dnf install -q -y php-devel php-pear gcc
+              pear update-channels
+              pecl update-channels
 
-          cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
-          # https://www.php.net/manual/en/class.sessionhandler.php
-          sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-          sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-          sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-          sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+              # php-igbinary: https://pecl.php.net/package/igbinary
+              pecl install igbinary
+              echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
 
-          cd /tmp/cfn
-          systemctl restart php-fpm
+              # php-imagick: https://pecl.php.net/package/imagick
+              dnf install -q -y ImageMagick-devel ImageMagick
+              /usr/bin/yes | pecl install imagick
+              echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
-          # Composer: https://getcomposer.org/download/
-          wget -nv https://getcomposer.org/installer
-          export COMPOSER_HOME=/root && php installer --quiet
-          mv ./composer.phar /usr/local/bin/composer
+              # php-msgpack: https://pecl.php.net/package/msgpack
+              pecl install msgpack
+              echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+
+              # php-redis: https://pecl.php.net/package/redis
+              dnf install -q -y redis6-devel libzstd-devel libzstd
+              /usr/bin/yes | pecl install redis
+              echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+
+              # php-zip: https://pecl.php.net/package/zip
+              dnf install -q -y libzip-devel libzip
+              /usr/bin/yes | pecl install zip
+              echo 'extension=zip.so' > /etc/php.d/20-zip.ini
+
+              # libsodium: https://pecl.php.net/package/libsodium
+              wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
+              tar -xzf LATEST.tar.gz
+              cd libsodium-stable
+              ./configure
+              make
+              make install
+              pecl install -f libsodium
+              echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+
+              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+              # https://www.php.net/manual/en/class.sessionhandler.php
+              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+              cd /tmp/cfn
+              systemctl restart php-fpm
+
+              # Composer: https://getcomposer.org/download/
+              wget -nv https://getcomposer.org/installer
+              export COMPOSER_HOME=/root && php installer --quiet
+              mv ./composer.phar /usr/local/bin/composer
+
+              ;;
+          esac
 
           # Certbot
           dnf install -q -y augeas-libs
@@ -502,7 +504,7 @@ Resources:
           systemctl daemon-reload
           systemctl enable --now certbot-renew.timer
 
-          # Web server: Apache or Nginx
+          # Web server
           export WEB="${webOption}"
           case $WEB in
             Apache)
@@ -569,7 +571,7 @@ Resources:
               ;;
           esac
 
-          # Database: MySQL, MariaDB or none
+          # Database
           export DB="${databaseOption}"
           case $DB in
             MySQL)
@@ -578,12 +580,12 @@ Resources:
               systemctl enable --now mysqld
               ;;
             MariaDB)
-              dnf install -q -y mariadb105-server
+              dnf install -q -y mariadb10*-server
               systemctl enable --now mariadb
               ;;
             PostgreSQL)
               dnf clean metadata
-              dnf install -q -y postgresql15-server
+              dnf install -q -y postgresql1*-server
               /usr/bin/postgresql-setup --initdb
               systemctl enable --now postgresql
               ;;
@@ -594,7 +596,7 @@ Resources:
 
           # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-linux.html
           dnf install -q -y ruby
-          wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          wget -4 -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
           chmod +x ./install
           ./install auto
 
