@@ -511,7 +511,7 @@ Resources:
           else
             wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
           fi
-          yum install -q -y ./mount-s3.rpm
+          sudo yum install -y ./mount-s3.rpm
           EoF
           chmod +x /home/ec2-user/update-mountpoint-s3
           chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3

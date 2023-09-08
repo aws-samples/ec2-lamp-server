@@ -507,7 +507,7 @@ Resources:
           else
             wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
           fi
-          apt-get -q -y install ./mount-s3.deb
+          apt-get install -q -y ./mount-s3.deb
 
           # Mountpoint update script
           cat << EoF > /home/ubuntu/update-mountpoint-s3
@@ -518,7 +518,7 @@ Resources:
           else
             wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
           fi
-          apt-get install -q -y ./mount-s3.deb
+          sudo apt-get install -y ./mount-s3.deb
           EoF
           chmod +x /home/ubuntu/update-mountpoint-s3
           chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
