@@ -470,13 +470,23 @@ Resources:
               ;;
           esac
 
-          # Certbot
+          # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
           dnf install -q -y augeas-libs
           python3 -m venv /opt/certbot/
           /opt/certbot/bin/pip install --upgrade pip
           /opt/certbot/bin/pip install certbot
           /opt/certbot/bin/pip install certbot-dns-route53
           ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+
+          # Certbot update script
+          cat << EoF > /home/ec2-user/update-certbot
+          #!/bin/bash          
+          sudo /opt/certbot/bin/pip install --upgrade certbot
+          sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
+          EoF
+          chmod +x /home/ec2-user/update-certbot
+          chown ec2-user:ec2-user /home/ec2-user/update-certbot
+
           # https://certbot.org/renewal-setup: use systemd timer
           cat << EoF > /usr/lib/systemd/system/certbot-renew.timer
           [Unit]
@@ -491,6 +501,7 @@ Resources:
           WantedBy=timers.target
           EoF
 
+          touch /etc/sysconfig/certbot
           cat << EoF > /usr/lib/systemd/system/certbot-renew.service
           [Unit]
           Description=This service automatically renews any certbot certificates found
@@ -509,6 +520,7 @@ Resources:
           case $WEB in
             Apache)
               /opt/certbot/bin/pip install certbot-apache
+              echo "sudo /opt/certbot/bin/pip install --upgrade certbot-apache" >> /home/ec2-user/update-certbot
               dnf install -q -y httpd mod_ssl mod_fcgid
               systemctl enable httpd
 
@@ -523,9 +535,10 @@ Resources:
               systemctl restart httpd
               ;;
             Nginx)
+              /opt/certbot/bin/pip install certbot-nginx
+              echo "sudo /opt/certbot/bin/pip install --upgrade certbot-nginx" >> /home/ec2-user/update-certbot
               dnf remove -q -y httpd
               dnf install -q -y nginx
-              /opt/certbot/bin/pip install certbot-nginx
               systemctl enable nginx
 
               cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
