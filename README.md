@@ -12,6 +12,9 @@ For use cases that require high performance, reliability, scalability and high a
 - [Moodle Reference Architecture](https://docs.aws.amazon.com/architecture-diagrams/latest/moodle-learning-management-system-on-aws/moodle-learning-management-system-on-aws.html)
 - [Best Practices for WordPress on AWS](https://docs.aws.amazon.com/whitepapers/latest/best-practices-wordpress/reference-architecture.html)
 
+## Architecture Diagram
+<img alt="image" src="ec2-lamp-server.png">
+
 ## Overview of features
 The template provides the following features:
 - Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access (not available for Amazon Linux 2023)
@@ -29,7 +32,6 @@ The template provides the following features:
 - (Optional) [Amazon S3](https://aws.amazon.com/s3/) bucket access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [Certbot](https://certbot.eff.org/) with apache, nginx and certbot-dns-route53 plugins
 - (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
-
 
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
 
