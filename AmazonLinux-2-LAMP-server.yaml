@@ -29,6 +29,7 @@ Metadata:
           - ec2Name
           - ec2KeyPair
           - volumeSize
+          - volumeType
       - Label:
           default: VPC
         Parameters:
@@ -60,6 +61,8 @@ Metadata:
         default: "Keypair name"
       volumeSize:
         default: "Volume size (GiB)"
+      volumeType:
+        default: "EBS volume type"
       vpcID:
         default: "VPC with internet connectivity"
       subnetID:
@@ -111,6 +114,13 @@ Parameters:
     MinValue: 10
     MaxValue: 16384
     Default: 20
+  volumeType:
+    Type: String
+    #Description: EBS volume type
+    AllowedValues:
+      - "gp3"
+      - "gp2"
+    Default: "gp3"
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -361,7 +371,7 @@ Resources:
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
-            VolumeType: gp3
+            VolumeType: !Ref volumeType
             VolumeSize: !Ref volumeSize
             DeleteOnTermination: true
       UserData:
