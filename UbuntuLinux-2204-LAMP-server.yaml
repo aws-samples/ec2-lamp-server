@@ -68,7 +68,7 @@ Metadata:
       subnetID:
         default: "Subnet with internet connectivity"
       assignStaticIP:
-        default: "Assign static internet IPv4 address?"
+        default: "[Elastic IP] Assign static public internet IPv4 address?"
       displayPublicIP:
         default: "Display public internet IP?"
       ingressIPv4:

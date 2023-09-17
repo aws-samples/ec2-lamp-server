@@ -68,7 +68,7 @@ Metadata:
       subnetID:
         default: "Subnet with internet connectivity"
       assignStaticIP:
-        default: "Assign static internet IPv4 address?"
+        default: "[Elastic IP] Assign static public internet IPv4 address?"
       displayPublicIP:
         default: "Display public internet IP?"
       ingressIPv4:
@@ -578,7 +578,7 @@ Resources:
 
               # php-redis: https://pecl.php.net/package/redis
               yum install -q -y redis-devel libzstd-devel libzstd
-              /usr/bin/yes | pecl install redis
+              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
               # php-memcached: https://pecl.php.net/package/memcached
