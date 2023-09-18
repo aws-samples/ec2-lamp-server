@@ -558,7 +558,8 @@ Resources:
               cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
 
               # https://www.php.net/manual/en/opcache.configuration.php
-              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+              # https://github.com/oerdnj/deb.sury.org/issues/1924
+              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
               sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
               sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
 
@@ -660,7 +661,7 @@ Resources:
           systemctl enable --now cachefilesd
 
           # Lustre: https://docs.aws.amazon.com/fsx/latest/LustreGuide/install-lustre-client.html
-          wget -O - https://fsx-lustre-client-repo-public-keys.s3.amazonaws.com/fsx-ubuntu-public-key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/fsx-ubuntu-public-key.gpg >/dev/null
+          wget -4 -O - https://fsx-lustre-client-repo-public-keys.s3.amazonaws.com/fsx-ubuntu-public-key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/fsx-ubuntu-public-key.gpg >/dev/null
           echo "deb [signed-by=/usr/share/keyrings/fsx-ubuntu-public-key.gpg] https://fsx-lustre-client-repo.s3.amazonaws.com/ubuntu jammy main" > /etc/apt/sources.list.d/fsxlustreclientrepo.list 
           apt-get update
           apt install -y lustre-client-modules-aws
