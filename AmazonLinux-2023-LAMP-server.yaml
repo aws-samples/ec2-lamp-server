@@ -54,7 +54,7 @@ Metadata:
       processorArchitecture:
         default: "Processor architecture (x86_64 or arm64)"
       instanceType:
-        default: "Instance type"
+        default: "Instance type ( https://console.aws.amazon.com/ec2/#InstanceTypes )"
       ec2Name:
         default: "Instance name"
       ec2KeyPair:
@@ -418,7 +418,7 @@ Resources:
 
               # https://www.php.net/manual/en/opcache.configuration.php
               cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-              sed -i '1 i\opcache.enable=1\nopcache.jit=1255\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+              sed -i '1 i\opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
 
               sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
               sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
@@ -430,37 +430,40 @@ Resources:
               pecl update-channels
 
               # php-igbinary: https://pecl.php.net/package/igbinary
-              pecl install igbinary
+              /usr/bin/yes 'no' | pecl install igbinary
               echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
 
               # php-imagick: https://pecl.php.net/package/imagick
               dnf install -q -y ImageMagick-devel ImageMagick
-              /usr/bin/yes | pecl install imagick
+              /usr/bin/yes 'no' | pecl install imagick              
               echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
               # php-msgpack: https://pecl.php.net/package/msgpack
-              pecl install msgpack
+              /usr/bin/yes 'no' | pecl install msgpack
               echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
               # php-redis: https://pecl.php.net/package/redis
-              dnf install -q -y redis6-devel libzstd-devel libzstd
+              dnf install -q -y redis6-devel libzstd-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
+              # php-memcached: https://pecl.php.net/package/memcached
+              dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel
+              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+              echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+
               # php-zip: https://pecl.php.net/package/zip
-              dnf install -q -y libzip-devel libzip
-              /usr/bin/yes | pecl install zip
+              dnf install -q -y libzip-devel
+              /usr/bin/yes 'no' | pecl install zip
               echo 'extension=zip.so' > /etc/php.d/20-zip.ini
 
               # libsodium: https://pecl.php.net/package/libsodium
-              wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
-              tar -xzf LATEST.tar.gz
-              cd libsodium-stable
-              ./configure
-              make
-              make install
-              pecl install -f libsodium
+              dnf install -q -y libsodium-devel
+              /usr/bin/yes 'no' | pecl install -f libsodium
               echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+
+              # install fails at times
+              /usr/bin/yes 'no' | pecl install imagick
 
               cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
               # https://www.php.net/manual/en/class.sessionhandler.php
