@@ -406,9 +406,9 @@ Resources:
             *)
               # Will install httpd
               dnf install -q -y php ${phpVersion}-{cli,fpm,opcache}
-              dnf install -q -y ${phpVersion}-{mysqlnd,pgsql,pdo}
+              dnf install -q -y ${phpVersion}-{mysqlnd,pgsql,pdo,dba}
               dnf install -q -y ${phpVersion}-{xml,soap,ldap,intl}
-              dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd}
+              dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd,enchant,pspell,tidy}
 
               systemctl enable --now php-fpm
               systemctl stop php-fpm
@@ -443,8 +443,8 @@ Resources:
               echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
               # php-redis: https://pecl.php.net/package/redis
-              dnf install -q -y redis6-devel libzstd-devel
-              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes"' redis
+              dnf install -q -y redis6-devel libzstd-devel lz4-devel
+              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
               # php-memcached: https://pecl.php.net/package/memcached
