@@ -688,9 +688,10 @@ Resources:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
 
-          # dnf-automatic
+          # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
           yum install -q -y dnf-automatic
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
+          sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable --now dnf-automatic-install.timer
 
           # Fedora repo: disabled https://repost.aws/questions/QUIYtGINewTZ2k4tkp2QqeEw/php-repository-installation
