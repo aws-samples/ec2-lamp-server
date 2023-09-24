@@ -587,12 +587,7 @@ Resources:
               echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
 
               # libsodium: https://pecl.php.net/package/libsodium
-              wget -4 -nv https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
-              tar -xzf LATEST.tar.gz
-              cd libsodium-stable
-              ./configure
-              make
-              make install
+              yum install -q -y libsodium-devel
               pecl install -f libsodium
               echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
 
