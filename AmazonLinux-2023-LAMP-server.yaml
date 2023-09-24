@@ -443,7 +443,7 @@ Resources:
               echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
               # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              dnf install -q -y redis-devel libzstd-devel lz4-devel
+              dnf install -q -y redis6-devel libzstd-devel lz4-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
