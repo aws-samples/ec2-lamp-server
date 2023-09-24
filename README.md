@@ -6,7 +6,7 @@ Sample [AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to
 
 This repo provides starter CloudFormation template to provision a EC2 LAMP/LEMP/LAPP/LEPP server instance. The EC2 instance can be used for software development, or deployment of LAMP stack based applications for use cases where factors such as high availablility (HA) and scalability are not a primary priority. 
 
-For use cases that require high performance, reliability, scalability and high availability, users should re-architect their applications. Some resources that can help with the design includes:
+For use cases that require high performance, reliability, scalability and high availability, users should re-architect their applications. Some resources that can help includes:
 - [AWS Well-Architected](https://aws.amazon.com/architecture/well-architected/)
 - [AWS Architecture Center](https://aws.amazon.com/architecture) including [Scaling PHP Applications on AWS](https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/scaling-PHP-applications-on-AWS-ra.pdf)
 - [Moodle Reference Architecture](https://docs.aws.amazon.com/architecture-diagrams/latest/moodle-learning-management-system-on-aws/moodle-learning-management-system-on-aws.html)
@@ -36,7 +36,7 @@ The template provides the following features:
 Note that use of cloudformation template indicates acceptance of license agreements of all software that is installed in the EC2 instance. 
 
 
-### PHP Configuration
+### PHP performance configuration
 Based on public articles about PHP performance (many thanks to the authors), the following changes were made:
 
 - PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [Make your PHP 8 apps twice as fast (OPCache & JIT)](https://medium.com/@edouard.courty/make-your-php-8-apps-twice-as-fast-opcache-jit-8d3542276595)
@@ -58,6 +58,7 @@ EC2
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
+- `volumeType`: [EBS General Purpose Volume](https://aws.amazon.com/ebs/general-purpose/) type
 
 VPC
 - `vpcID`: [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) with internet connectivity. Select [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) if unsure
