@@ -435,7 +435,7 @@ Resources:
 
               # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
               dnf install -q -y ImageMagick-devel ImageMagick
-              /usr/bin/yes 'no' | pecl install --configureoptions 'with-imagick="autodetect"' imagick
+              /usr/bin/yes 'no' | pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
               echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
               # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
@@ -467,7 +467,7 @@ Resources:
               echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
 
               # install fails at times
-              /usr/bin/yes 'no' | pecl install imagick
+              /usr/bin/yes 'no' | pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
 
               cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
               # https://www.php.net/manual/en/class.sessionhandler.php
