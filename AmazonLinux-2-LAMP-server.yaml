@@ -354,6 +354,63 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Timeout: PT90M
+    Metadata:
+      Comment: Install Update files
+      AWS::CloudFormation::Init:
+        configSets:
+          setup:
+            - 00_setup
+        00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
+          files:
+            "/home/ec2-user/update-dcv":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                if (uname -a | grep x86 1>/dev/null) then
+                  rm -f nice-dcv-el7-x86_64.tgz
+                  wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
+                  tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
+                else
+                  rm -f nice-dcv-el7-aarch64.tgz
+                  wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
+                  tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
+                fi
+                sudo systemctl stop dcvserver
+                sudo yum install -y nice-dcv-server-*.rpm
+                sudo yum install -y nice-dcv-web-viewer-*.rpm
+                sudo yum install -y nice-xdcv-*.rpm
+                sudo systemctl restart dcvserver
+              mode: "000755"
+              owner: "ec2-user"
+              group: "users"
+            "/home/ec2-user/update-awscli":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                rm -f awscliv2.zip
+                if (uname -a | grep x86 1>/dev/null); then
+                  curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+                else
+                  curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
+                fi
+                unzip -q -o awscliv2.zip
+                sudo ./aws/install --update -b /usr/bin
+              mode: "000755"
+              owner: "ec2-user"
+              group: "users"
+            "/home/ec2-user/update-mountpoint-s3":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                if (uname -a | grep x86 1>/dev/null); then
+                  wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+                else
+                  wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+                fi
+                sudo yum install -y ./mount-s3.rpm
+              mode: "000755"
+              owner: "ec2-user"
+              group: "users"
     Properties:
       ImageId: # https://aws.amazon.com/about-aws/whats-new/2021/11/amazon-linux-2-ami-kernel-5-10/
         !If [
@@ -388,7 +445,7 @@ Resources:
           fi
 
           # cfn-init
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
           yum install -q -y deltarpm wget tmux unzip tar curl sed
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
@@ -465,44 +522,7 @@ Resources:
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
 
           # DCV update script
-          cat << EoF > /home/ec2-user/update-dcv
-          #!/bin/bash
-          cd /tmp
-          if (uname -a | grep x86 1>/dev/null) then
-            rm -f nice-dcv-el7-x86_64.tgz
-            wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
-            tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
-          else
-            rm -f nice-dcv-el7-aarch64.tgz
-            wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
-            tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
-          fi
-          sudo dcv close-session ec2-user
-          sudo systemctl stop dcvserver dcv-virtual-session
-          sudo yum install -y ./nice-dcv-server-*.rpm
-          sudo yum install -y ./nice-dcv-web-viewer-*.rpm
-          sudo yum install -y ./nice-xdcv-*.rpm
-          sudo sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
-          sudo systemctl restart dcvserver dcv-virtual-session
-          EoF
-          chmod +x /home/ec2-user/update-dcv
-          chown ec2-user:ec2-user /home/ec2-user/update-dcv
-
           # AWS CLI update script
-          cat << EoF > /home/ec2-user/update-awscli
-          #!/bin/bash
-          cd /tmp
-          rm -f awscliv2.zip
-          if (uname -a | grep x86 1>/dev/null); then
-            curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
-          else
-            curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
-          fi
-          unzip -q -o awscliv2.zip
-          sudo ./aws/install --update -b /usr/bin
-          EoF
-          chmod +x /home/ec2-user/update-awscli
-          chown ec2-user:ec2-user /home/ec2-user/update-awscli
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           if (uname -a | grep x86 1>/dev/null); then
@@ -513,18 +533,6 @@ Resources:
           yum install -q -y ./mount-s3.rpm
 
           # Mountpoint update script
-          cat << EoF > /home/ec2-user/update-mountpoint-s3
-          #!/bin/bash
-          cd /tmp
-          if (uname -a | grep x86 1>/dev/null); then
-            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
-          else
-            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
-          fi
-          sudo yum install -y ./mount-s3.rpm
-          EoF
-          chmod +x /home/ec2-user/update-mountpoint-s3
-          chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3
 
           # Redis & Memcached
           amazon-linux-extras install -y redis6 memcached1.5
