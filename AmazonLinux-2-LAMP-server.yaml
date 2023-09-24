@@ -563,33 +563,37 @@ Resources:
               pear update-channels
               pecl update-channels
 
-              # php-igbinary: https://pecl.php.net/package/igbinary
+              # php-igbinary: https://github.com/igbinary/igbinary/blob/master/package.xml
               /usr/bin/yes 'no' | pecl install igbinary
               echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
 
-              # php-imagick: https://pecl.php.net/package/imagick
+              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
               yum install -q -y ImageMagick-devel ImageMagick
-              /usr/bin/yes 'no' | pecl install imagick
+              /usr/bin/yes 'no' | pecl install --configureoptions 'with-imagick="autodetect"' imagick
               echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
-              # php-msgpack: https://pecl.php.net/package/msgpack
+              # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
               /usr/bin/yes 'no' | pecl install msgpack
               echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
-              # php-redis: https://pecl.php.net/package/redis
+              # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
               yum install -q -y redis-devel libzstd-devel libzstd lz4-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
-              # php-memcached: https://pecl.php.net/package/memcached
+              # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
               yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
               echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
 
-              # libsodium: https://pecl.php.net/package/libsodium
+              # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
               yum install -q -y libsodium-devel
-              pecl install -f libsodium
+              /usr/bin/yes 'no' | pecl install -f libsodium
               echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+
+              # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
+              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
+              echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
 
               cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
               # https://www.php.net/manual/en/class.sessionhandler.php
