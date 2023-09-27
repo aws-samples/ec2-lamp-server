@@ -442,8 +442,29 @@ Resources:
               /usr/bin/yes 'no' | pecl install msgpack
               echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
+              # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
+              dnf install -q -y libzstd-devel
+              /usr/bin/yes 'no' | pecl install zstd
+              echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+
+              # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
+              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+              echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+
+              # php-lz4: https://github.com/kjdev/php-ext-lz4
+              dnf install -q -y git lz4-devel
+              cd /tmp/cfn
+              git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+              cd php-ext-lz4
+              phpize
+              ./configure --with-lz4-includedir=/usr
+              make
+              make install
+              echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+              cd /tmp/cfn
+
               # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              dnf install -q -y redis6-devel libzstd-devel lz4-devel
+              dnf install -q -y redis6-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
@@ -452,7 +473,7 @@ Resources:
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
               echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
 
-              # php-zip: https://pecl.php.net/package/zip
+              # php-zip: https://github.com/pierrejoye/php_zip/blob/master/package.xml
               dnf install -q -y php-zip
               if (php -m | grep zip 1>/dev/null); then 
                 echo 'php-zip available'
