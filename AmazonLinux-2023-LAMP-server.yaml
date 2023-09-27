@@ -451,20 +451,8 @@ Resources:
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
               echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
 
-              # php-lz4: https://github.com/kjdev/php-ext-lz4
-              dnf install -q -y git lz4-devel
-              cd /tmp/cfn
-              git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
-              cd php-ext-lz4
-              phpize
-              ./configure --with-lz4-includedir=/usr
-              make
-              make install
-              echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
-              cd /tmp/cfn
-
               # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              dnf install -q -y redis6-devel
+              dnf install -q -y redis6-devel lz4-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
