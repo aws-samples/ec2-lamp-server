@@ -641,6 +641,11 @@ Resources:
               yum install -q -y httpd mod_ssl mod_fcgid
               systemctl enable httpd
 
+              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /var/www/.opcache
+              chown apache:apache /var/www/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
+
               cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
               # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
               sed -i "s/^LoadModule mpm_prefork_module/#&/" /etc/httpd/conf.modules.d/00-mpm.conf
@@ -667,6 +672,11 @@ Resources:
               yum install -q -y python2-certbot-nginx
               amazon-linux-extras install -y nginx1
               systemctl enable nginx
+
+              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /usr/share/nginx/.opcache
+              chown nginx:nginx /usr/share/nginx/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/usr\/share\/nginx\/.opcache/' /etc/php.d/10-opcache.ini
 
               cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
               # enable sites-enabled and sites-available folders
