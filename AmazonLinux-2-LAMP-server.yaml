@@ -577,15 +577,24 @@ Resources:
 
               # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
               yum install -q -y ImageMagick-devel ImageMagick
-              /usr/bin/yes 'no' | pecl install --configureoptions 'with-imagick="autodetect"' imagick
+              /usr/bin/yes 'no' | sudo pecl install --configureoptions 'with-imagick="autodetect"' imagick
               echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
               # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
               /usr/bin/yes 'no' | pecl install msgpack
               echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
+              # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
+              yum install -q -y libzstd-devel
+              /usr/bin/yes 'no' | pecl install zstd
+              echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+
+              # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
+              /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+              echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+
               # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              yum install -q -y redis-devel libzstd-devel libzstd lz4-devel
+              yum install -q -y redis-devel lz4-devel
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
               echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
@@ -595,9 +604,7 @@ Resources:
               echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
 
               # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
-              yum install -q -y libsodium-devel
-              /usr/bin/yes 'no' | pecl install -f libsodium
-              echo 'extension=sodium.so' > /etc/php.d/50-sodium.ini
+              yum install -q -y php-sodium
 
               # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
               /usr/bin/yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
