@@ -562,6 +562,11 @@ Resources:
               dnf install -q -y httpd mod_ssl mod_fcgid
               systemctl enable httpd
 
+              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /var/www/.opcache
+              chown apache:apache /var/www/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
+
               # virtual host: for Certbot
               cat << EoF > /etc/httpd/conf.d/www.conf
           <VirtualHost *:80>
@@ -578,6 +583,11 @@ Resources:
               dnf remove -q -y httpd
               dnf install -q -y nginx
               systemctl enable nginx
+
+              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /usr/share/nginx/.opcache
+              chown nginx:nginx /usr/share/nginx/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/usr\/share\/nginx\/.opcache/' /etc/php.d/10-opcache.ini
 
               cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
               # enable sites-enabled and sites-available folders
