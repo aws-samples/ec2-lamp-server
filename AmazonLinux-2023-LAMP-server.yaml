@@ -326,6 +326,117 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Timeout: PT90M
+    Metadata:
+      Comment: Install Update files
+      AWS::CloudFormation::Init:
+        configSets:
+          setup:
+            - 00_setup
+        00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
+          files:
+            "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
+              content: |
+                {
+                  "agent": {
+                    "metrics_collection_interval": 60,
+                    "run_as_user": "cwagent"
+                  },
+                  "metrics": {
+                    "aggregation_dimensions": [
+                      [
+                        "InstanceId"
+                      ]
+                    ],
+                    "append_dimensions": {
+                      "AutoScalingGroupName": "${!aws:AutoScalingGroupName}",
+                      "ImageId": "${!aws:ImageId}",
+                      "InstanceId": "${!aws:InstanceId}",
+                      "InstanceType": "${!aws:InstanceType}"
+                    },
+                    "metrics_collected": {
+                      "disk": {
+                        "measurement": [
+                          "used_percent"
+                        ],
+                        "metrics_collection_interval": 60,
+                          "resources": [
+                            "/"
+                          ]
+                      },
+                      "mem": {
+                        "measurement": [
+                          "mem_used_percent"
+                        ],
+                        "metrics_collection_interval": 60
+                      },                
+                      "diskio": {
+                        "measurement": [
+                          "io_time"
+                        ],
+                        "metrics_collection_interval": 60,
+                        "resources": [
+                          "nvme0n1"
+                        ]
+                      },
+                      "cpu": {
+                        "measurement": [
+                          "cpu_usage_idle",
+                          "cpu_usage_iowait",
+                          "cpu_usage_user",
+                          "cpu_usage_system"
+                        ],
+                        "metrics_collection_interval": 60
+                      }
+                    }
+                  }
+                }
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.timer":
+              content: |
+                [Unit]
+                Description=This is the timer to set the schedule for automated renewals
+
+                [Timer]
+                OnCalendar=*-*-* 00/12:00:00
+                RandomizedDelaySec=12hours
+                Persistent=true
+
+                [Install]
+                WantedBy=timers.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.service":
+              content: |
+                [Unit]
+                Description=This service automatically renews any certbot certificates found
+
+                [Service]
+                EnvironmentFile=/etc/sysconfig/certbot
+                Type=oneshot
+                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/etc/yum.repos.d/fedora.repo": # Fedora repo: disabled https://repost.aws/questions/QUIYtGINewTZ2k4tkp2QqeEw/php-repository-installation
+              content: |
+                [fedora]
+                name=Fedora 36 - $basearch
+                #baseurl=http://download.example/pub/fedora/linux/releases/36/Everything/$basearch/os/
+                metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-36&arch=$basearch
+                enabled=0
+                countme=1
+                metadata_expire=7d
+                repo_gpgcheck=0
+                type=rpm
+                gpgcheck=1
+                gpgkey=https://getfedora.org/static/fedora.gpg
+                skip_if_unavailable=False
+              mode: "000644"
+              owner: "root"
+              group: "root"
     Properties:
       ImageId: # https://github.com/amazonlinux/amazon-linux-2023
         !If [
@@ -353,13 +464,9 @@ Resources:
           cd /tmp/cfn
 
           # cfn-init
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # https://github.com/amazonlinux/amazon-linux-2023/issues/397
           dnf clean all
-          dnf upgrade --refresh rpm glibc
-          rm /var/lib/rpm/.rpm.lock
-          dnf update -q -y
           dnf install -q -y wget tmux unzip tar curl-minimal sed
 
           # No graphical desktop: https://github.com/amazonlinux/amazon-linux-2023/issues/47
@@ -434,6 +541,13 @@ Resources:
                 echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
               fi
 
+              # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
+              dnf install -q -y php-apcu
+              if (! php -m | grep -q apcu); then
+                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
+                echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
+              fi
+
               # php-igbinary: https://pecl.php.net/package/igbinary
               dnf install -q -y igbinary
               if (! php -m | grep -q igbinary); then
@@ -495,13 +609,6 @@ Resources:
                 echo 'extension=sodium.so' > /etc/php.d/20-sodium.ini
               fi
 
-              # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
-              dnf install -q -y php-apcu
-              if (! php -m | grep -q apcu); then
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
-                echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
-              fi
-
               cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
               # https://www.php.net/manual/en/class.sessionhandler.php
               sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
@@ -541,30 +648,7 @@ Resources:
           chown ec2-user:ec2-user /home/ec2-user/update-certbot
 
           # https://certbot.org/renewal-setup: use systemd timer
-          cat << EoF > /usr/lib/systemd/system/certbot-renew.timer
-          [Unit]
-          Description=This is the timer to set the schedule for automated renewals
-
-          [Timer]
-          OnCalendar=*-*-* 00/12:00:00
-          RandomizedDelaySec=12hours
-          Persistent=true
-
-          [Install]
-          WantedBy=timers.target
-          EoF
-
           touch /etc/sysconfig/certbot
-          cat << EoF > /usr/lib/systemd/system/certbot-renew.service
-          [Unit]
-          Description=This service automatically renews any certbot certificates found
-
-          [Service]
-          EnvironmentFile=/etc/sysconfig/certbot
-          Type=oneshot
-          ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
-          EoF
-
           systemctl daemon-reload
           systemctl enable --now certbot-renew.timer
 
@@ -683,63 +767,6 @@ Resources:
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           dnf install -q -y amazon-cloudwatch-agent
-
-          cat << EoF > /opt/aws/amazon-cloudwatch-agent/bin/config.json
-          {
-            "agent": {
-              "metrics_collection_interval": 60,
-              "run_as_user": "cwagent"
-            },
-            "metrics": {
-              "aggregation_dimensions": [
-                [
-                  "InstanceId"
-                ]
-              ],
-              "append_dimensions": {
-                "AutoScalingGroupName": "\${!aws:AutoScalingGroupName}",
-                "ImageId": "\${!aws:ImageId}",
-                "InstanceId": "\${!aws:InstanceId}",
-                "InstanceType": "\${!aws:InstanceType}"
-              },
-              "metrics_collected": {
-                "disk": {
-                  "measurement": [
-                    "used_percent"
-                  ],
-                  "metrics_collection_interval": 60,
-                    "resources": [
-                      "/"
-                    ]
-                },
-                "mem": {
-                  "measurement": [
-                    "mem_used_percent"
-                  ],
-                  "metrics_collection_interval": 60
-                },                
-                "diskio": {
-                  "measurement": [
-                    "io_time"
-                  ],
-                  "metrics_collection_interval": 60,
-                  "resources": [
-                    "nvme0n1"
-                  ]
-                },
-                "cpu": {
-                  "measurement": [
-                    "cpu_usage_idle",
-                    "cpu_usage_iowait",
-                    "cpu_usage_user",
-                    "cpu_usage_system"
-                  ],
-                  "metrics_collection_interval": 60
-                }
-              }
-            }
-          }
-          EoF
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
 
@@ -752,22 +779,6 @@ Resources:
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
           sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable --now dnf-automatic-install.timer
-
-          # Fedora repo: disabled https://repost.aws/questions/QUIYtGINewTZ2k4tkp2QqeEw/php-repository-installation
-          cat << EoF > /etc/yum.repos.d/fedora.repo
-          [fedora]
-          name=Fedora 36 - $basearch
-          #baseurl=http://download.example/pub/fedora/linux/releases/36/Everything/$basearch/os/
-          metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-36&arch=$basearch
-          enabled=0
-          countme=1
-          metadata_expire=7d
-          repo_gpgcheck=0
-          type=rpm
-          gpgcheck=1
-          gpgkey=https://getfedora.org/static/fedora.gpg
-          skip_if_unavailable=False
-          EoF
 
           # cfn-init completed so signal success or not
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
