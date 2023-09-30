@@ -353,6 +353,73 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Timeout: PT90M
+    Metadata:
+      Comment: Install Update files
+      AWS::CloudFormation::Init:
+        configSets:
+          setup:
+            - 00_setup
+        00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
+          files:
+            "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
+              content: |
+                {
+                  "agent": {
+                    "metrics_collection_interval": 60,
+                    "run_as_user": "cwagent"
+                  },
+                  "metrics": {
+                    "aggregation_dimensions": [
+                      [
+                        "InstanceId"
+                      ]
+                    ],
+                    "append_dimensions": {
+                      "AutoScalingGroupName": "${!aws:AutoScalingGroupName}",
+                      "ImageId": "${!aws:ImageId}",
+                      "InstanceId": "${!aws:InstanceId}",
+                      "InstanceType": "${!aws:InstanceType}"
+                    },
+                    "metrics_collected": {
+                      "disk": {
+                        "measurement": [
+                          "used_percent"
+                        ],
+                        "metrics_collection_interval": 60,
+                          "resources": [
+                            "/"
+                          ]
+                      },
+                      "mem": {
+                        "measurement": [
+                          "mem_used_percent"
+                        ],
+                        "metrics_collection_interval": 60
+                      },                
+                      "diskio": {
+                        "measurement": [
+                          "io_time"
+                        ],
+                        "metrics_collection_interval": 60,
+                        "resources": [
+                          "nvme0n1"
+                        ]
+                      },
+                      "cpu": {
+                        "measurement": [
+                          "cpu_usage_idle",
+                          "cpu_usage_iowait",
+                          "cpu_usage_user",
+                          "cpu_usage_system"
+                        ],
+                        "metrics_collection_interval": 60
+                      }
+                    }
+                  }
+                }
+              mode: "000644"
+              owner: "root"
+              group: "root"
     Properties:
       ImageId:
         !If [
@@ -395,7 +462,7 @@ Resources:
           python3 setup.py install
 
           # cfn-init
-          python3 /usr/local/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          python3 /usr/local/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
           apt-get -q -y install ubuntu-desktop-minimal
@@ -500,7 +567,7 @@ Resources:
           #!/bin/bash
           cd /tmp
           rm -f awscliv2.zip
-          if (uname -a | grep x86 1>/dev/null); then
+          if (uname -a | grep -q x86); then
             curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
           else
             curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
@@ -512,7 +579,7 @@ Resources:
           chown ubuntu:ubuntu /home/ubuntu/update-awscli
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
-          if (uname -a | grep x86 1>/dev/null); then
+          if (uname -a | grep -q x86); then
             wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
           else
             wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
@@ -544,11 +611,51 @@ Resources:
               ;;
             *)
               # PHP install
-              apt-get install -q -y php8.1 php8.1-{common,fpm,opcache}
+              apt-get install -q -y php8.1 php8.1-{common,fpm,opcache,apcu}
               apt-get install -q -y php8.1-{memcached,redis}
-              apt-get install -q -y php8.1-{mysql,pgsql}
+              apt-get install -q -y php8.1-{mysql,pgsql,dba}
               apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
               apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
+              apt-get install -q -y php8.1-{igbinary,msgpack}
+
+              apt-get install -q -y php8.1-dev php-pear gcc
+
+              # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
+              apt-get install -q -y php8.1-lzf
+              if (! php -m | grep -q lzf); then
+                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+                echo 'extension=lzf.so' > /etc/php/8.1/mods-available/lzf.ini
+                ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/fpm/conf.d/40-lzf.ini
+                ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/cli/conf.d/40-lzf.ini
+              fi
+
+              # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
+              apt-get install -q -y php8.1-zstd
+              if (! php -m | grep -q zstd); then
+                dnf install -q -y libzstd-dev
+                /usr/bin/yes 'no' | pecl install zstd
+                echo 'extension=zstd.so' > /etc/php/8.1/mods-available/zstd.ini
+                ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/fpm/conf.d/40-zstd.ini
+                ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/cli/conf.d/40-zstd.ini
+              fi
+
+              # php-lz4: https://github.com/kjdev/php-ext-lz4
+              apt-get install -q -y php8.1-lz4
+              if (! php -m | grep -q lz4); then
+                cd /tmp/cfn
+                apt-get install -q -y git liblz4-dev
+                git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+                cd php-ext-lz4
+                phpize
+                ./configure --with-lz4-includedir=/usr
+                make
+                make install
+                echo 'extension=lz4.so' > /etc/php/8.1/mods-available/lz4.ini
+                ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/fpm/conf.d/40-lz4.ini
+                ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/cli/conf.d/40-lz4.ini
+                cd /tmp/cfn
+              fi
+
               apt-get install -q -y composer
 
               systemctl enable --now php8.1-fpm
@@ -658,16 +765,6 @@ Resources:
           # NFS client
           apt-get install -q -y nfs-common
 
-          # cachefilesd
-          apt-get install -q -y cachefilesd
-          systemctl enable --now cachefilesd
-
-          # Lustre: https://docs.aws.amazon.com/fsx/latest/LustreGuide/install-lustre-client.html
-          wget -4 -O - https://fsx-lustre-client-repo-public-keys.s3.amazonaws.com/fsx-ubuntu-public-key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/fsx-ubuntu-public-key.gpg >/dev/null
-          echo "deb [signed-by=/usr/share/keyrings/fsx-ubuntu-public-key.gpg] https://fsx-lustre-client-repo.s3.amazonaws.com/ubuntu jammy main" > /etc/apt/sources.list.d/fsxlustreclientrepo.list 
-          apt-get update
-          apt install -y lustre-client-modules-aws
-
           # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
           apt-get install -q -y ruby-full
           wget -4 -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
@@ -682,65 +779,8 @@ Resources:
           fi
           apt-get install -q -y ./amazon-cloudwatch-agent.deb
 
-          cat << EoF > /opt/aws/amazon-cloudwatch-agent/bin/config.json
-          {
-            "agent": {
-              "metrics_collection_interval": 60,
-              "run_as_user": "cwagent"
-            },
-            "metrics": {
-              "aggregation_dimensions": [
-                [
-                  "InstanceId"
-                ]
-              ],
-              "append_dimensions": {
-                "AutoScalingGroupName": "\${!aws:AutoScalingGroupName}",
-                "ImageId": "\${!aws:ImageId}",
-                "InstanceId": "\${!aws:InstanceId}",
-                "InstanceType": "\${!aws:InstanceType}"
-              },
-              "metrics_collected": {
-                "disk": {
-                  "measurement": [
-                    "used_percent"
-                  ],
-                  "metrics_collection_interval": 60,
-                    "resources": [
-                      "/"
-                    ]
-                },
-                "mem": {
-                  "measurement": [
-                    "mem_used_percent"
-                  ],
-                  "metrics_collection_interval": 60
-                },                
-                "diskio": {
-                  "measurement": [
-                    "io_time"
-                  ],
-                  "metrics_collection_interval": 60,
-                  "resources": [
-                    "nvme0n1"
-                  ]
-                },
-                "cpu": {
-                  "measurement": [
-                    "cpu_usage_idle",
-                    "cpu_usage_iowait",
-                    "cpu_usage_user",
-                    "cpu_usage_system"
-                  ],
-                  "metrics_collection_interval": 60
-                }
-              }
-            }
-          }
-          EoF
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
-
 
           # text console: DCV virtual sessions only
           systemctl isolate multi-user.target
