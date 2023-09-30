@@ -609,6 +609,21 @@ Resources:
                 echo 'extension=sodium.so' > /etc/php.d/20-sodium.ini
               fi
 
+              # php-lz4: https://github.com/kjdev/php-ext-lz4
+              dnf install -q -y php-lz4
+              if (! php -m | grep -q lz4); then
+                cd /tmp/cfn
+                dnf install -q -y git
+                git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+                cd php-ext-lz4
+                phpize
+                ./configure --with-lz4-includedir=/usr
+                make
+                make install
+                echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+                cd /tmp/cfn
+              fi
+
               cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
               # https://www.php.net/manual/en/class.sessionhandler.php
               sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
