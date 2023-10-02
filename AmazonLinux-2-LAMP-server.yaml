@@ -70,7 +70,7 @@ Metadata:
       assignStaticIP:
         default: "[Elastic IP] Assign static public internet IPv4 address?"
       displayPublicIP:
-        default: "EC2 in public or private subnet?"
+        default: "EC2 in public subnet?"
       ingressIPv4:
         default: "Allowed IPv4 prefix to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )"
       ingressIPv6:
