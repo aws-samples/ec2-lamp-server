@@ -361,6 +361,85 @@ Resources:
             - 00_setup
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
+            "/home/ubuntu/update-dcv":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                sudo dcv close-session ubuntu
+                if ((uname -a | grep x86 1>/dev/null) && (cat /etc/os-release | grep 22.04 1>/dev/null)); then
+                  rm -f /tmp/ubuntu2204-x86_64.tgz
+                  wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
+                  tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
+                else
+                  rm -f /tmp/nice-dcv-ubuntu2204-aarch64.tgz
+                  wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
+                  tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
+                fi                
+                sudo systemctl stop dcvserver dcv-virtual-session
+                sudo apt-get install -y ./nice-dcv-server_*.deb
+                sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
+                sudo systemctl restart dcvserver dcv-virtual-session
+              mode: "000755"
+              owner: "ubuntu"
+              group: "users"
+            "/home/ubuntu/update-awscli":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                rm -f awscliv2.zip
+                if (uname -a | grep -q x86); then
+                  curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+                else
+                  curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
+                fi
+                unzip -q -o awscliv2.zip
+                sudo ./aws/install --update -b /usr/bin
+              mode: "000755"
+              owner: "ubuntu"
+              group: "users"
+            "/home/ubuntu/update-mountpoint-s3":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                if (uname -a | grep -q x86); then
+                  wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+                else
+                  wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
+                fi
+                sudo apt-get install -y ./mount-s3.deb
+              mode: "000755"
+              owner: "ubuntu"
+              group: "users"
+            "/etc/systemd/system/dcv-virtual-session.service":
+              content: |
+                [Unit]
+                Description=Create DCV virtual session
+                After=default.target network.target
+
+                [Service]
+                ExecStart=/opt/dcv-virtual-session.sh
+
+                [Install]
+                WantedBy=default.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/dcv-virtual-session.sh":
+              content: |
+                #!/bin/bash
+                dcvUser=ubuntu
+                while true;
+                do
+                  if (/usr/bin/dcv list-sessions | grep $dcvUser 1>/dev/null); then
+                    sleep 5
+                  else
+                    /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
+                    /usr/bin/dcv list-sessions
+                  fi
+                done
+              mode: "000755"
+              owner: "root"
+              group: "root"
             "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
               content: |
                 {
@@ -446,6 +525,10 @@ Resources:
           mkdir -p /tmp/cfn
           cd /tmp/cfn
 
+          # disable IPv6 during setup
+          sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
           # https://stackoverflow.com/questions/33370297/apt-get-update-non-interactive
           export DEBIAN_FRONTEND=noninteractive
 
@@ -498,38 +581,12 @@ Resources:
 
           # session storage: https://docs.aws.amazon.com/dcv/latest/userguide/using-transfer.html
           # https://docs.aws.amazon.com/dcv/latest/adminguide/managing-sessions-start.html#managing-sessions-start-manual
-          cat << EoF > /etc/systemd/system/dcv-virtual-session.service
-          [Unit]
-          Description=Create DCV virtual session
-          After=default.target network.target
-
-          [Service]
-          ExecStart=/opt/dcv-virtual-session.sh
-
-          [Install]
-          WantedBy=default.target
-          EoF
-
-          cat << EoF > /opt/dcv-virtual-session.sh
-          #!/bin/bash
-          dcvUser=ubuntu
-          while true;
-          do
-            if (/usr/bin/dcv list-sessions | grep \$dcvUser 1>/dev/null); then
-              sleep 5
-            else
-              /usr/bin/dcv create-session \$dcvUser --owner \$dcvUser --storage-root /home/\$dcvUser
-              /usr/bin/dcv list-sessions
-            fi
-          done
-          EoF
-          chmod +x /opt/dcv-virtual-session.sh
 
           cd /tmp/cfn
 
           # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
           apt-get autoremove -y
-          if (uname -a | grep x86 1>/dev/null); then
+          if (uname -a | grep -q x86); then
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
           else
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
@@ -539,44 +596,7 @@ Resources:
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
 
           # DCV update script
-          cat << EoF > /home/ubuntu/update-dcv
-          #!/bin/bash
-          cd /tmp
-          if ((uname -a | grep x86 1>/dev/null) && (cat /etc/os-release | grep 22.04 1>/dev/null)); then
-            rm -f /tmp/ubuntu2204-x86_64.tgz
-            wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
-            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
-          else
-            rm -f /tmp/nice-dcv-ubuntu2204-aarch64.tgz
-            wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
-            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
-          fi
-          sudo dcv close-session ubuntu
-          sudo systemctl stop dcvserver dcv-virtual-session
-          sudo apt-get install -y ./nice-dcv-server_*.deb
-          sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
-          sudo apt-get install -y ./nice-xdcv_*.deb
-          sudo sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
-          sudo systemctl restart dcvserver dcv-virtual-session
-          EoF
-          chmod +x /home/ubuntu/update-dcv
-          chown ubuntu:ubuntu /home/ubuntu/update-dcv
-
           # AWS CLI update script
-          cat << EoF > /home/ubuntu/update-awscli
-          #!/bin/bash
-          cd /tmp
-          rm -f awscliv2.zip
-          if (uname -a | grep -q x86); then
-            curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
-          else
-            curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
-          fi
-          unzip -q -o awscliv2.zip
-          sudo ./aws/install --update -b /usr/bin
-          EoF
-          chmod +x /home/ubuntu/update-awscli
-          chown ubuntu:ubuntu /home/ubuntu/update-awscli
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           if (uname -a | grep -q x86); then
@@ -587,18 +607,6 @@ Resources:
           apt-get install -q -y ./mount-s3.deb
 
           # Mountpoint update script
-          cat << EoF > /home/ubuntu/update-mountpoint-s3
-          #!/bin/bash
-          cd /tmp
-          if (uname -a | grep x86 1>/dev/null); then
-            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
-          else
-            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
-          fi
-          sudo apt-get install -y ./mount-s3.deb
-          EoF
-          chmod +x /home/ubuntu/update-mountpoint-s3
-          chown ubuntu:ubuntu /home/ubuntu/update-mountpoint-s3
 
           # Redis & Memcached
           apt-get install -q -y redis-server memcached
@@ -781,6 +789,18 @@ Resources:
 
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
+
+          # enable back IPv6
+          sysctl -w net.ipv6.conf.all.disable_ipv6=0
+          sysctl -w net.ipv6.conf.default.disable_ipv6=0
+          case $WEB in
+            Apache)
+              systemctl restart apache2
+              ;;
+            Ngnix)
+              systemctl restart nginx
+              ;;
+          esac
 
           # text console: DCV virtual sessions only
           systemctl isolate multi-user.target
