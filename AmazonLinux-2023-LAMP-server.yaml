@@ -463,6 +463,10 @@ Resources:
           mkdir -p /tmp/cfn
           cd /tmp/cfn
 
+          # disable IPv6 during setup
+          sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
           # cfn-init
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
@@ -794,6 +798,18 @@ Resources:
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
           sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable --now dnf-automatic-install.timer
+
+          # enable back IPv6
+          sysctl -w net.ipv6.conf.all.disable_ipv6=0
+          sysctl -w net.ipv6.conf.default.disable_ipv6=0
+          case $WEB in
+            Apache)
+              systemctl restart httpd
+              ;;
+            Ngnix)
+              systemctl restart nginx
+              ;;
+          esac
 
           # cfn-init completed so signal success or not
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
