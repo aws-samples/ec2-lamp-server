@@ -79,9 +79,6 @@ Remote Administration
 - `ingressIPv4`: allowed IPv4 source prefix to SSH and NICE DCV ports, e.g. `1.2.3.4/32`. Get source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`
 - `ingressIPv6`: allowed IPv6 source prefix to SSH and NICE DCV ports. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
 
-As PECL [does not support IPv6](https://bugs.php.net/bug.php?id=71308), ensure that EC2 instance does not have IPv6 address during provisioning. 
-
-
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `SSMSessionManager`: SSM Session Manager URL link. Use this for [shell access](https://aws.amazon.com/blogs/aws/new-session-manager/) and to change login user password. Password change command is in *Description* field.
