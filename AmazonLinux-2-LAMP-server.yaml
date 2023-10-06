@@ -35,8 +35,8 @@ Metadata:
         Parameters:
           - vpcID
           - subnetID
-          - assignStaticIP
           - displayPublicIP
+          - assignStaticIP
       - Label:
           default: LAMP configuration
         Parameters:
@@ -618,10 +618,10 @@ Resources:
           else
             wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
           fi
-          yum install -q -y ./mount-s3.rpm
+          dnf install -q -y ./mount-s3.rpm
 
           # Mountpoint update script
-
+          
           # Redis & Memcached
           amazon-linux-extras install -y redis6 memcached1.5
           systemctl enable --now redis memcached
@@ -640,21 +640,29 @@ Resources:
               yum install -q -y php-{mbstring,bcmath,gd,enchant,pspell,tidy}
               yum remove -y mod_php
 
-              systemctl enable --now php-fpm
-              systemctl stop php-fpm
-
               # PHP.INI
               cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
-
-              # https://www.php.net/manual/en/opcache.configuration.php
-              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-              sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-
               sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
               sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
               sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
               sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
 
+              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+              # https://www.php.net/manual/en/class.sessionhandler.php
+              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+              # https://www.php.net/manual/en/opcache.configuration.php
+              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+              sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /var/www/.opcache
+              chown apache:apache /var/www/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
+
+              # https://www.php.net/manual/en/install.pecl.pear.php
               yum install -q -y php-devel php-pear gcc
               pear update-channels
               pecl update-channels
@@ -727,7 +735,7 @@ Resources:
               yum install -q -y php-lz4
               if (! php -m | grep -q lz4); then
                 cd /tmp/cfn
-                yum install -q -y git
+                yum install -q -y git lz4-devel
                 git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
                 cd php-ext-lz4
                 phpize
@@ -738,15 +746,18 @@ Resources:
                 cd /tmp/cfn
               fi
 
-              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
-              # https://www.php.net/manual/en/class.sessionhandler.php
-              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+              # php-xdebug: https://github.com/xdebug/xdebug/blob/master/package.xml
+              yum install -q -y php-xdebug
+              if (php -m | grep -q xdebug); then
+                yum remove -q -y php-xdebug
+              else
+                /usr/bin/yes 'no' | pecl install xdebug
+                # installed but not enabled
+                echo '#zend_extension=/usr/lib64/php/modules/xdebug.so' > /etc/php.d/50-xdebug.ini
+                echo '#zend_extension=/usr/lib64/php8.2/modules/xdebug.so' >> /etc/php.d/50-xdebug.ini
+              fi
 
               cd /tmp/cfn
-              systemctl restart php-fpm
 
               # Composer: https://getcomposer.org/download/
               yum install -q -y composer
@@ -755,6 +766,9 @@ Resources:
                 export COMPOSER_HOME=/root && php installer --quiet
                 mv ./composer.phar /usr/local/bin/composer
               fi
+
+              systemctl enable php-fpm
+              systemctl restart php-fpm
 
               ;;
           esac
@@ -769,7 +783,7 @@ Resources:
 
           # Certbot update script
           cat << EoF > /home/ec2-user/update-certbot
-          #!/bin/bash          
+          #!/bin/bash
           sudo /opt/certbot/bin/pip install --upgrade certbot
           sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
           EoF
@@ -789,12 +803,6 @@ Resources:
               echo "sudo /opt/certbot/bin/pip install --upgrade certbot-apache" >> /home/ec2-user/update-certbot
               yum install -q -y httpd mod_ssl mod_fcgid
               systemctl enable httpd
-
-              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /var/www/.opcache
-              chown apache:apache /var/www/.opcache
-              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
-              systemctl restart php-fpm
 
               cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
               # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
@@ -823,12 +831,6 @@ Resources:
               echo "sudo /opt/certbot/bin/pip install --upgrade certbot-nginx" >> /home/ec2-user/update-certbot
               amazon-linux-extras install -y nginx1
               systemctl enable nginx
-
-              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /usr/share/nginx/.opcache
-              chown nginx:nginx /usr/share/nginx/.opcache
-              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/usr\/share\/nginx\/.opcache/' /etc/php.d/10-opcache.ini
-              systemctl restart php-fpm
 
               cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
               # enable sites-enabled and sites-available folders
@@ -966,13 +968,17 @@ Resources:
           Value: https://github.com/aws-samples/ec2-lamp-server
 
 Outputs:
-  EC2Instance:
-    Description: EC2 instance console
+  EC2console:
+    Description: EC2 instance Console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   SSMsessionManager:
-    Description: SSM Session Manager login ("sudo passwd ec2-user" to change password)
+    Description: SSM Session Manager ("sudo passwd ec2-user" to change password)
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  EC2instanceConnect:
+    Description: EC2 Instance Connect
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
 
   DCVwebConsole:
     Description: NICE DCV web browser client (login as ec2-user)
