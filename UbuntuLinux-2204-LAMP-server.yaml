@@ -35,8 +35,8 @@ Metadata:
         Parameters:
           - vpcID
           - subnetID
-          - assignStaticIP
           - displayPublicIP
+          - assignStaticIP
       - Label:
           default: LAMP configuration
         Parameters:
@@ -374,10 +374,12 @@ Resources:
                   rm -f /tmp/nice-dcv-ubuntu2204-aarch64.tgz
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
                   tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
-                fi                
+                fi
                 sudo systemctl stop dcvserver dcv-virtual-session
                 sudo apt-get install -y ./nice-dcv-server_*.deb
                 sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
+                sudo usermod -aG video dcv
+                sudo apt-get install -y ./nice-xdcv_*.deb
                 sudo systemctl restart dcvserver dcv-virtual-session
               mode: "000755"
               owner: "ubuntu"
@@ -562,17 +564,16 @@ Resources:
           gpg --import NICE-GPG-KEY
 
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html#linux-server-install
-          if ((uname -a | grep x86 1>/dev/null) && (cat /etc/os-release | grep 22.04 1>/dev/null)); then
+          if (uname -a | grep -q x86); then
             wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
           else
             wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
           fi
-
           apt-get -q -y install ./nice-dcv-server_*.deb
           apt-get -q -y install ./nice-dcv-web-viewer_*.deb
-          usermod -aG video dcv 
+          usermod -aG video dcv
           apt-get -q -y install ./nice-xdcv_*.deb
 
           # https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
@@ -626,7 +627,39 @@ Resources:
               apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
               apt-get install -q -y php8.1-{igbinary,msgpack}
 
+              # PHP-FPM ini
+              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
+
+              # https://www.php.net/manual/en/opcache.configuration.php
+              # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
+              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+              sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
+              sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
+
+              sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
+              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
+              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
+              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
+
+              # https://www.php.net/manual/en/class.sessionhandler.php
+              sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
+              sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
+              sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
+              sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
+
+              # PHP CLI ini
+              cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
+              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
+
+              # php-fpm only: https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /var/www/.opcache
+              chown www-data:www-data /var/www/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php/8.1/fpm/php.ini
+
+              # https://www.php.net/manual/en/install.pecl.pear.php
               apt-get install -q -y php8.1-dev php-pear gcc
+              pear update-channels
+              pecl update-channels
 
               # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
               apt-get install -q -y php8.1-lzf
@@ -664,39 +697,14 @@ Resources:
                 cd /tmp/cfn
               fi
 
+              # Composer: https://getcomposer.org/download/
               apt-get install -q -y composer
 
-              systemctl enable --now php8.1-fpm
-              systemctl stop php8.1-fpm
-
-              # PHP-FPM ini
-              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
-
-              # https://www.php.net/manual/en/opcache.configuration.php
-              # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
-              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
-              sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
-              sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
-
-              sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
-              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
-              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
-              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
-
-              # https://www.php.net/manual/en/class.sessionhandler.php
-              sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
-              sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
-              sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
-              sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
-
+              systemctl enable php8.1-fpm
               systemctl restart php8.1-fpm
 
-              # PHP CLI ini
-              cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
-              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
-
               ;;
-            esac
+          esac
 
           # Certbot
           apt-get install -q -y certbot
@@ -723,6 +731,9 @@ Resources:
 
               # HTTPS site: for Certbot
               a2ensite default-ssl
+
+              # Enable index.php
+              sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
 
               systemctl restart apache2
               ;;
@@ -780,7 +791,7 @@ Resources:
           ./install auto
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
-          if (uname -a | grep x86 1>/dev/null); then
+          if (uname -a | grep -q x86); then
             wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
           else
             wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
@@ -838,13 +849,17 @@ Resources:
           Value: https://github.com/aws-samples/ec2-lamp-server
 
 Outputs:
-  EC2Instance:
-    Description: EC2 instance console
+  EC2console:
+    Description: EC2 instance Console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   SSMsessionManager:
-    Description: SSM Session Manager login ("sudo passwd ubuntu" to change password)
+    Description: SSM Session Manager ("sudo passwd ubuntu" to change password)
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  EC2instanceConnect:
+    Description: EC2 Instance Connect
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
   DCVwebConsole:
     Description: NICE DCV web browser client (login as ubuntu)
