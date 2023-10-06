@@ -35,8 +35,8 @@ Metadata:
         Parameters:
           - vpcID
           - subnetID
-          - assignStaticIP
           - displayPublicIP
+          - assignStaticIP
       - Label:
           default: LAMP configuration
         Parameters:
@@ -102,7 +102,7 @@ Parameters:
   ec2Name:
     Type: String
     #Description: EC2 instance name
-    Default: AmazonLinux-2-LAMP-Stack
+    Default: AmazonLinux-2023-LAMP-Stack
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
     #Description: Key Pair name
@@ -476,6 +476,7 @@ Resources:
           # No graphical desktop: https://github.com/amazonlinux/amazon-linux-2023/issues/47
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
 
+          # https://github.com/amazonlinux/amazon-linux-2023/issues/493
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           dnf install -q -y mount-s3
           if (! dnf info mount-s3  | grep -q Installed); then
@@ -517,25 +518,34 @@ Resources:
               dnf install -q -y ${phpVersion}-{xml,soap,ldap,intl}
               dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd,enchant,pspell,tidy}
 
-              systemctl enable --now php-fpm
-              systemctl stop php-fpm
-
               # PHP.INI
               cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
-
-              # https://www.php.net/manual/en/opcache.configuration.php
-              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-              sed -i '1 i\opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-
               sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
               sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
               sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
               sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
 
+              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+              # https://www.php.net/manual/en/class.sessionhandler.php
+              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+              # https://www.php.net/manual/en/opcache.configuration.php
+              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+              sed -i '1 i\opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+              mkdir -p /var/www/.opcache
+              chown apache:apache /var/www/.opcache
+              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
+
+              # https://www.php.net/manual/en/install.pecl.pear.php
               dnf install -q -y php-devel php-pear gcc
               pear update-channels
               pecl update-channels
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/207
               # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
               dnf install -q -y php-imagick
               if (! php -m | grep -q imagick); then
@@ -545,6 +555,7 @@ Resources:
                 echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
               fi
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/206
               # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
               dnf install -q -y php-apcu
               if (! php -m | grep -q apcu); then
@@ -581,6 +592,7 @@ Resources:
                 echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
               fi
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/328
               # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
               dnf install -q -y php-redis
               if (! php -m | grep -q redis); then
@@ -589,6 +601,7 @@ Resources:
                 echo 'extension=redis.so' > /etc/php.d/41-redis.ini
               fi
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/208
               # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
               dnf install -q -y php-memcached
               if (! php -m | grep -q memcached); then
@@ -597,6 +610,7 @@ Resources:
                 echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
               fi
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/195
               # php-zip: https://github.com/pierrejoye/php_zip/blob/master/package.xml
               dnf install -q -y php-zip
               if (! php -m | grep -q zip); then
@@ -605,6 +619,7 @@ Resources:
                 echo 'extension=zip.so' > /etc/php.d/20-zip.ini
               fi
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/204
               # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
               dnf install -q -y php-sodium
               if (! php -m | grep -q sodium); then
@@ -617,7 +632,7 @@ Resources:
               dnf install -q -y php-lz4
               if (! php -m | grep -q lz4); then
                 cd /tmp/cfn
-                dnf install -q -y git
+                dnf install -q -y git lz4-devel
                 git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
                 cd php-ext-lz4
                 phpize
@@ -628,16 +643,20 @@ Resources:
                 cd /tmp/cfn
               fi
 
-              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
-              # https://www.php.net/manual/en/class.sessionhandler.php
-              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+              # php-xdebug: https://github.com/xdebug/xdebug/blob/master/package.xml
+              yum install -q -y php-xdebug
+              if (php -m | grep -q xdebug); then
+                yum remove -q -y php-xdebug
+              else
+                /usr/bin/yes 'no' | pecl install xdebug
+                # installed but not enabled
+                echo '#zend_extension=/usr/lib64/php/modules/xdebug.so' > /etc/php.d/50-xdebug.ini
+                echo '#zend_extension=/usr/lib64/php8.2/modules/xdebug.so' >> /etc/php.d/50-xdebug.ini
+              fi
 
               cd /tmp/cfn
-              systemctl restart php-fpm
 
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/371
               # Composer: https://getcomposer.org/download/
               dnf install -q -y composer
               if (! which composer); then
@@ -646,9 +665,13 @@ Resources:
                 mv ./composer.phar /usr/local/bin/composer
               fi
 
+              systemctl enable php-fpm
+              systemctl restart php-fpm
+
               ;;
           esac
 
+          # https://github.com/amazonlinux/amazon-linux-2023/issues/444
           # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
           dnf install -q -y augeas-libs
           python3 -m venv /opt/certbot/
@@ -659,7 +682,7 @@ Resources:
 
           # Certbot update script
           cat << EoF > /home/ec2-user/update-certbot
-          #!/bin/bash          
+          #!/bin/bash
           sudo /opt/certbot/bin/pip install --upgrade certbot
           sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
           EoF
@@ -680,12 +703,6 @@ Resources:
               dnf install -q -y httpd mod_ssl mod_fcgid
               systemctl enable httpd
 
-              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /var/www/.opcache
-              chown apache:apache /var/www/.opcache
-              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
-              systemctl restart php-fpm
-
               # virtual host: for Certbot
               cat << EoF > /etc/httpd/conf.d/www.conf
           <VirtualHost *:80>
@@ -702,12 +719,6 @@ Resources:
               dnf remove -q -y httpd
               dnf install -q -y nginx
               systemctl enable nginx
-
-              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /usr/share/nginx/.opcache
-              chown nginx:nginx /usr/share/nginx/.opcache
-              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/usr\/share\/nginx\/.opcache/' /etc/php.d/10-opcache.ini
-              systemctl restart php-fpm
 
               cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
               # enable sites-enabled and sites-available folders
@@ -775,6 +786,7 @@ Resources:
           # NFS client
           dnf install -q -y amazon-efs-utils
 
+          # https://github.com/amazonlinux/amazon-linux-2023/issues/277
           # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-linux.html
           dnf install -q -y ruby
           dnf install -q -y codedeploy-agent
@@ -840,13 +852,17 @@ Resources:
           Value: https://github.com/aws-samples/ec2-lamp-server
 
 Outputs:
-  EC2Instance:
-    Description: EC2 instance console
+  EC2console:
+    Description: EC2 instance Console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   SSMsessionManager:
-    Description: SSM Session Manager login ("sudo passwd ec2-user" to change password)
+    Description: SSM Session Manager
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  EC2instanceConnect:
+    Description: EC2 Instance Connect
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
 
   WebUrl:
     Description: Website
