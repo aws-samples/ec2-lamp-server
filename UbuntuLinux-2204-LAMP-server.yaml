@@ -859,6 +859,7 @@ Outputs:
 
   EC2instanceConnect:
     Description: EC2 Instance Connect
+    Condition: displayPublicIP
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
   DCVwebConsole:
