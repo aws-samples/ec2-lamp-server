@@ -54,11 +54,11 @@ Metadata:
       processorArchitecture:
         default: "Processor architecture (x86_64 or arm64)"
       instanceType:
-        default: "Instance type ( https://console.aws.amazon.com/ec2/#InstanceTypes )"
+        default: "Instance type"
       ec2Name:
         default: "Instance name"
       ec2KeyPair:
-        default: "Keypair name ( https://console.aws.amazon.com/ec2/#KeyPairs )"
+        default: "Keypair name"
       volumeSize:
         default: "Volume size (GiB)"
       volumeType:
@@ -72,7 +72,7 @@ Metadata:
       assignStaticIP:
         default: "[Elastic IP] Assign static public internet IPv4 address?"
       ingressIPv4:
-        default: "Allowed IPv4 prefix to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )"
+        default: "Allowed IPv4 prefix to SSH and NICE DCV"
       ingressIPv6:
         default: "Allowed IPv6 prefix to SSH and NICE DCV"
       webOption:
@@ -84,7 +84,7 @@ Metadata:
       s3BucketName:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
-        default: "(optional) Route 53 hosted zone to grant access to"
+        default: "(optional) Route 53 hosted zone ID to grant access to"
 
 Parameters:
   processorArchitecture:
@@ -96,7 +96,7 @@ Parameters:
     Default: Graviton ARM64 (aarch64)
   instanceType:
     Type: String
-    #Description: Instance Type (x86_64 or arm64) ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html )
+    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
     Default: t4g.large
 
   ec2Name:
@@ -105,7 +105,7 @@ Parameters:
     Default: AmazonLinux-2-LAMP-Stack
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
-    #Description: Key Pair name
+    Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a Key pairs
     AllowedPattern: ".+"
   volumeSize:
@@ -124,24 +124,24 @@ Parameters:
 
   vpcID:
     Type: AWS::EC2::VPC::Id
-    #Description: VPC with internet connectivity
+    Description: "https://console.aws.amazon.com/vpcconsole/home#vpcs:"
     ConstraintDescription: Do specify a valid value
     AllowedPattern: ".+"
   subnetID:
     Type: AWS::EC2::Subnet::Id
-    #Description: Subnet with internet connectivity
+    Description: "https://console.aws.amazon.com/vpcconsole/home#subnets:"
     ConstraintDescription: Do specify a valid value
     AllowedPattern: ".+"
   assignStaticIP:
     Type: String
-    #Description: Associate static public IPv4 address ( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html )
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html"
     AllowedValues:
       - "Yes"
       - "No"
     Default: "Yes"
   displayPublicIP:
     Type: String
-    #Description: Display EC2 public IP in CloudFormation Outputs (select No if EC2 has no public IP)
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses"
     AllowedValues:
       - "Yes"
       - "No"
@@ -149,11 +149,11 @@ Parameters:
 
   ingressIPv4:
     Type: String
-    #Description: Allowed source prefix (IPv4) to SSH and NICE DCV ( e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com )
+    Description: "e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com "
     Default: 0.0.0.0/0
   ingressIPv6:
     Type: String
-    #Description: Allowed source prefix (IPv6) to SSH and NICE DCV
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#ipv6-addressing"
     Default: ::/0
 
   webOption:
@@ -183,11 +183,11 @@ Parameters:
     Default: "php8.1"
   s3BucketName:
     Type: String
-    #Description: (Optional) S3 bucket name to grant full access to ( https://s3.console.aws.amazon.com/ )
+    Description: "https://console.aws.amazon.com/s3/buckets"
     Default: ""
   r53ZoneID:
     Type: String
-    #Description: (Optional) Route 53 hosted zone ID to grant access to ( https://console.aws.amazon.com/route53/v2/hostedzones )
+    Description: "https://console.aws.amazon.com/route53/v2/hostedzones"
     Default: ""
 
 Conditions:
@@ -621,7 +621,7 @@ Resources:
           dnf install -q -y ./mount-s3.rpm
 
           # Mountpoint update script
-          
+
           # Redis & Memcached
           amazon-linux-extras install -y redis6 memcached1.5
           systemctl enable --now redis memcached
