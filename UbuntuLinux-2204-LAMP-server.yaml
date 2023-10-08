@@ -52,7 +52,7 @@ Metadata:
           - ingressIPv6
     ParameterLabels:
       processorArchitecture:
-        default: "Processor architecture (x86_64 or arm64)"
+        default: "Processor architecture"
       instanceType:
         default: "Instance type"
       ec2Name:
@@ -89,11 +89,11 @@ Metadata:
 Parameters:
   processorArchitecture:
     Type: String
-    #Description: Processor architecture
+    Description: https://aws.amazon.com/ec2/graviton/
     AllowedValues:
-      - Intel/AMD AMD64 (x86_64)
-      - Graviton ARM64 (aarch64)
-    Default: Graviton ARM64 (aarch64)
+      - Intel/AMD (x86_64)
+      - Graviton (arm64)
+    Default: Graviton (arm64)
   instanceType:
     Type: String
     Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
@@ -190,7 +190,7 @@ Parameters:
     Default: ""
 
 Conditions:
-  useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
+  useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
@@ -366,8 +366,8 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 sudo dcv close-session ubuntu
-                if ((uname -a | grep x86 1>/dev/null) && (cat /etc/os-release | grep 22.04 1>/dev/null)); then
-                  rm -f /tmp/ubuntu2204-x86_64.tgz
+                if (uname -a | grep -q x86); then
+                  rm -f /tmp/nice-dcv-ubuntu2204-x86_64.tgz
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
                   tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
                 else
@@ -383,7 +383,7 @@ Resources:
                 sudo systemctl restart dcvserver dcv-virtual-session
               mode: "000755"
               owner: "ubuntu"
-              group: "users"
+              group: "ubuntu"
             "/home/ubuntu/update-awscli":
               content: |
                 #!/bin/bash
@@ -398,20 +398,20 @@ Resources:
                 sudo ./aws/install --update -b /usr/bin
               mode: "000755"
               owner: "ubuntu"
-              group: "users"
+              group: "ubuntu"
             "/home/ubuntu/update-mountpoint-s3":
               content: |
                 #!/bin/bash
                 cd /tmp
                 if (uname -a | grep -q x86); then
-                  wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
                 else
-                  wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
+                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
                 fi
                 sudo apt-get install -y ./mount-s3.deb
               mode: "000755"
               owner: "ubuntu"
-              group: "users"
+              group: "ubuntu"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
@@ -673,7 +673,7 @@ Resources:
               # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
               apt-get install -q -y php8.1-zstd
               if (! php -m | grep -q zstd); then
-                dnf install -q -y libzstd-dev
+                apt-get install -q -y libzstd-dev
                 /usr/bin/yes 'no' | pecl install zstd
                 echo 'extension=zstd.so' > /etc/php/8.1/mods-available/zstd.ini
                 ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/fpm/conf.d/40-zstd.ini
@@ -850,7 +850,7 @@ Resources:
 
 Outputs:
   EC2console:
-    Description: EC2 instance Console
+    Description: EC2 Console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   SSMsessionManager:
@@ -858,8 +858,8 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   EC2instanceConnect:
-    Description: EC2 Instance Connect
     Condition: displayPublicIP
+    Description: EC2 Instance Connect
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
   DCVwebConsole:
