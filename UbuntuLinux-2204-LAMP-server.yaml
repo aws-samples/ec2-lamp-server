@@ -404,9 +404,9 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 if (uname -a | grep -q x86); then
-                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
                 else
-                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
                 fi
                 sudo apt-get install -y ./mount-s3.deb
               mode: "000755"
