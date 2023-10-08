@@ -52,7 +52,7 @@ Metadata:
           - ingressIPv6
     ParameterLabels:
       processorArchitecture:
-        default: "Processor architecture (x86_64 or arm64)"
+        default: "Processor architecture"
       instanceType:
         default: "Instance type"
       ec2Name:
@@ -89,11 +89,11 @@ Metadata:
 Parameters:
   processorArchitecture:
     Type: String
-    #Description: Processor architecture
+    Description: https://aws.amazon.com/ec2/graviton/
     AllowedValues:
-      - Intel/AMD AMD64 (x86_64)
-      - Graviton ARM64 (aarch64)
-    Default: Graviton ARM64 (aarch64)
+      - Intel/AMD (x86_64)
+      - Graviton (arm64)
+    Default: Graviton (arm64)
   instanceType:
     Type: String
     Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
@@ -180,7 +180,7 @@ Parameters:
       - "php8.1"
       - "php8.2"
       - "none"
-    Default: "php8.1"
+    Default: "php8.2"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
@@ -191,7 +191,7 @@ Parameters:
     Default: ""
 
 Conditions:
-  useARM64: !Equals [!Ref processorArchitecture, "Graviton ARM64 (aarch64)"]
+  useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
@@ -334,6 +334,28 @@ Resources:
             - 00_setup
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
+            "/home/ec2-user/update-mountpoint-s3":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                if (uname -a | grep -q x86); then
+                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+                else
+                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+                fi
+                sudo dnf install -y ./mount-s3.rpm
+              mode: "000755"
+              owner: "ec2-user"
+              group: "ec2-user"
+            "/home/ec2-user/update-certbot":
+              content: |
+                #!/bin/bash
+                sudo /opt/certbot/bin/pip install --upgrade pip
+                sudo /opt/certbot/bin/pip install --upgrade certbot
+                sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
+              mode: "000755"
+              owner: "ec2-user"
+              group: "ec2-user"
             "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
               content: |
                 {
@@ -479,27 +501,15 @@ Resources:
           # https://github.com/amazonlinux/amazon-linux-2023/issues/493
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           dnf install -q -y mount-s3
-          if (! dnf info mount-s3  | grep -q Installed); then
+          if (dnf info mount-s3  | grep -q Installed); then
+            rm -f /home/ec2-user/update-mountpoint-s3
+          else
             if (uname -a | grep -q x86); then
               wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
             else
               wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
             fi
             dnf install -q -y ./mount-s3.rpm
-
-            # Mountpoint update script
-            cat << EoF > /home/ec2-user/update-mountpoint-s3
-          #!/bin/bash
-          cd /tmp
-          if (uname -a | grep -q x86); then
-            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
-          else
-            wget https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
-          fi
-          sudo dnf install -y ./mount-s3.rpm
-          EoF
-            chmod +x /home/ec2-user/update-mountpoint-s3
-            chown ec2-user:ec2-user /home/ec2-user/update-mountpoint-s3
           fi
 
           # Redis & Memcached
@@ -644,9 +654,9 @@ Resources:
               fi
 
               # php-xdebug: https://github.com/xdebug/xdebug/blob/master/package.xml
-              yum install -q -y php-xdebug
+              dnf install -q -y php-xdebug
               if (php -m | grep -q xdebug); then
-                yum remove -q -y php-xdebug
+                dnf remove -q -y php-xdebug
               else
                 /usr/bin/yes 'no' | pecl install xdebug
                 # installed but not enabled
@@ -681,14 +691,6 @@ Resources:
           ln -s /opt/certbot/bin/certbot /usr/bin/certbot
 
           # Certbot update script
-          cat << EoF > /home/ec2-user/update-certbot
-          #!/bin/bash
-          sudo /opt/certbot/bin/pip install --upgrade certbot
-          sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
-          EoF
-          chmod +x /home/ec2-user/update-certbot
-          chown ec2-user:ec2-user /home/ec2-user/update-certbot
-
           # https://certbot.org/renewal-setup: use systemd timer
           touch /etc/sysconfig/certbot
           systemctl daemon-reload
@@ -806,7 +808,7 @@ Resources:
           systemctl enable --now crond
 
           # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
-          yum install -q -y dnf-automatic
+          dnf install -q -y dnf-automatic
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
           sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable --now dnf-automatic-install.timer
@@ -853,7 +855,7 @@ Resources:
 
 Outputs:
   EC2console:
-    Description: EC2 instance Console
+    Description: EC2 Console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   SSMsessionManager:
