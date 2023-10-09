@@ -432,7 +432,7 @@ Resources:
                 dcvUser=ubuntu
                 while true;
                 do
-                  if (/usr/bin/dcv list-sessions | grep $dcvUser 1>/dev/null); then
+                  if (/usr/bin/dcv list-sessions | grep -q $dcvUser); then
                     sleep 5
                   else
                     /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
@@ -632,7 +632,7 @@ Resources:
 
               # https://www.php.net/manual/en/opcache.configuration.php
               # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
-              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\n;opcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
               sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
               sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
 
