@@ -654,7 +654,7 @@ Resources:
               # php-fpm only: https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
               mkdir -p /var/www/.opcache
               chown www-data:www-data /var/www/.opcache
-              sed -i 's/;opcache.file_cache=.*/opcache.file_cache=\/var\/www\/.opcache/' /etc/php/8.1/fpm/php.ini
+              sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php/8.1/fpm/php.ini
 
               # https://www.php.net/manual/en/install.pecl.pear.php
               apt-get install -q -y php8.1-dev php-pear gcc
