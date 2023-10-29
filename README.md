@@ -21,7 +21,7 @@ The template provides the following features:
 - Graphical desktop with [NICE DCV](https://aws.amazon.com/hpc/dcv/) server for secure remote access (Amazon Linux 2 and Ubuntu Linux)
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
-- [PHP 8.1](https://www.php.net/releases/8.1/en.php) or [PHP 8.2](https://www.php.net/releases/8.2/en.php)(Amazon Linux 2 and 2023) with common PHP extensions (including imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, xdebug, zip for Amazon Linux)
+- [PHP 8.1](https://www.php.net/releases/8.1/en.php) or [PHP 8.2](https://www.php.net/releases/8.2/en.php)(Amazon Linux 2 and 2023) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, xdebug, zip, etc for Amazon Linux)
 - [Composer](https://getcomposer.org/)
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html) for SSH access
@@ -30,7 +30,7 @@ The template provides the following features:
 - [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) agent
 - [NFS](https://aws.amazon.com/efs/) client
 - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
-- [MountPoint for Amazon S3](https://aws.amazon.com/blogs/aws/mountpoint-for-amazon-s3-generally-available-and-ready-for-production-workloads/) 
+- [MountPoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/) for mounting S3 bucket on EC2 and accessing it as a local file system
 - (Optional) [Amazon S3](https://aws.amazon.com/s3/) bucket access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 - [Certbot](https://certbot.eff.org/) with apache, nginx and certbot-dns-route53 plugins
 - (Optional) [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access via [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for use with certbot-dns-route53 plugin
@@ -43,7 +43,7 @@ Download .yaml file for the desired operating system ([Amazon Linux 2](https://g
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values. All 
 
 EC2
-- `processorArchitecture`: Intel/AMD or Graviton ARM64. Default is `Graviton ARM64 (aarch64)`
+- `processorArchitecture`: Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
 - `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider newer generation instance types such [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
