@@ -442,6 +442,14 @@ Resources:
               mode: "000755"
               owner: "root"
               group: "root"
+            "/home/ubuntu/configure-gnome":
+              content: |
+                #!/bin/bash
+                gnome-extensions enable ubuntu-dock@ubuntu.com
+                XDG_CURRENT_DESKTOP=ubuntu:GNOME gnome-control-center&
+              mode: "000755"
+              owner: "ubuntu"
+              group: "ubuntu"
             "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
               content: |
                 {
@@ -540,7 +548,7 @@ Resources:
           apt-get install -q -y wget tmux unzip tar curl sed
           # https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/        
           apt-get install -q -y python3 python3-setuptools python3-docutils python3-daemon
-          wget -4 -nv https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          wget -nv https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
           tar -xf aws-cfn-bootstrap-py3-latest.tar.gz
           cd aws-cfn-bootstrap-2.0
           python3 setup.py build
@@ -552,7 +560,7 @@ Resources:
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
           apt-get -q -y install ubuntu-desktop-minimal
           apt-get -q -y install gdm3
-          apt-get -q -y install pulseaudio-utils epiphany-browser
+          apt-get -q -y install pulseaudio-utils epiphany-browser gnome-tweaks gnome-shell-extension-ubuntu-dock
 
           # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
           apt-get -q -y install dpkg-dev
@@ -560,15 +568,15 @@ Resources:
           sed -i "s/^#WaylandEnable=false/WaylandEnable=false/g" /etc/gdm3/custom.conf
 
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-          wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+          wget -nv https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
           gpg --import NICE-GPG-KEY
 
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html#linux-server-install
           if (uname -a | grep -q x86); then
-            wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
+            wget -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
           else
-            wget -4 -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
+            wget -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
           fi
           apt-get -q -y install ./nice-dcv-server_*.deb
@@ -586,6 +594,7 @@ Resources:
           cd /tmp/cfn
 
           # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+          apt-get remove awscli -y
           apt-get autoremove -y
           if (uname -a | grep -q x86); then
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
@@ -601,9 +610,9 @@ Resources:
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           if (uname -a | grep -q x86); then
-            wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+            wget -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
           else
-            wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
+            wget -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
           fi
           apt-get install -q -y ./mount-s3.deb
 
@@ -632,7 +641,7 @@ Resources:
 
               # https://www.php.net/manual/en/opcache.configuration.php
               # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
-              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\n;opcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
               sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
               sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
 
@@ -786,15 +795,15 @@ Resources:
 
           # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
           apt-get install -q -y ruby-full
-          wget -4 -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          wget -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
           chmod +x ./install
           ./install auto
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           if (uname -a | grep -q x86); then
-            wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+            wget -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
           else
-            wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
+            wget -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
           fi
           apt-get install -q -y ./amazon-cloudwatch-agent.deb
 
@@ -837,6 +846,7 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+      NetworkBorderGroup: !Ref AWS::Region
       InstanceId: !Ref ec2Instance
       Tags:
         - Key: StackName
