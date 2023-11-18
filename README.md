@@ -43,10 +43,12 @@ Download .yaml file for the desired operating system ([Amazon Linux 2](https://g
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values. All 
 
 EC2
-- `processorArchitecture`: Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
-- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider newer generation instance types such [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/)
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
+- `processorArchitecture`: Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
+- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider [M6g](https://aws.amazon.com/ec2/instance-types/m6g/) or [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) for general purpose workloads
+
+EBS
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
 - `volumeType`: [EBS General Purpose Volume](https://aws.amazon.com/ebs/general-purpose/) type
 
@@ -127,11 +129,7 @@ Ensure that you have granted Route 53 hosted zone access by specifying `r53ZoneI
   ```
   sudo certbot --nginx
   ```
-  
-
-
-### About certbot plugins
-Both apache and nginx plugins use [HTTP-01 challenge type](https://letsencrypt.org/docs/challenge-types/#http-01-challenge). certbot-dns-route53 plugin uses [DNS-01 challenge type](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and supports wildcard certificates. Refer to [Certbot documentation](https://letsencrypt.org/docs/) for more information.
+ 
 
 
 ## Securing your EC2 instance

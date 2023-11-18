@@ -24,14 +24,17 @@ Metadata:
       - Label:
           default: EC2
         Parameters:
-          - processorArchitecture
-          - instanceType
           - ec2Name
           - ec2KeyPair
+          - processorArchitecture
+          - instanceType
+      - Label:
+          default: EBS volume configuration
+        Parameters:
           - volumeSize
           - volumeType
       - Label:
-          default: VPC
+          default: Network configuration
         Parameters:
           - vpcID
           - subnetID
@@ -62,7 +65,7 @@ Metadata:
       volumeSize:
         default: "Volume size (GiB)"
       volumeType:
-        default: "EBS volume type"
+        default: "Volume type"
       vpcID:
         default: "VPC with internet connectivity"
       subnetID:
@@ -76,11 +79,11 @@ Metadata:
       ingressIPv6:
         default: "Allowed IPv6 prefix to SSH"
       webOption:
-        default: "Web server to install?"
+        default: "Web server to install"
       databaseOption:
-        default: "Database server to install?"
+        default: "Database server to install"
       phpVersion:
-        default: "PHP version to install?"
+        default: "PHP version to install"
       s3BucketName:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
@@ -106,7 +109,7 @@ Parameters:
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
-    ConstraintDescription: Specify a Key pairs
+    ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
   volumeSize:
     Type: Number
@@ -116,7 +119,7 @@ Parameters:
     Default: 20
   volumeType:
     Type: String
-    #Description: EBS volume type
+    Description: https://aws.amazon.com/ebs/general-purpose/
     AllowedValues:
       - "gp3"
       - "gp2"
@@ -505,9 +508,9 @@ Resources:
             rm -f /home/ec2-user/update-mountpoint-s3
           else
             if (uname -a | grep -q x86); then
-              wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+              wget -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
             else
-              wget -4 -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+              wget -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
             fi
             dnf install -q -y ./mount-s3.rpm
           fi
@@ -807,15 +810,22 @@ Resources:
           dnf install -q -y cronie
           systemctl enable --now crond
 
+          # Update OS
+          dnf update -q -y
+
           # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
           dnf install -q -y dnf-automatic
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
           sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable --now dnf-automatic-install.timer
 
+          # cfn-init completed so signal success or not
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+
           # enable back IPv6
           sysctl -w net.ipv6.conf.all.disable_ipv6=0
           sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
           case $WEB in
             Apache)
               systemctl restart httpd
@@ -825,8 +835,7 @@ Resources:
               ;;
           esac
 
-          # cfn-init completed so signal success or not
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          sleep 1 && reboot
       Tags:
         - Key: Name
           Value: !Ref ec2Name
@@ -842,6 +851,7 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+      NetworkBorderGroup: !Ref AWS::Region
       InstanceId: !Ref ec2Instance
       Tags:
         - Key: StackName

@@ -24,14 +24,17 @@ Metadata:
       - Label:
           default: EC2
         Parameters:
-          - processorArchitecture
-          - instanceType
           - ec2Name
           - ec2KeyPair
+          - processorArchitecture
+          - instanceType
+      - Label:
+          default: EBS volume configuration
+        Parameters:
           - volumeSize
           - volumeType
       - Label:
-          default: VPC
+          default: Network configuration
         Parameters:
           - vpcID
           - subnetID
@@ -62,7 +65,7 @@ Metadata:
       volumeSize:
         default: "Volume size (GiB)"
       volumeType:
-        default: "EBS volume type"
+        default: "Volume type"
       vpcID:
         default: "VPC with internet connectivity"
       subnetID:
@@ -76,11 +79,11 @@ Metadata:
       ingressIPv6:
         default: "Allowed IPv6 prefix to SSH and NICE DCV"
       webOption:
-        default: "Web server to install?"
+        default: "Web server to install"
       databaseOption:
-        default: "Database server to install?"
+        default: "Database server to install"
       phpVersion:
-        default: "PHP version to install?"
+        default: "PHP version to install"
       s3BucketName:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
@@ -106,7 +109,7 @@ Parameters:
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
-    ConstraintDescription: Specify a Key pairs
+    ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
   volumeSize:
     Type: Number
@@ -116,7 +119,7 @@ Parameters:
     Default: 20
   volumeType:
     Type: String
-    #Description: EBS volume type
+    Description: https://aws.amazon.com/ebs/general-purpose/
     AllowedValues:
       - "gp3"
       - "gp2"
@@ -542,13 +545,13 @@ Resources:
           # https://stackoverflow.com/questions/33370297/apt-get-update-non-interactive
           export DEBIAN_FRONTEND=noninteractive
 
-          apt-get update
+          apt-get -q update
           # https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-ubuntu.html#agent-install-ubuntu-tabs
 
           apt-get install -q -y wget tmux unzip tar curl sed
           # https://aws.amazon.com/premiumsupport/knowledge-center/install-cloudformation-scripts/        
           apt-get install -q -y python3 python3-setuptools python3-docutils python3-daemon
-          wget -nv https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          wget -4 -nv https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
           tar -xf aws-cfn-bootstrap-py3-latest.tar.gz
           cd aws-cfn-bootstrap-2.0
           python3 setup.py build
@@ -560,18 +563,16 @@ Resources:
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
           apt-get -q -y install ubuntu-desktop-minimal
           apt-get -q -y install gdm3
-          apt-get -q -y install pulseaudio-utils epiphany-browser gnome-tweaks gnome-shell-extension-ubuntu-dock
+          apt-get -q -y install pulseaudio-utils gnome-tweaks gnome-shell-extension-ubuntu-dock
+
+          sed -i "s/^#WaylandEnable=false/WaylandEnable=false/g" /etc/gdm3/custom.conf
 
           # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
           apt-get -q -y install dpkg-dev
 
-          sed -i "s/^#WaylandEnable=false/WaylandEnable=false/g" /etc/gdm3/custom.conf
-
           # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
           wget -nv https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
           gpg --import NICE-GPG-KEY
-
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html#linux-server-install
           if (uname -a | grep -q x86); then
             wget -nv https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
@@ -584,18 +585,16 @@ Resources:
           usermod -aG video dcv
           apt-get -q -y install ./nice-xdcv_*.deb
 
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
+          # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
           cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
           sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
 
-          # session storage: https://docs.aws.amazon.com/dcv/latest/userguide/using-transfer.html
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/managing-sessions-start.html#managing-sessions-start-manual
+          # Virtual session daemon: https://docs.aws.amazon.com/dcv/latest/adminguide/managing-sessions-start.html#managing-sessions-start-manual
+          # remove AWSCLI version 1
+          apt-get -q -y remove awscli
 
           cd /tmp/cfn
-
-          # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          apt-get remove awscli -y
-          apt-get autoremove -y
+          # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
           if (uname -a | grep -q x86); then
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
           else
@@ -795,24 +794,38 @@ Resources:
 
           # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
           apt-get install -q -y ruby-full
-          wget -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+          wget -4 -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
           chmod +x ./install
           ./install auto
 
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           if (uname -a | grep -q x86); then
-            wget -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+            wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
           else
-            wget -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
+            wget -4 -nv https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
           fi
           apt-get install -q -y ./amazon-cloudwatch-agent.deb
 
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable --now amazon-cloudwatch-agent
 
+          # Update OS
+          apt-get -q update
+          apt-get -q -y upgrade
+          apt-get -y autoremove
+
+          # text console: DCV virtual sessions only
+          systemctl isolate multi-user.target
+          systemctl set-default multi-user.target
+          systemctl daemon-reload
+
+          # cfn-init completed so signal success or not
+          python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+
           # enable back IPv6
           sysctl -w net.ipv6.conf.all.disable_ipv6=0
           sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
           case $WEB in
             Apache)
               systemctl restart apache2
@@ -822,15 +835,9 @@ Resources:
               ;;
           esac
 
-          # text console: DCV virtual sessions only
-          systemctl isolate multi-user.target
-          systemctl set-default multi-user.target
-
-          systemctl daemon-reload
           systemctl enable --now dcvserver dcv-virtual-session.service
 
-          # cfn-init completed so signal success or not
-          python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          sleep 1 && reboot
       Tags:
         - Key: Name
           Value: !Ref ec2Name
@@ -860,7 +867,7 @@ Resources:
 
 Outputs:
   EC2console:
-    Description: EC2 Console
+    Description: EC2 console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   SSMsessionManager:
