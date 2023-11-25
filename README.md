@@ -72,7 +72,7 @@ Remote Administration
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `EC2console`: EC2 console URL link to start/stop your EC2 instance or to get the latest IPv4 (or IPv6 if enabled) address.
-- `EC2instanceConnect`: [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) URL link. This feature may not be available in your Region, and only works if you allow SSH access from your Region [EC2 instance connect IP prefixes](#ec2-instance-connect-ip-prefixes).
+- `EC2instanceConnect`: [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) URL link. This feature may not be available in your [Region](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#eic-prereqs-regions), and only works if you allow SSH access from your Region [EC2 instance connect IP prefixes](#ec2-instance-connect-ip-prefixes).
 - `SSMsessionManager`: SSM Session Manager URL link for secure [shell access](https://aws.amazon.com/blogs/aws/new-session-manager/). Use this to change NICE DCV login user password. Password change command (if any) is in *Description* field.
 - `WebUrl`: EC2 web server URL link
 - `DCVwebConsole`: NICE DCV web browser client URL link#. Login as the user specified in *Description* field 
