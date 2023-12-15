@@ -350,15 +350,6 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
-            "/home/ec2-user/update-certbot":
-              content: |
-                #!/bin/bash
-                sudo /opt/certbot/bin/pip install --upgrade pip
-                sudo /opt/certbot/bin/pip install --upgrade certbot
-                sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
-              mode: "000755"
-              owner: "ec2-user"
-              group: "ec2-user"
             "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
               content: |
                 {
@@ -415,33 +406,6 @@ Resources:
                     }
                   }
                 }
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/usr/lib/systemd/system/certbot-renew.timer":
-              content: |
-                [Unit]
-                Description=This is the timer to set the schedule for automated renewals
-
-                [Timer]
-                OnCalendar=*-*-* 00/12:00:00
-                RandomizedDelaySec=12hours
-                Persistent=true
-
-                [Install]
-                WantedBy=timers.target
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/usr/lib/systemd/system/certbot-renew.service":
-              content: |
-                [Unit]
-                Description=This service automatically renews any certbot certificates found
-
-                [Service]
-                EnvironmentFile=/etc/sysconfig/certbot
-                Type=oneshot
-                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
               mode: "000644"
               owner: "root"
               group: "root"
@@ -577,7 +541,7 @@ Resources:
               fi
 
               # php-igbinary: https://pecl.php.net/package/igbinary
-              dnf install -q -y igbinary
+              dnf install -q -y php-igbinary
               if (! php -m | grep -q igbinary); then
                 /usr/bin/yes 'no' | pecl install igbinary
                 echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
@@ -673,7 +637,7 @@ Resources:
               # Composer: https://getcomposer.org/download/
               dnf install -q -y composer
               if (! which composer); then
-                wget -4 -nv https://getcomposer.org/installer
+                curl -s -L -O https://getcomposer.org/installer
                 export COMPOSER_HOME=/root && php installer --quiet
                 mv ./composer.phar /usr/local/bin/composer
               fi
@@ -684,27 +648,16 @@ Resources:
               ;;
           esac
 
-          # https://github.com/amazonlinux/amazon-linux-2023/issues/444
-          # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
-          dnf install -q -y augeas-libs
-          python3 -m venv /opt/certbot/
-          /opt/certbot/bin/pip install --upgrade pip
-          /opt/certbot/bin/pip install certbot
-          /opt/certbot/bin/pip install certbot-dns-route53
-          ln -s /opt/certbot/bin/certbot /usr/bin/certbot
-
-          # Certbot update script
-          # https://certbot.org/renewal-setup: use systemd timer
-          touch /etc/sysconfig/certbot
-          systemctl daemon-reload
+          # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
+          dnf install -q -y certbot python3-certbot-dns-route53
+          systecmtl daemon-reload
           systemctl enable --now certbot-renew.timer
 
           # Web server
           export WEB="${webOption}"
           case $WEB in
             Apache)
-              /opt/certbot/bin/pip install certbot-apache
-              echo "sudo /opt/certbot/bin/pip install --upgrade certbot-apache" >> /home/ec2-user/update-certbot
+              dnf install -q -y python3-certbot-apache
               dnf install -q -y httpd mod_ssl mod_fcgid
               systemctl enable httpd
 
@@ -719,8 +672,7 @@ Resources:
               systemctl restart httpd
               ;;
             Nginx)
-              /opt/certbot/bin/pip install certbot-nginx
-              echo "sudo /opt/certbot/bin/pip install --upgrade certbot-nginx" >> /home/ec2-user/update-certbot
+              dnf install python3-certbot-nginx
               dnf remove -q -y httpd
               dnf install -q -y nginx
               systemctl enable nginx
@@ -796,7 +748,7 @@ Resources:
           dnf install -q -y ruby
           dnf install -q -y codedeploy-agent
           if [ ! -f /opt/codedeploy-agent/bin/codedeploy-agent ]; then
-            wget -4 -nv https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+            curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
             chmod +x ./install
             ./install auto
           fi
