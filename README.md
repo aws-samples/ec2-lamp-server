@@ -164,7 +164,7 @@ IP prefixes can also be retrieved using [AWS Tools for PowerShell](https://aws.a
 Get-AWSPublicIpAddressRange -ServiceKey EC2_INSTANCE_CONNECT | Select Region, IpPrefix
 ```
 
-Below is the current list as of October 2023.
+Below is the current list as of January 2024.
 |	Region	|	IpPrefix	|
 |	------	|	--------	|
 |	cn-north-1	|	43.196.20.40/29	|
@@ -191,6 +191,7 @@ Below is the current list as of October 2023.
 |	eu-west-1	|	18.202.216.48/29	|
 |	eu-west-2	|	3.8.37.24/29	|
 |	eu-west-3	|	35.180.112.80/29	|
+| il-central-1 | 51.16.183.224/29 |
 |	me-central-1	|	3.29.147.40/29	|
 |	me-south-1	|	16.24.46.56/29	|
 |	sa-east-1	|	18.228.70.32/29	|
