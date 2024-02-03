@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Amazon Linux 2 with LAMP/LEMP/LAPP/LEPP stack
+Description: Amazon Linux 2  ( https://github.com/aws-samples/ec2-lamp-server )
+Transform: "AWS::LanguageExtensions"
 
 Metadata:
   License:
@@ -29,19 +30,19 @@ Metadata:
           - processorArchitecture
           - instanceType
       - Label:
-          default: EBS volume configuration
-        Parameters:
-          - volumeSize
-          - volumeType
-      - Label:
-          default: Network configuration
+          default: Network
         Parameters:
           - vpcID
           - subnetID
           - displayPublicIP
           - assignStaticIP
       - Label:
-          default: LAMP configuration
+          default: Remote administration
+        Parameters:
+          - ingressIPv4
+          - ingressIPv6
+      - Label:
+          default: LAMP
         Parameters:
           - webOption
           - phpVersion
@@ -49,15 +50,15 @@ Metadata:
           - s3BucketName
           - r53ZoneID
       - Label:
-          default: Remote administration
+          default: EBS volume
         Parameters:
-          - ingressIPv4
-          - ingressIPv6
+          - volumeSize
+          - volumeType
     ParameterLabels:
       processorArchitecture:
         default: "Processor architecture"
       instanceType:
-        default: "Instance type"
+        default: "Instance type (x86_64 or arm64)"
       ec2Name:
         default: "Instance name"
       ec2KeyPair:
@@ -116,7 +117,7 @@ Parameters:
     #Description: Volume size in GiBs
     MinValue: 10
     MaxValue: 16384
-    Default: 20
+    Default: 30
   volumeType:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
@@ -128,12 +129,12 @@ Parameters:
   vpcID:
     Type: AWS::EC2::VPC::Id
     Description: "https://console.aws.amazon.com/vpcconsole/home#vpcs:"
-    ConstraintDescription: Do specify a valid value
+    ConstraintDescription: Specify a valid value
     AllowedPattern: ".+"
   subnetID:
     Type: AWS::EC2::Subnet::Id
     Description: "https://console.aws.amazon.com/vpcconsole/home#subnets:"
-    ConstraintDescription: Do specify a valid value
+    ConstraintDescription: Specify a valid value
     AllowedPattern: ".+"
   assignStaticIP:
     Type: String
@@ -199,6 +200,86 @@ Conditions:
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
   hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  hasEIC:
+    !Not [
+      !Equals [
+        !FindInMap [
+          EICprefixMap,
+          !Ref AWS::Region,
+          "IpPrefix",
+          DefaultValue: 127.0.0.1/32,
+        ],
+        "127.0.0.1/32",
+      ],
+    ]
+  createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
+
+Mappings:
+  EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+    af-south-1:
+      IpPrefix: 13.244.121.196/30
+    ap-east-1:
+      IpPrefix: 43.198.192.104/29
+    ap-northeast-1:
+      IpPrefix: 3.112.23.0/29
+    ap-northeast-2:
+      IpPrefix: 13.209.1.56/29
+    ap-northeast-3:
+      IpPrefix: 15.168.105.160/29
+    ap-south-1:
+      IpPrefix: 13.233.177.0/29
+    ap-south-2:
+      IpPrefix: 18.60.252.248/29
+    ap-southeast-1:
+      IpPrefix: 3.0.5.32/29
+    ap-southeast-2:
+      IpPrefix: 13.239.158.0/29
+    ap-southeast-3:
+      IpPrefix: 43.218.193.64/29
+    ap-southeast-4:
+      IpPrefix: 16.50.248.80/29
+    ca-central-1:
+      IpPrefix: 35.183.92.176/29
+    cn-north-1:
+      IpPrefix: 43.196.20.40/29
+    cn-northwest-1:
+      IpPrefix: 43.192.155.8/29
+    eu-central-1:
+      IpPrefix: 3.120.181.40/29
+    eu-central-2:
+      IpPrefix: 16.63.77.8/29
+    eu-north-1:
+      IpPrefix: 13.48.4.200/30
+    eu-south-1:
+      IpPrefix: 15.161.135.164/30
+    eu-south-2:
+      IpPrefix: 18.101.90.48/29
+    eu-west-1:
+      IpPrefix: 18.202.216.48/29
+    eu-west-2:
+      IpPrefix: 3.8.37.24/29
+    eu-west-3:
+      IpPrefix: 35.180.112.80/29
+    il-central-1:
+      IpPrefix: 51.16.183.224/29
+    me-central-1:
+      IpPrefix: 3.29.147.40/29
+    me-south-1:
+      IpPrefix: 16.24.46.56/29
+    sa-east-1:
+      IpPrefix: 18.228.70.32/29
+    us-east-1:
+      IpPrefix: 18.206.107.24/29
+    us-east-2:
+      IpPrefix: 3.16.146.0/29
+    us-gov-east-1:
+      IpPrefix: 18.252.4.0/30
+    us-gov-west-1:
+      IpPrefix: 15.200.28.80/30
+    us-west-1:
+      IpPrefix: 13.52.6.112/29
+    us-west-2:
+      IpPrefix: 18.237.140.160/29
 
 Resources:
   securityGroup:
@@ -274,6 +355,46 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
+  securityGroupForEIC:
+    Condition: createEICsg
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow in-browser SSH via EC2 Instance Connect
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: SSH from EIC IP
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp:
+            !FindInMap [
+              EICprefixMap,
+              !Ref AWS::Region,
+              "IpPrefix",
+              DefaultValue: 127.0.0.1/32,
+            ]
+      SecurityGroupEgress:
+        - Description: Allow ICMP to EIC IP
+          IpProtocol: "icmp"
+          FromPort: -1
+          ToPort: -1
+          CidrIp:
+            !FindInMap [
+              EICprefixMap,
+              !Ref AWS::Region,
+              "IpPrefix",
+              DefaultValue: 127.0.0.1/32,
+            ]
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name} - EIC"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
   instanceIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -337,6 +458,7 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -369,8 +491,8 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                sudo dcv close-session ec2-user
-                if (uname -a | grep -q x86); then
+                sudo dcv close-session ec2-user                
+                if (arch | grep -q x86); then
                   rm -f nice-dcv-el7-x86_64.tgz
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
                   tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
@@ -379,11 +501,12 @@ Resources:
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
                   tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
                 fi
-                sudo systemctl stop dcvserver dcv-virtual-session
-                sudo yum install -y nice-dcv-server-*.rpm
-                sudo yum install -y nice-dcv-web-viewer-*.rpm
-                sudo yum install -y nice-xdcv-*.rpm
-                sudo systemctl restart dcvserver dcv-virtual-session
+                sudo systemctl stop dcvserver
+                sudo yum install -y ./nice-dcv-server-*.rpm
+                sudo yum install -y ./nice-dcv-web-viewer-*.rpm
+                sudo yum install -y ./nice-xdcv-*.rpm
+                sudo yum install -y ./nice-dcv-gltest-*.rpm
+                sudo systemctl restart dcvserver
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
@@ -392,7 +515,7 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 rm -f awscliv2.zip
-                if (uname -a | grep -q x86); then
+                if (arch | grep -q x86); then
                   curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
                 else
                   curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
@@ -456,6 +579,44 @@ Resources:
               mode: "000755"
               owner: "root"
               group: "root"
+            "/etc/systemd/system/dcv-post-reboot.service":
+              content: |
+                [Unit]
+                Description=Post install tasks
+                After=default.target network.target
+
+                [Service]
+                ExecStart=/opt/dcv-post-reboot.sh
+
+                [Install]
+                WantedBy=default.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/dcv-post-reboot.sh":
+              content: !Sub |
+                #!/bin/bash
+                sysctl -w net.ipv6.conf.all.disable_ipv6=1
+                sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
+                yum install -q -y kernel-devel-$(uname -r)
+                yum install -q -y usbutils
+                # dcvusbdriverinstaller --quiet
+
+                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+                sysctl -w net.ipv6.conf.all.disable_ipv6=0
+                sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+                systemctl enable dcv-virtual-session && systemctl restart dcv-virtual-session
+                systemctl enable dcvserver && systemctl restart dcvserver
+
+                rm -f /etc/systemd/system/dcv-post-reboot.service
+                rm -f ${!0}
+                systemctl daemon-reload
+              mode: "000755"
+              owner: "root"
+              group: "root"
             "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
               content: |
                 {
@@ -507,7 +668,21 @@ Resources:
                           "cpu_usage_user",
                           "cpu_usage_system"
                         ],
-                        "metrics_collection_interval": 60
+                        "metrics_collection_interval": 60,
+                        "totalcpu": false
+                      }
+                    }
+                  },
+                  "traces": {
+                    "buffer_size_mb": 3,
+                    "concurrency": 8,
+                    "insecure": false,
+                    "traces_collected": {
+                      "xray": {
+                        "bind_address": "127.0.0.1:2000",
+                        "tcp_proxy": {
+                          "bind_address": "127.0.0.1:2000"
+                        }
                       }
                     }
                   }
@@ -556,6 +731,7 @@ Resources:
       Monitoring: true
       SecurityGroupIds:
         - !Ref securityGroup
+        - !If [createEICsg, !Ref securityGroupForEIC, !Ref AWS::NoValue]
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -572,27 +748,28 @@ Resources:
           sysctl -w net.ipv6.conf.all.disable_ipv6=1
           sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
-          # cfn-init
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
-
           yum clean all
           yum install -q -y deltarpm wget tmux unzip tar curl sed
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+
+          export CFN_INIT="/opt/aws/bin/cfn-init"
+
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
+
+          # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
           yum install -q -y gdm gnome-session gnome-classic-session gnome-session-xsession
-          yum install -q -y xorg-x11-server-Xorg xorg-x11-fonts-Type1 xorg-x11-drivers
+          yum install -q -y xorg-x11-server-Xorg xorg-x11-fonts-Type1 xorg-x11-drivers 
           yum install -q -y gnome-terminal gnu-free-fonts-common gnu-free-mono-fonts gnu-free-sans-fonts gnu-free-serif-fonts
 
+          # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
           yum install -q -y pulseaudio pulseaudio-utils
-          sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
-
-          # Firefox
           amazon-linux-extras install -y firefox
 
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-          rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+          # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
+          sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
 
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html#linux-server-install
-          if (uname -a | grep -q x86); then
+          # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+          rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+          if (arch | grep -q x86); then
             curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
             tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
           else
@@ -602,19 +779,27 @@ Resources:
           yum install -q -y ./nice-dcv-server-*.rpm
           yum install -q -y ./nice-dcv-web-viewer-*.rpm
           yum install -q -y ./nice-xdcv-*.rpm
+          yum install -q -y ./nice-dcv-gltest-*.rpm
 
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
+          # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
+          yum install -q -y cups
+          GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
+          usermod -a -G $GROUP dcv
+          systemctl enable cups
+
+          # EPEL: https://docs.fedoraproject.org/en-US/epel/
+          amazon-linux-extras install -y epel
+
+          # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
           cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
           sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
 
-          # session storage: https://docs.aws.amazon.com/dcv/latest/userguide/using-transfer.html
-          # https://docs.aws.amazon.com/dcv/latest/adminguide/managing-sessions-start.html#managing-sessions-start-manual
           # remove AWSCLI version 1
-          yum remove awscli -q -y
+          yum remove -q -y awscli
 
           cd /tmp/cfn
           # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          if (uname -a | grep -q x86); then
+          if (arch | grep -q x86); then
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
           else
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
@@ -623,8 +808,20 @@ Resources:
           ./aws/install -b /usr/bin
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
 
-          # DCV update script
-          # AWS CLI update script
+          # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
+          sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
+          # Console session support
+          sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"\/home\/ec2-user\"" /etc/dcv/dcv.conf
+
+          # Update OS
+          yum update -q -y
+          # yum-cron
+          yum install -q -y yum-cron
+          sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
+          systemctl enable yum-cron
+
+          # USB driver DKMS
+          yum install -q -y dkms
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           yum install -q -y mount-s3
@@ -638,8 +835,6 @@ Resources:
             fi
             yum install -q -y ./mount-s3.rpm
           fi
-
-          # Mountpoint update script
 
           # Redis & Memcached
           amazon-linux-extras install -y redis6 memcached1.5
@@ -686,95 +881,55 @@ Resources:
               pear update-channels
               pecl update-channels
 
-              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
-              yum install -q -y php-imagick
-              if (! php -m | grep -q imagick); then
-                sudo yum install -q -y ImageMagick
-                sudo yum install -q -y ImageMagick-devel 
-                /usr/bin/yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
-                echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
-              fi
-
               # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
-              yum install -q -y php-apcu
-              if (! php -m | grep -q apcu); then
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
-                echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
-              fi
+              yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
+              echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
 
               # php-igbinary: https://pecl.php.net/package/igbinary
-              yum install -q -y php-igbinary
-              if (! php -m | grep -q igbinary); then
-                /usr/bin/yes 'no' | pecl install igbinary
-                echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
-              fi
+              yes 'no' | pecl install igbinary
+              echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
 
               # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
-              yum install -q -y php-msgpack
-              if (! php -m | grep -q msgpack); then
-                /usr/bin/yes 'no' | pecl install msgpack
-                echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
-              fi
+              yes 'no' | pecl install msgpack
+              echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
 
               # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
-              yum install -q -y php-lzf
-              if (! php -m | grep -q lzf); then
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-                echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
-              fi
+              yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+              echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
 
               # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
-              yum install -q -y php-zstd
-              if (! php -m | grep -q zstd); then
-                yum install -q -y libzstd-devel
-                /usr/bin/yes 'no' | pecl install zstd
-                echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
-              fi
+              yum install -q -y libzstd-devel
+              yes 'no' | pecl install zstd
+              echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+
+              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
+              yum install -q -y ImageMagick ImageMagick-devel
+              yes 'no' | pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
+              echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
 
               # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              yum install -q -y php-redis
-              if (! php -m | grep -q redis); then
-                yum install -q -y redis-devel lz4-devel
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
-                echo 'extension=redis.so' > /etc/php.d/41-redis.ini
-              fi
+              yum install -q -y redis-devel lz4-devel
+              yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
+              echo 'extension=redis.so' > /etc/php.d/41-redis.ini
 
               # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
-              yum install -q -y php-memcached
-              if (! php -m | grep -q memcached); then
-                yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
-                echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
-              fi
+              yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel
+              yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+              echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
 
               # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
               yum install -q -y php-sodium
 
               # php-lz4: https://github.com/kjdev/php-ext-lz4
-              yum install -q -y php-lz4
-              if (! php -m | grep -q lz4); then
-                cd /tmp/cfn
-                yum install -q -y git lz4-devel
-                git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
-                cd php-ext-lz4
-                phpize
-                ./configure --with-lz4-includedir=/usr
-                make
-                make install
-                echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
-                cd /tmp/cfn
-              fi
-
-              # php-xdebug: https://github.com/xdebug/xdebug/blob/master/package.xml
-              yum install -q -y php-xdebug
-              if (php -m | grep -q xdebug); then
-                yum remove -q -y php-xdebug
-              else
-                /usr/bin/yes 'no' | pecl install xdebug
-                # installed but not enabled
-                echo '#zend_extension=/usr/lib64/php/modules/xdebug.so' > /etc/php.d/50-xdebug.ini
-                echo '#zend_extension=/usr/lib64/php8.2/modules/xdebug.so' >> /etc/php.d/50-xdebug.ini
-              fi
+              cd /tmp/cfn
+              yum install -q -y git lz4-devel
+              git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+              cd php-ext-lz4
+              phpize
+              ./configure --with-lz4-includedir=/usr
+              make
+              make install
+              echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
 
               cd /tmp/cfn
 
@@ -804,7 +959,7 @@ Resources:
           # https://certbot.org/renewal-setup: use systemd timer
           touch /etc/sysconfig/certbot
           systemctl daemon-reload
-          systemctl enable --now certbot-renew.timer
+          systemctl enable certbot-renew.timer
 
           # Web server
           export WEB="${webOption}"
@@ -835,6 +990,13 @@ Resources:
           </VirtualHost>
           EoF
 
+              # Change permissions and ownership
+              usermod -a -G apache ec2-user
+              chown -R ec2-user:apache /var/www/html
+              chmod -R 2775 /var/www/html
+              find /var/www/html -type d -exec sudo chmod 2775 {} \;
+              find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
               systemctl restart httpd
               ;;
             Nginx)
@@ -864,7 +1026,7 @@ Resources:
               sed -i "/#ssl_ciphers/a \        \ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;" /etc/nginx/sites-available/default
               sed -i "/^#/d" /etc/nginx/sites-available/default
 
-              # default: dummy HTTPS cert
+              # dummy HTTPS cert
               mkdir -p /etc/pki/tls/nginx
               openssl req -x509 -newkey rsa:2048 -keyout /etc/pki/tls/nginx/key.pem -out /etc/pki/tls/nginx/cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=State/L=City/O=Company/OU=Dept/CN=Host"
               sed -i "s/ssl_certificate/#&/" /etc/nginx/sites-available/default
@@ -881,6 +1043,14 @@ Resources:
               sed -i "/^#/d" /etc/nginx/sites-available/default
               sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
 
+              # Change permissions and ownership
+              usermod -a -G nginx ec2-user
+              usermod -a -G nginx apache
+              chown -R ec2-user:nginx /usr/share/nginx/html
+              chmod -R 2775 /usr/share/nginx/html
+              find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
+              find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
               systemctl restart nginx
               ;;
             none)
@@ -891,21 +1061,22 @@ Resources:
           # Database
           export DB="${databaseOption}"
           case $DB in
-            MySQL)
-              yum install -y https://dev.mysql.com/get/mysql80-community-release-el7-9.noarch.rpm
+            MySQL) # https://dev.mysql.com/downloads/repo/yum/
+              rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+              yum install -y https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm
               yum install -q -y mysql-community-server
-              systemctl enable --now mysqld
+              systemctl enable mysqld
               ;;
             MariaDB)
               amazon-linux-extras install -y mariadb10.5
-              systemctl enable --now mariadb
+              systemctl enable mariadb
               ;;
             PostgreSQL)
               amazon-linux-extras enable postgresql14
               yum clean metadata
               yum install -q -y postgresql postgresql-server
               /usr/bin/postgresql-setup --initdb
-              systemctl enable --now postgresql
+              systemctl enable postgresql
               ;;
           esac
 
@@ -924,38 +1095,16 @@ Resources:
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           yum install -q -y amazon-cloudwatch-agent
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-          systemctl enable --now amazon-cloudwatch-agent
+          systemctl enable amazon-cloudwatch-agent
 
-          # Update OS
-          yum update -q -y
-
-          # yum-cron
-          yum install -q -y yum-cron
-          sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
-          systemctl enable --now yum-cron
-
-          # text console: DCV virtual sessions only
-          systemctl isolate multi-user.target
+          #
           systemctl set-default multi-user.target
           systemctl daemon-reload
-
-          # cfn-init completed so signal success or not
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          systemctl enable dcv-post-reboot
 
           # enable back IPv6
           sysctl -w net.ipv6.conf.all.disable_ipv6=0
           sysctl -w net.ipv6.conf.default.disable_ipv6=0
-
-          case $WEB in
-            Apache)
-              systemctl restart httpd
-              ;;
-            Ngnix)
-              systemctl restart nginx
-              ;;
-          esac
-
-          systemctl enable --now dcvserver dcv-virtual-session.service
 
           sleep 1 && reboot
       Tags:
@@ -990,14 +1139,14 @@ Outputs:
     Description: EC2 console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
+  EC2instanceConnect:
+    Condition: createEICsg
+    Description: EC2 Instance Connect
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
+
   SSMsessionManager:
     Description: SSM Session Manager ("sudo passwd ec2-user" to change password)
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
-
-  EC2instanceConnect:
-    Condition: displayPublicIP
-    Description: EC2 Instance Connect
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
 
   DCVwebConsole:
     Description: NICE DCV web browser client (login as ec2-user)

@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Amazon Linux 2023 with LAMP/LEMP/LAPP/LEPP stack
+Description: Amazon Linux 2023  ( https://github.com/aws-samples/ec2-lamp-server )
+Transform: "AWS::LanguageExtensions"
 
 Metadata:
   License:
@@ -29,19 +30,19 @@ Metadata:
           - processorArchitecture
           - instanceType
       - Label:
-          default: EBS volume configuration
-        Parameters:
-          - volumeSize
-          - volumeType
-      - Label:
-          default: Network configuration
+          default: Network
         Parameters:
           - vpcID
           - subnetID
           - displayPublicIP
           - assignStaticIP
       - Label:
-          default: LAMP configuration
+          default: Remote administration
+        Parameters:
+          - ingressIPv4
+          - ingressIPv6
+      - Label:
+          default: LAMP
         Parameters:
           - webOption
           - phpVersion
@@ -49,15 +50,15 @@ Metadata:
           - s3BucketName
           - r53ZoneID
       - Label:
-          default: Remote administration
+          default: EBS volume
         Parameters:
-          - ingressIPv4
-          - ingressIPv6
+          - volumeSize
+          - volumeType
     ParameterLabels:
       processorArchitecture:
         default: "Processor architecture"
       instanceType:
-        default: "Instance type"
+        default: "Instance type (x86_64 or arm64)"
       ec2Name:
         default: "Instance name"
       ec2KeyPair:
@@ -116,7 +117,7 @@ Parameters:
     #Description: Volume size in GiBs
     MinValue: 10
     MaxValue: 16384
-    Default: 20
+    Default: 30
   volumeType:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
@@ -128,12 +129,12 @@ Parameters:
   vpcID:
     Type: AWS::EC2::VPC::Id
     Description: "https://console.aws.amazon.com/vpcconsole/home#vpcs:"
-    ConstraintDescription: Do specify a valid value
+    ConstraintDescription: Specify a valid value
     AllowedPattern: ".+"
   subnetID:
     Type: AWS::EC2::Subnet::Id
     Description: "https://console.aws.amazon.com/vpcconsole/home#subnets:"
-    ConstraintDescription: Do specify a valid value
+    ConstraintDescription: Specify a valid value
     AllowedPattern: ".+"
   assignStaticIP:
     Type: String
@@ -199,12 +200,92 @@ Conditions:
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
   hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  hasEIC:
+    !Not [
+      !Equals [
+        !FindInMap [
+          EICprefixMap,
+          !Ref AWS::Region,
+          "IpPrefix",
+          DefaultValue: 127.0.0.1/32,
+        ],
+        "127.0.0.1/32",
+      ],
+    ]
+  createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
+
+Mappings:
+  EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+    af-south-1:
+      IpPrefix: 13.244.121.196/30
+    ap-east-1:
+      IpPrefix: 43.198.192.104/29
+    ap-northeast-1:
+      IpPrefix: 3.112.23.0/29
+    ap-northeast-2:
+      IpPrefix: 13.209.1.56/29
+    ap-northeast-3:
+      IpPrefix: 15.168.105.160/29
+    ap-south-1:
+      IpPrefix: 13.233.177.0/29
+    ap-south-2:
+      IpPrefix: 18.60.252.248/29
+    ap-southeast-1:
+      IpPrefix: 3.0.5.32/29
+    ap-southeast-2:
+      IpPrefix: 13.239.158.0/29
+    ap-southeast-3:
+      IpPrefix: 43.218.193.64/29
+    ap-southeast-4:
+      IpPrefix: 16.50.248.80/29
+    ca-central-1:
+      IpPrefix: 35.183.92.176/29
+    cn-north-1:
+      IpPrefix: 43.196.20.40/29
+    cn-northwest-1:
+      IpPrefix: 43.192.155.8/29
+    eu-central-1:
+      IpPrefix: 3.120.181.40/29
+    eu-central-2:
+      IpPrefix: 16.63.77.8/29
+    eu-north-1:
+      IpPrefix: 13.48.4.200/30
+    eu-south-1:
+      IpPrefix: 15.161.135.164/30
+    eu-south-2:
+      IpPrefix: 18.101.90.48/29
+    eu-west-1:
+      IpPrefix: 18.202.216.48/29
+    eu-west-2:
+      IpPrefix: 3.8.37.24/29
+    eu-west-3:
+      IpPrefix: 35.180.112.80/29
+    il-central-1:
+      IpPrefix: 51.16.183.224/29
+    me-central-1:
+      IpPrefix: 3.29.147.40/29
+    me-south-1:
+      IpPrefix: 16.24.46.56/29
+    sa-east-1:
+      IpPrefix: 18.228.70.32/29
+    us-east-1:
+      IpPrefix: 18.206.107.24/29
+    us-east-2:
+      IpPrefix: 3.16.146.0/29
+    us-gov-east-1:
+      IpPrefix: 18.252.4.0/30
+    us-gov-west-1:
+      IpPrefix: 15.200.28.80/30
+    us-west-1:
+      IpPrefix: 13.52.6.112/29
+    us-west-2:
+      IpPrefix: 18.237.140.160/29
 
 Resources:
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow inbound DCV
+      GroupDescription: Allow inbound SSH, HTTP, HTTPS
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - Description: SSH (IPv4)
@@ -251,6 +332,46 @@ Resources:
           Value: !Sub ${AWS::StackId}
         - Key: Name
           Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  securityGroupForEIC:
+    Condition: createEICsg
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow in-browser SSH via EC2 Instance Connect
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: SSH from EIC IP
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp:
+            !FindInMap [
+              EICprefixMap,
+              !Ref AWS::Region,
+              "IpPrefix",
+              DefaultValue: 127.0.0.1/32,
+            ]
+      SecurityGroupEgress:
+        - Description: Allow ICMP to EIC IP
+          IpProtocol: "icmp"
+          FromPort: -1
+          ToPort: -1
+          CidrIp:
+            !FindInMap [
+              EICprefixMap,
+              !Ref AWS::Region,
+              "IpPrefix",
+              DefaultValue: 127.0.0.1/32,
+            ]
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name} - EIC"
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -309,6 +430,7 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -350,6 +472,38 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
+            "/etc/systemd/system/dcv-post-reboot.service":
+              content: |
+                [Unit]
+                Description=Post install tasks
+                After=default.target network.target
+
+                [Service]
+                ExecStart=/opt/dcv-post-reboot.sh
+
+                [Install]
+                WantedBy=default.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/dcv-post-reboot.sh":
+              content: !Sub |
+                #!/bin/bash
+                sysctl -w net.ipv6.conf.all.disable_ipv6=1
+                sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
+
+                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+                sysctl -w net.ipv6.conf.all.disable_ipv6=0
+                sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+                rm -f /etc/systemd/system/dcv-post-reboot.service
+                rm -f ${!0}
+                systemctl daemon-reload
+              mode: "000755"
+              owner: "root"
+              group: "root"
             "/opt/aws/amazon-cloudwatch-agent/bin/config.json":
               content: |
                 {
@@ -401,7 +555,21 @@ Resources:
                           "cpu_usage_user",
                           "cpu_usage_system"
                         ],
-                        "metrics_collection_interval": 60
+                        "metrics_collection_interval": 60,
+                        "totalcpu": false
+                      }
+                    }
+                  },
+                  "traces": {
+                    "buffer_size_mb": 3,
+                    "concurrency": 8,
+                    "insecure": false,
+                    "traces_collected": {
+                      "xray": {
+                        "bind_address": "127.0.0.1:2000",
+                        "tcp_proxy": {
+                          "bind_address": "127.0.0.1:2000"
+                        }
                       }
                     }
                   }
@@ -440,6 +608,7 @@ Resources:
       Monitoring: true
       SecurityGroupIds:
         - !Ref securityGroup
+        - !If [createEICsg, !Ref securityGroupForEIC, !Ref AWS::NoValue]
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -466,15 +635,24 @@ Resources:
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
 
           # https://github.com/amazonlinux/amazon-linux-2023/issues/493
+
+          # Update OS
+          yum update -q -y
+          # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
+          dnf install -q -y dnf-automatic
+          sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
+          sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
+          systemctl enable dnf-automatic-install.timer
+
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           dnf install -q -y mount-s3
           if (dnf info mount-s3  | grep -q Installed); then
             rm -f /home/ec2-user/update-mountpoint-s3
           else
             if (uname -a | grep -q x86); then
-              wget -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+              curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
             else
-              wget -nv https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+              curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
             fi
             dnf install -q -y ./mount-s3.rpm
           fi
@@ -522,42 +700,32 @@ Resources:
               pear update-channels
               pecl update-channels
 
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/207
-              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
-              dnf install -q -y php-imagick
-              if (! php -m | grep -q imagick); then
-                sudo dnf install -q -y ImageMagick
-                sudo dnf install -q -y ImageMagick-devel 
-                /usr/bin/yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
-                echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
-              fi
-
               # https://github.com/amazonlinux/amazon-linux-2023/issues/206
               # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
               dnf install -q -y php-apcu
               if (! php -m | grep -q apcu); then
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
+                yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
                 echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
               fi
 
               # php-igbinary: https://pecl.php.net/package/igbinary
               dnf install -q -y php-igbinary
               if (! php -m | grep -q igbinary); then
-                /usr/bin/yes 'no' | pecl install igbinary
+                yes 'no' | pecl install igbinary
                 echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
               fi
 
               # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
               dnf install -q -y php-msgpack
               if (! php -m | grep -q msgpack); then
-                /usr/bin/yes 'no' | pecl install msgpack
+                yes 'no' | pecl install msgpack
                 echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
               fi
 
               # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
               dnf install -q -y php-lzf
               if (! php -m | grep -q lzf); then
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+                yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
                 echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
               fi
 
@@ -565,8 +733,17 @@ Resources:
               dnf install -q -y php-zstd
               if (! php -m | grep -q zstd); then
                 dnf install -q -y libzstd-devel
-                /usr/bin/yes 'no' | pecl install zstd
+                yes 'no' | pecl install zstd
                 echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+              fi
+
+              # https://github.com/amazonlinux/amazon-linux-2023/issues/207
+              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
+              dnf install -q -y php-imagick
+              if (! php -m | grep -q imagick); then
+                dnf install -q -y ImageMagick ImageMagick-devel
+                yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
+                echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
               fi
 
               # https://github.com/amazonlinux/amazon-linux-2023/issues/328
@@ -574,7 +751,7 @@ Resources:
               dnf install -q -y php-redis
               if (! php -m | grep -q redis); then
                 dnf install -q -y redis6-devel lz4-devel
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
+                yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
                 echo 'extension=redis.so' > /etc/php.d/41-redis.ini
               fi
 
@@ -583,7 +760,7 @@ Resources:
               dnf install -q -y php-memcached
               if (! php -m | grep -q memcached); then
                 dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+                yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
                 echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
               fi
 
@@ -592,7 +769,7 @@ Resources:
               dnf install -q -y php-zip
               if (! php -m | grep -q zip); then
                 dnf install -q -y libzip-devel
-                /usr/bin/yes 'no' | pecl install zip
+                yes 'no' | pecl install zip
                 echo 'extension=zip.so' > /etc/php.d/20-zip.ini
               fi
 
@@ -601,7 +778,7 @@ Resources:
               dnf install -q -y php-sodium
               if (! php -m | grep -q sodium); then
                 dnf install -q -y libsodium-devel
-                /usr/bin/yes 'no' | pecl install -f libsodium
+                yes 'no' | pecl install -f libsodium
                 echo 'extension=sodium.so' > /etc/php.d/20-sodium.ini
               fi
 
@@ -617,20 +794,7 @@ Resources:
                 make
                 make install
                 echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
-                cd /tmp/cfn
               fi
-
-              # php-xdebug: https://github.com/xdebug/xdebug/blob/master/package.xml
-              dnf install -q -y php-xdebug
-              if (php -m | grep -q xdebug); then
-                dnf remove -q -y php-xdebug
-              else
-                /usr/bin/yes 'no' | pecl install xdebug
-                # installed but not enabled
-                echo '#zend_extension=/usr/lib64/php/modules/xdebug.so' > /etc/php.d/50-xdebug.ini
-                echo '#zend_extension=/usr/lib64/php8.2/modules/xdebug.so' >> /etc/php.d/50-xdebug.ini
-              fi
-
               cd /tmp/cfn
 
               # https://github.com/amazonlinux/amazon-linux-2023/issues/371
@@ -650,7 +814,7 @@ Resources:
 
           # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
           dnf install -q -y certbot python3-certbot-dns-route53
-          systecmtl daemon-reload
+          systemctl daemon-reload
           systemctl enable --now certbot-renew.timer
 
           # Web server
@@ -669,11 +833,18 @@ Resources:
           </VirtualHost>
           EoF
 
+              # Change permissions and ownership
+              usermod -a -G apache ec2-user
+              chown -R ec2-user:apache /var/www/html
+              chmod -R 2775 /var/www/html
+              find /var/www/html -type d -exec sudo chmod 2775 {} \;
+              find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
               systemctl restart httpd
               ;;
             Nginx)
-              dnf install python3-certbot-nginx
               dnf remove -q -y httpd
+              dnf install -q -y python3-certbot-nginx
               dnf install -q -y nginx
               systemctl enable nginx
 
@@ -713,6 +884,14 @@ Resources:
               sed -i "/^#/d" /etc/nginx/sites-available/default
               sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
 
+              # Change permissions and ownership
+              usermod -a -G nginx ec2-user
+              usermod -a -G nginx apache
+              chown -R ec2-user:nginx /usr/share/nginx/html
+              chmod -R 2775 /usr/share/nginx/html
+              find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
+              find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
               systemctl restart nginx
               ;;
             none)
@@ -723,20 +902,21 @@ Resources:
           # Database
           export DB="${databaseOption}"
           case $DB in
-            MySQL)
-              dnf install -y https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm
+            MySQL) # https://dev.mysql.com/downloads/repo/yum/
+              rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+              dnf install -y https://dev.mysql.com/get/mysql80-community-release-el9-5.noarch.rpm
               dnf install -q -y mysql-community-server
-              systemctl enable --now mysqld
+              systemctl enable mysqld
               ;;
             MariaDB)
               dnf install -q -y mariadb10*-server
-              systemctl enable --now mariadb
+              systemctl enable mariadb
               ;;
             PostgreSQL)
               dnf clean metadata
               dnf install -q -y postgresql1*-server
               /usr/bin/postgresql-setup --initdb
-              systemctl enable --now postgresql
+              systemctl enable postgresql
               ;;
           esac
 
@@ -756,36 +936,20 @@ Resources:
           # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
           dnf install -q -y amazon-cloudwatch-agent
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-          systemctl enable --now amazon-cloudwatch-agent
+          systemctl enable amazon-cloudwatch-agent
 
           # Enable crontab
           dnf install -q -y cronie
           systemctl enable --now crond
 
-          # Update OS
-          dnf update -q -y
-
-          # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
-          dnf install -q -y dnf-automatic
-          sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
-          sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
-          systemctl enable --now dnf-automatic-install.timer
-
-          # cfn-init completed so signal success or not
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          #
+          systemctl set-default multi-user.target
+          systemctl daemon-reload
+          systemctl enable dcv-post-reboot
 
           # enable back IPv6
           sysctl -w net.ipv6.conf.all.disable_ipv6=0
           sysctl -w net.ipv6.conf.default.disable_ipv6=0
-
-          case $WEB in
-            Apache)
-              systemctl restart httpd
-              ;;
-            Ngnix)
-              systemctl restart nginx
-              ;;
-          esac
 
           sleep 1 && reboot
       Tags:
@@ -817,17 +981,17 @@ Resources:
 
 Outputs:
   EC2console:
-    Description: EC2 Console
+    Description: EC2 console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
-  SSMsessionManager:
-    Description: SSM Session Manager
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
-
   EC2instanceConnect:
-    Condition: displayPublicIP
+    Condition: createEICsg
     Description: EC2 Instance Connect
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
+
+  SSMsessionManager:
+    Description: SSM Session Manager ("sudo passwd ec2-user" to change password)
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   WebUrl:
     Description: Website

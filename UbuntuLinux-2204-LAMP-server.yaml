@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux 22.04 with LAMP/LEMP/LAPP/LEPP stack
+Description: Ubuntu Linux 22.04 ( https://github.com/aws-samples/ec2-lamp-server )
+Transform: "AWS::LanguageExtensions"
 
 Metadata:
   License:
@@ -29,7 +30,7 @@ Metadata:
           - processorArchitecture
           - instanceType
       - Label:
-          default: Network configuration
+          default: Network
         Parameters:
           - vpcID
           - subnetID
@@ -41,18 +42,18 @@ Metadata:
           - ingressIPv4
           - ingressIPv6
       - Label:
-          default: EBS volume configuration
-        Parameters:
-          - volumeSize
-          - volumeType
-      - Label:
-          default: LAMP configuration
+          default: LAMP
         Parameters:
           - webOption
           - phpVersion
           - databaseOption
           - s3BucketName
           - r53ZoneID
+      - Label:
+          default: EBS volume
+        Parameters:
+          - volumeSize
+          - volumeType
     ParameterLabels:
       processorArchitecture:
         default: "Processor architecture"
@@ -118,7 +119,7 @@ Parameters:
     #Description: Volume size in GiBs
     MinValue: 10
     MaxValue: 16384
-    Default: 20
+    Default: 30
   volumeType:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
@@ -206,6 +207,86 @@ Conditions:
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
   hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  hasEIC:
+    !Not [
+      !Equals [
+        !FindInMap [
+          EICprefixMap,
+          !Ref AWS::Region,
+          "IpPrefix",
+          DefaultValue: 127.0.0.1/32,
+        ],
+        "127.0.0.1/32",
+      ],
+    ]
+  createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
+
+Mappings:
+  EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+    af-south-1:
+      IpPrefix: 13.244.121.196/30
+    ap-east-1:
+      IpPrefix: 43.198.192.104/29
+    ap-northeast-1:
+      IpPrefix: 3.112.23.0/29
+    ap-northeast-2:
+      IpPrefix: 13.209.1.56/29
+    ap-northeast-3:
+      IpPrefix: 15.168.105.160/29
+    ap-south-1:
+      IpPrefix: 13.233.177.0/29
+    ap-south-2:
+      IpPrefix: 18.60.252.248/29
+    ap-southeast-1:
+      IpPrefix: 3.0.5.32/29
+    ap-southeast-2:
+      IpPrefix: 13.239.158.0/29
+    ap-southeast-3:
+      IpPrefix: 43.218.193.64/29
+    ap-southeast-4:
+      IpPrefix: 16.50.248.80/29
+    ca-central-1:
+      IpPrefix: 35.183.92.176/29
+    cn-north-1:
+      IpPrefix: 43.196.20.40/29
+    cn-northwest-1:
+      IpPrefix: 43.192.155.8/29
+    eu-central-1:
+      IpPrefix: 3.120.181.40/29
+    eu-central-2:
+      IpPrefix: 16.63.77.8/29
+    eu-north-1:
+      IpPrefix: 13.48.4.200/30
+    eu-south-1:
+      IpPrefix: 15.161.135.164/30
+    eu-south-2:
+      IpPrefix: 18.101.90.48/29
+    eu-west-1:
+      IpPrefix: 18.202.216.48/29
+    eu-west-2:
+      IpPrefix: 3.8.37.24/29
+    eu-west-3:
+      IpPrefix: 35.180.112.80/29
+    il-central-1:
+      IpPrefix: 51.16.183.224/29
+    me-central-1:
+      IpPrefix: 3.29.147.40/29
+    me-south-1:
+      IpPrefix: 16.24.46.56/29
+    sa-east-1:
+      IpPrefix: 18.228.70.32/29
+    us-east-1:
+      IpPrefix: 18.206.107.24/29
+    us-east-2:
+      IpPrefix: 3.16.146.0/29
+    us-gov-east-1:
+      IpPrefix: 18.252.4.0/30
+    us-gov-west-1:
+      IpPrefix: 15.200.28.80/30
+    us-west-1:
+      IpPrefix: 13.52.6.112/29
+    us-west-2:
+      IpPrefix: 18.237.140.160/29
 
 Resources:
   securityGroup:
@@ -281,6 +362,46 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
+  securityGroupForEIC:
+    Condition: createEICsg
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow in-browser SSH via EC2 Instance Connect
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: SSH from EIC IP
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp:
+            !FindInMap [
+              EICprefixMap,
+              !Ref AWS::Region,
+              "IpPrefix",
+              DefaultValue: 127.0.0.1/32,
+            ]
+      SecurityGroupEgress:
+        - Description: Allow ICMP to EIC IP
+          IpProtocol: "icmp"
+          FromPort: -1
+          ToPort: -1
+          CidrIp:
+            !FindInMap [
+              EICprefixMap,
+              !Ref AWS::Region,
+              "IpPrefix",
+              DefaultValue: 127.0.0.1/32,
+            ]
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name} - EIC"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
   instanceIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -344,6 +465,7 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -370,8 +492,6 @@ Resources:
         configSets:
           setup:
             - 00_setup
-          console:
-            - 01_console
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ubuntu/update-dcv":
@@ -379,7 +499,8 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 sudo dcv close-session ubuntu
-                if (uname -a | grep -q x86); then
+                sudo dcv close-session console
+                if ((arch | grep -q x86) && (cat /etc/os-release | grep -q 22.04)); then
                   rm -f /tmp/nice-dcv-ubuntu2204-x86_64.tgz
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
                   tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
@@ -388,7 +509,7 @@ Resources:
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
                   tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
                 fi
-                sudo systemctl stop dcvserver dcv-virtual-session
+                sudo systemctl stop dcvserver
                 sudo apt-get install -y ./nice-dcv-server_*.deb
                 sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
                 sudo apt-get install -y ./nice-xdcv_*.deb
@@ -402,7 +523,7 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 rm -f awscliv2.zip
-                if (uname -a | grep -q x86); then
+                if (arch | grep -q x86); then
                   curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
                 else
                   curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
@@ -475,6 +596,8 @@ Resources:
             "/opt/dcv-post-reboot.sh":
               content: !Sub |
                 #!/bin/bash
+                sysctl -w net.ipv6.conf.all.disable_ipv6=1
+                sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
                 # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
                 apt-get install -q -y linux-headers-aws
@@ -482,8 +605,6 @@ Resources:
                 apt-get install -q -y usbutils
                 # dcvusbdriverinstaller --quiet
 
-                sysctl -w net.ipv6.conf.all.disable_ipv6=1
-                sysctl -w net.ipv6.conf.default.disable_ipv6=1
                 python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
@@ -548,57 +669,25 @@ Resources:
                           "cpu_usage_user",
                           "cpu_usage_system"
                         ],
-                        "metrics_collection_interval": 60
+                        "metrics_collection_interval": 60,
+                        "totalcpu": false
+                      }
+                    }
+                  },
+                  "traces": {
+                    "buffer_size_mb": 3,
+                    "concurrency": 8,
+                    "insecure": false,
+                    "traces_collected": {
+                      "xray": {
+                        "bind_address": "127.0.0.1:2000",
+                        "tcp_proxy": {
+                          "bind_address": "127.0.0.1:2000"
+                        }
                       }
                     }
                   }
                 }
-              mode: "000644"
-              owner: "root"
-              group: "root"
-        01_console:
-          files:
-            "/etc/X11/xorg.conf": # Modeline generator at http://xtiming.sourceforge.net/
-              content: |
-                Section "Device"
-                    Identifier "DummyDevice"
-                    Driver "dummy"
-                    Option "ConstantDPI" "true"
-                    Option "IgnoreEDID" "true"
-                    Option "NoDDC" "true"
-                    VideoRam 2048000
-                EndSection
-
-                Section "Monitor"
-                    Identifier "DummyMonitor"
-                    HorizSync   5.0 - 1000.0
-                    VertRefresh 5.0 - 200.0
-                    Modeline "4096x2160" 760.00 4096 4432 4880 5664 2160 2163 2173 2237
-                    Modeline "3840x2160" 712.75 3840 4160 4576 5312 2160 2163 2168 2237
-                    Modeline "2560x1440" 312.25 2560 2752 3024 3488 1440 1443 1448 1493
-                    Modeline "2048x1536" 80.06 2048 2104 2312 2576 1536 1537 1540 1554
-                    Modeline "1920x1440" 69.47 1920 1960 2152 2384 1440 1441 1444 1457
-                    Modeline "1920x1200" 26.28 1920 1952 2048 2080 1200 1229 1231 1261
-                    Modeline "1920x1080" 23.53 1920 1952 2040 2072 1080 1106 1108 1135
-                    Modeline "1600x900" 33.92 1600 1632 1760 1792 900 921 924 946
-                    Modeline "1440x900" 30.66 1440 1472 1584 1616 900 921 924 946
-                    ModeLine "1366x768" 72.00 1366 1414 1446 1494  768 771 777 803
-                    Modeline "1280x800" 24.15 1280 1312 1400 1432 800 819 822 841
-                    Modeline "1024x768" 18.71 1024 1056 1120 1152 768 786 789 807
-                EndSection
-
-                Section "Screen"
-                    Identifier "DummyScreen"
-                    Device "DummyDevice"
-                    Monitor "DummyMonitor"
-                    DefaultDepth 24
-                    SubSection "Display"
-                        Viewport 0 0
-                        Depth 24
-                        Modes "4096x2160" "3840x2160" "2560x1440" "2048x1536" "1920x1440" "1920x1200" "1920x1080" "1600x900" "1440x900" "1366x768" "1280x800" "1024x768"                        
-                        virtual 4096 2160
-                    EndSubSection
-                EndSection
               mode: "000644"
               owner: "root"
               group: "root"
@@ -624,6 +713,7 @@ Resources:
       Monitoring: true
       SecurityGroupIds:
         - !Ref securityGroup
+        - !If [createEICsg, !Ref securityGroupForEIC, !Ref AWS::NoValue]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -676,14 +766,13 @@ Resources:
           # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
           curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
           gpg --import NICE-GPG-KEY
-          if (uname -a | grep -q x86); then
+          if (arch | grep -q x86); then
             curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
           else
             curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
             tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
           fi
-
           apt-get install -q -y ./nice-dcv-server_*.deb
           apt-get install -q -y ./nice-dcv-web-viewer_*.deb
           usermod -aG video dcv
@@ -705,7 +794,7 @@ Resources:
 
           cd /tmp/cfn
           # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          if (uname -a | grep -q x86); then
+          if (arch | grep -q x86); then
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
           else
             curl -s https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
@@ -734,11 +823,6 @@ Resources:
           # Disable reporting : https://wiki.ubuntu.com/Apport
           sed -i "s/enabled=1/enable=0/g" /etc/default/apport
           apt-get remove -q -y ubuntu-report whoopsie apport
-
-          # 
-          systemctl set-default multi-user.target
-          systemctl daemon-reload
-          systemctl enable dcv-post-reboot
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           if (uname -a | grep -q x86); then
@@ -803,7 +887,7 @@ Resources:
               # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
               apt-get install -q -y php8.1-lzf
               if (! php -m | grep -q lzf); then
-                /usr/bin/yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+                yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
                 echo 'extension=lzf.so' > /etc/php/8.1/mods-available/lzf.ini
                 ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/fpm/conf.d/40-lzf.ini
                 ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/cli/conf.d/40-lzf.ini
@@ -813,7 +897,7 @@ Resources:
               apt-get install -q -y php8.1-zstd
               if (! php -m | grep -q zstd); then
                 apt-get install -q -y libzstd-dev
-                /usr/bin/yes 'no' | pecl install zstd
+                yes 'no' | pecl install zstd
                 echo 'extension=zstd.so' > /etc/php/8.1/mods-available/zstd.ini
                 ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/fpm/conf.d/40-zstd.ini
                 ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/cli/conf.d/40-zstd.ini
@@ -833,8 +917,8 @@ Resources:
                 echo 'extension=lz4.so' > /etc/php/8.1/mods-available/lz4.ini
                 ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/fpm/conf.d/40-lz4.ini
                 ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/cli/conf.d/40-lz4.ini
-                cd /tmp/cfn
               fi
+              cd /tmp/cfn
 
               # Composer: https://getcomposer.org/download/
               apt-get install -q -y composer
@@ -874,6 +958,13 @@ Resources:
               # Enable index.php
               sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
 
+              # Change permissions and ownership
+              usermod -a -G www-data ubuntu
+              chown -R ubuntu:www-data /var/www/html
+              chmod -R 2775 /var/www/html
+              find /var/www/html -type d -exec sudo chmod 2775 {} \;
+              find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
               systemctl restart apache2
               ;;
             Nginx)
@@ -896,6 +987,13 @@ Resources:
               # disable gzip as per https://bugs.debian.org/773332
               sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
 
+              # Change permissions and ownership
+              usermod -a -G www-data ubuntu
+              chown -R ubuntu:www-data /var/www/html
+              chmod -R 2775 /var/www/html
+              find /var/www/html -type d -exec sudo chmod 2775 {} \;
+              find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
               systemctl restart nginx
               ;;
             none)
@@ -908,15 +1006,15 @@ Resources:
           case $DB in
             MySQL)
               apt-get install -q -y mysql-server-8.0
-              systemctl enable --now mysql
+              systemctl enable mysql
               ;;
             MariaDB)
               apt-get install -q -y mariadb-server-10.6
-              systemctl enable --now mariadb
+              systemctl enable mariadb
               ;;
             PostgreSQL)
               apt-get install -q -y postgresql
-              systemctl enable --now postgresql
+              systemctl enable postgresql
               ;;
           esac
 
@@ -938,33 +1036,16 @@ Resources:
           apt-get install -q -y ./amazon-cloudwatch-agent.deb
 
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-          systemctl enable --now amazon-cloudwatch-agent
+          systemctl enable amazon-cloudwatch-agent
 
-          # Update OS
-          apt-get -q update
-          apt-get -q -y upgrade
-          apt-get -y autoremove
-
-          # text console: DCV virtual sessions only
-          systemctl isolate multi-user.target
+          #
           systemctl set-default multi-user.target
           systemctl daemon-reload
-
-          # cfn-init completed so signal success or not
-          python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+          systemctl enable dcv-post-reboot
 
           # enable back IPv6
           sysctl -w net.ipv6.conf.all.disable_ipv6=0
           sysctl -w net.ipv6.conf.default.disable_ipv6=0
-
-          case $WEB in
-            Apache)
-              systemctl restart apache2
-              ;;
-            Ngnix)
-              systemctl restart nginx
-              ;;
-          esac
 
           sleep 1 && reboot
       Tags:
@@ -1000,7 +1081,7 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   EC2instanceConnect:
-    Condition: displayPublicIP
+    Condition: createEICsg
     Description: EC2 Instance Connect
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
