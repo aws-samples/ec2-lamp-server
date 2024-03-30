@@ -1041,6 +1041,8 @@ Resources:
               systemctl restart apache2
               ;;
             Nginx)
+              apt-get remove -q -y apache2
+              apt-get purge -q -y apache2
               apt-get install -q -y python3-certbot-nginx
               apt-get install -q -y nginx-full
               systemctl enable nginx
