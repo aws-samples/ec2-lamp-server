@@ -340,10 +340,10 @@ Resources:
                   - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
                   - bucketName:
                       !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: R53ZoneAccess
+        - PolicyName: Route53CertbotAccess
           PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
             Version: "2012-10-17"
-            Statement:
+            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
               - Effect: Allow
                 Action:
                   - route53:ListHostedZones
@@ -355,10 +355,35 @@ Resources:
                 Resource: !Sub
                   - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
                   - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
+                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
                 Condition:
                   ForAllValues:StringEquals:
                     "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+                  ForAllValues:StringLike:
+                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                      ["_acme-challenge.*"]
+        - PolicyName: Route53UpdaterAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+              - Effect: Allow
+                Action:
+                  - route53:ListHostedZones
+                  - route53:GetChange
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
+                  - hostedZone:
+                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
+                Condition:
+                  ForAllValues:StringEquals:
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["A", "AAAA"]
+                  ForAllValues:StringLike:
+                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                      ["site.example.com"]
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -600,6 +625,64 @@ Resources:
               mode: "000744"
               owner: "root"
               group: "root"
+            "/etc/systemd/system/route53-updater.service":
+              content: |
+                [Unit]
+                Description=Route53 DNS updater
+                After=network.target
+
+                [Service]
+                Type=oneshot
+                ExecStart=/opt/route53-updater.sh
+                RemainAfterExit=true
+
+                [Install]
+                WantedBy=multi-user.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/route53-updater.sh":
+              content: !Sub
+                - |
+                  #!/bin/bash
+                  R53_ZONE_ID=${R53-ZONE-ID}
+                  DNS_ENTRY=site.example.com
+
+                  AWS_IP=`curl -s checkip.amazonaws.com`
+                  aws route53 change-resource-record-sets --cli-input-json '{
+                  "HostedZoneId": "/hostedzone/'$R53_ZONE_ID'",
+                  "ChangeBatch": {
+                      "Comment": "Stack ${AWS::StackName}",
+                      "Changes": [
+                          {
+                            "Action": "UPSERT",
+                            "ResourceRecordSet": {
+                                "Name": "'$DNS_ENTRY'",
+                                "Type": "A",
+                                "TTL": 60,
+                              "ResourceRecords": [
+                                {
+                                  "Value": "'$AWS_IP'"
+                                }
+                              ]
+                            }
+                          }
+                      ]
+                  }}'
+                - R53-ZONE-ID:
+                    !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
+              mode: "000755"
+              owner: "root"
+              group: "root"
+            "/home/ec2-user/update-certbot":
+              content: |
+                #!/bin/bash
+                sudo /opt/certbot/bin/pip install --upgrade pip
+                sudo /opt/certbot/bin/pip install --upgrade certbot
+                sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
+              mode: "000755"
+              owner: "ec2-user"
+              group: "ec2-user"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
