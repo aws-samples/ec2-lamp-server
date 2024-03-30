@@ -282,6 +282,88 @@ Mappings:
       IpPrefix: 18.237.140.160/29
 
 Resources:
+  instanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: MountPointS3Access
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+        - PolicyName: MountPointS3ExpressAccess
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3express:CreateSession
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+        - PolicyName: R53ZoneAccess
+          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - route53:ListHostedZones
+                  - route53:GetChange
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
+                  - hostedZone:
+                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
+                Condition:
+                  ForAllValues:StringEquals:
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref instanceIamRole
+
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -375,77 +457,6 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
-  instanceIamRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ec2.amazonaws.com]
-            Action: ["sts:AssumeRole"]
-      Path: /
-      Policies:
-        - PolicyName: S3BucketAccess
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:AbortMultipartUpload
-                  - s3:DeleteObject
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
-        - PolicyName: R53ZoneAccess
-          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-      ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
-      Tags:
-        - Key: StackName
-          Value: !Sub ${AWS::StackName}
-        - Key: StackId
-          Value: !Sub ${AWS::StackId}
-        - Key: GitHub
-          Value: https://github.com/aws-samples/ec2-lamp-server
-
-  instanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref instanceIamRole
-
   ec2Instance:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -457,6 +468,8 @@ Resources:
         configSets:
           setup:
             - 00_setup
+          php_install:
+            - 01_php_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ec2-user/update-mountpoint-s3":
@@ -472,6 +485,44 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
+            "/etc/systemd/system/mount-s3-helper.service":
+              content: |
+                # https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md#automatically-mounting-an-s3-bucket-at-boot
+                [Unit]
+                Description=Mountpoint for S3 helper
+                Wants=network.target
+
+                [Service]
+                Type=forking
+                User=root
+                Group=root
+                ExecStart=/opt/mount-s3-helper.sh
+                ExecStop=/usr/bin/fusermount -u /mnt/s3-bucket-mount
+
+                [Install]
+                WantedBy=remote-fs.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/mount-s3-helper.sh":
+              content: !Sub
+                - |
+                  #!/bin/bash
+                  S3_BUCKET_NAME=${S3-BUCKET-NAME}
+                  MOUNT_FOLDER=/mnt/s3-bucket-mount
+                  USER=ec2-user
+                  GROUP=apache
+
+                  USERID=$(cat /etc/passwd | grep ^$USER | cut -d":" -f 3)
+                  GROUPID=$(cat /etc/group | grep ^$GROUP | cut -d":" -f 3)
+
+                  mkdir -p $MOUNT_FOLDER
+                  /usr/bin/mount-s3 --uid $USERID --gid $GROUPID --allow-overwrite --allow-delete --allow-other $S3_BUCKET_NAME $MOUNT_FOLDER
+                - S3-BUCKET-NAME:
+                    !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+              mode: "000744"
+              owner: "root"
+              group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
               content: |
                 [Unit]
@@ -594,6 +645,171 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
+        01_php_install:
+          files:
+            "/root/install-php.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                export PHP="${phpVersion}"
+                case $PHP in
+                  none)
+                    ;;
+                  *)
+                    # Will install httpd
+                    dnf install -q -y ${phpVersion}
+                    dnf install -q -y php-{cli,fpm,opcache}
+                    dnf install -q -y php-{mysqlnd,pgsql,pdo,dba}
+                    dnf install -q -y php-{xml,soap,ldap,intl}
+                    dnf install -q -y php-{mbstring,bcmath,gd,enchant,pspell,tidy}
+
+                    # PHP.INI
+                    cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
+                    sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
+                    sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
+                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
+                    sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
+
+                    cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+                    # https://www.php.net/manual/en/class.sessionhandler.php
+                    sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+                    sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+                    sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+                    sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+                    # https://www.php.net/manual/en/opcache.configuration.php
+                    cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+                    sed -i '1 i\opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+                    # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+                    mkdir -p /var/www/.opcache
+                    chown apache:apache /var/www/.opcache
+                    sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
+
+                    # https://www.php.net/manual/en/install.pecl.pear.php
+                    dnf install -q -y php-devel php-pear gcc
+                    pear update-channels
+                    pecl update-channels
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/206
+                    # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
+                    dnf install -q -y php-apcu
+                    if (! php -m | grep -q apcu); then
+                      yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
+                      echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
+                    fi
+
+                    # php-igbinary: https://pecl.php.net/package/igbinary
+                    dnf install -q -y php-igbinary
+                    if (! php -m | grep -q igbinary); then
+                      yes 'no' | pecl install igbinary
+                      echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+                    fi
+
+                    # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
+                    dnf install -q -y php-msgpack
+                    if (! php -m | grep -q msgpack); then
+                      yes 'no' | pecl install msgpack
+                      echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+                    fi
+
+                    # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
+                    dnf install -q -y php-lzf
+                    if (! php -m | grep -q lzf); then
+                      yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+                      echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+                    fi
+
+                    # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
+                    dnf install -q -y php-zstd
+                    if (! php -m | grep -q zstd); then
+                      dnf install -q -y libzstd-devel
+                      yes 'no' | pecl install zstd
+                      echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+                    fi
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/207
+                    # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
+                    dnf install -q -y php-imagick
+                    if (! php -m | grep -q imagick); then
+                      dnf install -q -y ImageMagick ImageMagick-devel
+                      yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
+                      echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+                    fi
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/328
+                    # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
+                    dnf install -q -y php-redis
+                    if (! php -m | grep -q redis); then
+                      dnf install -q -y redis6-devel lz4-devel
+                      yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
+                      echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+                    fi
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/208
+                    # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
+                    dnf install -q -y php-memcached
+                    if (! php -m | grep -q memcached); then
+                      dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel
+                      yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+                      echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+                    fi
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/195
+                    # php-zip: https://github.com/pierrejoye/php_zip/blob/master/package.xml
+                    dnf install -q -y php-zip
+                    if (! php -m | grep -q zip); then
+                      dnf install -q -y libzip-devel
+                      yes 'no' | pecl install zip
+                      echo 'extension=zip.so' > /etc/php.d/20-zip.ini
+                    fi
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/204
+                    # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
+                    dnf install -q -y php-sodium
+                    if (! php -m | grep -q sodium); then
+                      dnf install -q -y libsodium-devel
+                      yes 'no' | pecl install -f libsodium
+                      echo 'extension=sodium.so' > /etc/php.d/20-sodium.ini
+                    fi
+
+                    # php-lz4: https://github.com/kjdev/php-ext-lz4
+                    dnf install -q -y php-lz4
+                    if (! php -m | grep -q lz4); then
+                      cd /tmp/cfn
+                      dnf install -q -y git lz4-devel
+                      git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+                      cd php-ext-lz4
+                      phpize
+                      ./configure --with-lz4-includedir=/usr
+                      make
+                      make install
+                      echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+                    fi
+                    cd /tmp/cfn
+
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/371
+                    # Composer: https://getcomposer.org/download/
+                    dnf install -q -y composer
+                    if (! which composer); then
+                      curl -s -L -O https://getcomposer.org/installer
+                      export COMPOSER_HOME=/root && php installer --quiet
+                      mv ./composer.phar /usr/local/bin/composer
+                    fi
+
+                    systemctl enable php-fpm
+                    systemctl restart php-fpm
+
+                    ;;
+                esac
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-php.sh > /var/log/install-php.log"
+              ignoreErrors: "true"
     Properties:
       ImageId: # https://github.com/amazonlinux/amazon-linux-2023
         !If [
@@ -625,25 +841,27 @@ Resources:
           sysctl -w net.ipv6.conf.all.disable_ipv6=1
           sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
-          # cfn-init
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
-
           dnf clean all
           dnf install -q -y wget tmux unzip tar curl-minimal sed
+
+          export CFN_INIT="/opt/aws/bin/cfn-init"
+
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
           # No graphical desktop: https://github.com/amazonlinux/amazon-linux-2023/issues/47
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
 
-          # https://github.com/amazonlinux/amazon-linux-2023/issues/493
-
           # Update OS
-          yum update -q -y
+          dnf update -q -y
           # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
           dnf install -q -y dnf-automatic
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
           sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable dnf-automatic-install.timer
+          dnf clean all
+          sleep 30
 
+          # https://github.com/amazonlinux/amazon-linux-2023/issues/493
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           dnf install -q -y mount-s3
           if (dnf info mount-s3  | grep -q Installed); then
@@ -661,161 +879,13 @@ Resources:
           dnf install -q -y redis6 memcached
           systemctl enable --now redis6 memcached
 
-          # PHP
-          export PHP="${phpVersion}"
-          case $PHP in
-            none)
-              ;;
-            *)
-              # Will install httpd
-              dnf install -q -y php ${phpVersion}-{cli,fpm,opcache}
-              dnf install -q -y ${phpVersion}-{mysqlnd,pgsql,pdo,dba}
-              dnf install -q -y ${phpVersion}-{xml,soap,ldap,intl}
-              dnf install -q -y ${phpVersion}-{mbstring,bcmath,gd,enchant,pspell,tidy}
-
-              # PHP.INI
-              cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
-              sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
-              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
-              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
-              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
-
-              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
-              # https://www.php.net/manual/en/class.sessionhandler.php
-              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
-
-              # https://www.php.net/manual/en/opcache.configuration.php
-              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-              sed -i '1 i\opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /var/www/.opcache
-              chown apache:apache /var/www/.opcache
-              sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
-
-              # https://www.php.net/manual/en/install.pecl.pear.php
-              dnf install -q -y php-devel php-pear gcc
-              pear update-channels
-              pecl update-channels
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/206
-              # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
-              dnf install -q -y php-apcu
-              if (! php -m | grep -q apcu); then
-                yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
-                echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
-              fi
-
-              # php-igbinary: https://pecl.php.net/package/igbinary
-              dnf install -q -y php-igbinary
-              if (! php -m | grep -q igbinary); then
-                yes 'no' | pecl install igbinary
-                echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
-              fi
-
-              # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
-              dnf install -q -y php-msgpack
-              if (! php -m | grep -q msgpack); then
-                yes 'no' | pecl install msgpack
-                echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
-              fi
-
-              # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
-              dnf install -q -y php-lzf
-              if (! php -m | grep -q lzf); then
-                yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-                echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
-              fi
-
-              # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
-              dnf install -q -y php-zstd
-              if (! php -m | grep -q zstd); then
-                dnf install -q -y libzstd-devel
-                yes 'no' | pecl install zstd
-                echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
-              fi
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/207
-              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
-              dnf install -q -y php-imagick
-              if (! php -m | grep -q imagick); then
-                dnf install -q -y ImageMagick ImageMagick-devel
-                yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
-                echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
-              fi
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/328
-              # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              dnf install -q -y php-redis
-              if (! php -m | grep -q redis); then
-                dnf install -q -y redis6-devel lz4-devel
-                yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
-                echo 'extension=redis.so' > /etc/php.d/41-redis.ini
-              fi
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/208
-              # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
-              dnf install -q -y php-memcached
-              if (! php -m | grep -q memcached); then
-                dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel
-                yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
-                echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
-              fi
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/195
-              # php-zip: https://github.com/pierrejoye/php_zip/blob/master/package.xml
-              dnf install -q -y php-zip
-              if (! php -m | grep -q zip); then
-                dnf install -q -y libzip-devel
-                yes 'no' | pecl install zip
-                echo 'extension=zip.so' > /etc/php.d/20-zip.ini
-              fi
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/204
-              # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
-              dnf install -q -y php-sodium
-              if (! php -m | grep -q sodium); then
-                dnf install -q -y libsodium-devel
-                yes 'no' | pecl install -f libsodium
-                echo 'extension=sodium.so' > /etc/php.d/20-sodium.ini
-              fi
-
-              # php-lz4: https://github.com/kjdev/php-ext-lz4
-              dnf install -q -y php-lz4
-              if (! php -m | grep -q lz4); then
-                cd /tmp/cfn
-                dnf install -q -y git lz4-devel
-                git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
-                cd php-ext-lz4
-                phpize
-                ./configure --with-lz4-includedir=/usr
-                make
-                make install
-                echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
-              fi
-              cd /tmp/cfn
-
-              # https://github.com/amazonlinux/amazon-linux-2023/issues/371
-              # Composer: https://getcomposer.org/download/
-              dnf install -q -y composer
-              if (! which composer); then
-                curl -s -L -O https://getcomposer.org/installer
-                export COMPOSER_HOME=/root && php installer --quiet
-                mv ./composer.phar /usr/local/bin/composer
-              fi
-
-              systemctl enable php-fpm
-              systemctl restart php-fpm
-
-              ;;
-          esac
+          # Install PHP
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
 
           # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
           dnf install -q -y certbot python3-certbot-dns-route53
           systemctl daemon-reload
-          systemctl enable --now certbot-renew.timer
+          systemctl enable certbot-renew.timer
 
           # Web server
           export WEB="${webOption}"
@@ -903,8 +973,10 @@ Resources:
           export DB="${databaseOption}"
           case $DB in
             MySQL) # https://dev.mysql.com/downloads/repo/yum/
+              # https://dev.mysql.com/doc/refman/8.0/en/checking-rpm-signature.html
               rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-              dnf install -y https://dev.mysql.com/get/mysql80-community-release-el9-5.noarch.rpm
+              # https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html
+              dnf install -q -y https://dev.mysql.com/get/mysql80-community-release-el9-5.noarch.rpm
               dnf install -q -y mysql-community-server
               systemctl enable mysqld
               ;;

@@ -289,6 +289,96 @@ Mappings:
       IpPrefix: 18.237.140.160/29
 
 Resources:
+  instanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: dcvLicensing
+          PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
+        - PolicyName: MountPointS3Access
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+        - PolicyName: MountPointS3ExpressAccess
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3express:CreateSession
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+        - PolicyName: R53ZoneAccess
+          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - route53:ListHostedZones
+                  - route53:GetChange
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
+                  - hostedZone:
+                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
+                Condition:
+                  ForAllValues:StringEquals:
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref instanceIamRole
+
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -402,85 +492,6 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
-  instanceIamRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ec2.amazonaws.com]
-            Action: ["sts:AssumeRole"]
-      Path: /
-      Policies: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
-        - PolicyName: dcvLicensing
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
-        - PolicyName: S3BucketAccess
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:AbortMultipartUpload
-                  - s3:DeleteObject
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
-        - PolicyName: R53ZoneAccess
-          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-      ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
-      Tags:
-        - Key: StackName
-          Value: !Sub ${AWS::StackName}
-        - Key: StackId
-          Value: !Sub ${AWS::StackId}
-        - Key: GitHub
-          Value: https://github.com/aws-samples/ec2-lamp-server
-
-  instanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref instanceIamRole
-
   ec2Instance:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -492,6 +503,8 @@ Resources:
         configSets:
           setup:
             - 00_setup
+          php_install:
+            - 01_php_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ubuntu/update-dcv":
@@ -549,6 +562,44 @@ Resources:
               mode: "000755"
               owner: "ubuntu"
               group: "ubuntu"
+            "/etc/systemd/system/mount-s3-helper.service":
+              content: |
+                # https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md#automatically-mounting-an-s3-bucket-at-boot
+                [Unit]
+                Description=Mountpoint for S3 helper
+                Wants=network.target
+
+                [Service]
+                Type=forking
+                User=root
+                Group=root
+                ExecStart=/opt/mount-s3-helper.sh
+                ExecStop=/usr/bin/fusermount -u /mnt/s3-bucket-mount
+
+                [Install]
+                WantedBy=remote-fs.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/mount-s3-helper.sh":
+              content: !Sub
+                - |
+                  #!/bin/bash
+                  S3_BUCKET_NAME=${S3-BUCKET-NAME}
+                  MOUNT_FOLDER=/mnt/s3-bucket-mount
+                  USER=ubuntu
+                  GROUP=www-data
+
+                  USERID=$(cat /etc/passwd | grep ^$USER | cut -d":" -f 3)
+                  GROUPID=$(cat /etc/group | grep ^$GROUP | cut -d":" -f 3)
+
+                  mkdir -p $MOUNT_FOLDER
+                  /usr/bin/mount-s3 --uid $USERID --gid $GROUPID --allow-overwrite --allow-delete --allow-other $S3_BUCKET_NAME $MOUNT_FOLDER
+                - S3-BUCKET-NAME:
+                    !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+              mode: "000744"
+              owner: "root"
+              group: "root"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
@@ -566,15 +617,24 @@ Resources:
             "/opt/dcv-virtual-session.sh":
               content: |
                 #!/bin/bash
-                dcvUser=ubuntu
+                dcvUsers=( "ubuntu" )
                 while true;
                 do
-                  if (/usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                    sleep 5
-                  else
-                    /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
-                    /usr/bin/dcv list-sessions
-                  fi
+                  for dcvUser in "${dcvUsers[@]}"
+                  do
+                    if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
+                      case $dcvUser in
+                        root)
+                          /usr/bin/dcv create-session $dcvUser --owner root --storage-root /root
+                          ;;
+                        *)
+                          /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
+                          ;;
+                      esac
+                    fi
+                  done
+                  /usr/bin/dcv list-sessions
+                  sleep 5
                 done
               mode: "000755"
               owner: "root"
@@ -600,9 +660,9 @@ Resources:
                 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
                 # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
-                apt-get install -q -y linux-headers-aws
-                apt-get install -q -y linux-modules-extra-aws
-                apt-get install -q -y usbutils
+                #apt-get install -q -y linux-headers-aws
+                #apt-get install -q -y linux-modules-extra-aws
+                #apt-get install -q -y usbutils
                 # dcvusbdriverinstaller --quiet
 
                 python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
@@ -691,6 +751,113 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
+        01_php_install:
+          files:
+            "/root/install-php.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                export PHP="${phpVersion}"
+                case $PHP in
+                  none)
+                    ;;
+                  *)
+                    # PHP install
+                    apt-get install -q -y php8.1
+                    apt-get install -q -y php8.1-{common,fpm,opcache,apcu}
+                    apt-get install -q -y php8.1-{memcached,redis}
+                    apt-get install -q -y php8.1-{mysql,pgsql,dba}
+                    apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
+                    apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
+                    apt-get install -q -y php8.1-{igbinary,msgpack}
+
+                    # PHP-FPM ini
+                    cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
+
+                    # https://www.php.net/manual/en/opcache.configuration.php
+                    # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
+                    sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
+                    sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
+                    sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
+
+                    sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
+                    sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
+                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
+                    sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
+
+                    # https://www.php.net/manual/en/class.sessionhandler.php
+                    sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
+                    sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
+                    sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
+                    sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
+
+                    # PHP CLI ini
+                    cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
+                    cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
+
+                    # php-fpm only: https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+                    mkdir -p /var/www/.opcache
+                    chown www-data:www-data /var/www/.opcache
+                    sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php/8.1/fpm/php.ini
+
+                    # https://www.php.net/manual/en/install.pecl.pear.php
+                    apt-get install -q -y php8.1-dev php-pear gcc
+                    pear update-channels
+                    pecl update-channels
+
+                    # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
+                    apt-get install -q -y php8.1-lzf
+                    if (! php -m | grep -q lzf); then
+                      yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+                      echo 'extension=lzf.so' > /etc/php/8.1/mods-available/lzf.ini
+                      ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/fpm/conf.d/40-lzf.ini
+                      ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/cli/conf.d/40-lzf.ini
+                    fi
+
+                    # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
+                    apt-get install -q -y php8.1-zstd
+                    if (! php -m | grep -q zstd); then
+                      apt-get install -q -y libzstd-dev
+                      yes 'no' | pecl install zstd
+                      echo 'extension=zstd.so' > /etc/php/8.1/mods-available/zstd.ini
+                      ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/fpm/conf.d/40-zstd.ini
+                      ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/cli/conf.d/40-zstd.ini
+                    fi
+
+                    # php-lz4: https://github.com/kjdev/php-ext-lz4
+                    apt-get install -q -y php8.1-lz4
+                    if (! php -m | grep -q lz4); then
+                      cd /tmp/cfn
+                      apt-get install -q -y git liblz4-dev
+                      git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+                      cd php-ext-lz4
+                      phpize
+                      ./configure --with-lz4-includedir=/usr
+                      make
+                      make install
+                      echo 'extension=lz4.so' > /etc/php/8.1/mods-available/lz4.ini
+                      ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/fpm/conf.d/40-lz4.ini
+                      ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/cli/conf.d/40-lz4.ini
+                    fi
+                    cd /tmp/cfn
+
+                    # Composer: https://getcomposer.org/download/
+                    apt-get install -q -y composer
+
+                    systemctl enable php8.1-fpm
+                    systemctl restart php8.1-fpm
+
+                    ;;
+                esac
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-php.sh > /var/log/install-php.log"
+              ignoreErrors: "true"
     Properties:
       ImageId: # https://ubuntu.com/server/docs/cloud-images/amazon-ec2 https://ubuntu.com/blog/ubuntu-pro-is-now-part-of-the-aws-ec2-console
         !If [
@@ -803,10 +970,6 @@ Resources:
           ./aws/install -b /usr/bin
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
 
-          # X11 dummy driver for non GPU instance console session
-          apt-get install -q -y xserver-xorg-video-dummy
-          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c console
-
           # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
           sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
           # Console session support
@@ -836,98 +999,8 @@ Resources:
           apt-get install -q -y redis-server memcached
           systemctl enable --now redis-server memcached
 
-          # PHP
-          export PHP="${phpVersion}"
-          case $PHP in
-            none)
-              ;;
-            *)
-              # PHP install
-              apt-get install -q -y php8.1 php8.1-{common,fpm,opcache,apcu}
-              apt-get install -q -y php8.1-{memcached,redis}
-              apt-get install -q -y php8.1-{mysql,pgsql,dba}
-              apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
-              apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
-              apt-get install -q -y php8.1-{igbinary,msgpack}
-
-              # PHP-FPM ini
-              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
-
-              # https://www.php.net/manual/en/opcache.configuration.php
-              # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
-              sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
-              sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
-              sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
-
-              sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
-              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php/8.1/fpm/php.ini
-              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php/8.1/fpm/php.ini
-              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php/8.1/fpm/php.ini
-
-              # https://www.php.net/manual/en/class.sessionhandler.php
-              sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
-              sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
-              sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
-              sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
-
-              # PHP CLI ini
-              cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
-              cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
-
-              # php-fpm only: https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /var/www/.opcache
-              chown www-data:www-data /var/www/.opcache
-              sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php/8.1/fpm/php.ini
-
-              # https://www.php.net/manual/en/install.pecl.pear.php
-              apt-get install -q -y php8.1-dev php-pear gcc
-              pear update-channels
-              pecl update-channels
-
-              # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
-              apt-get install -q -y php8.1-lzf
-              if (! php -m | grep -q lzf); then
-                yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-                echo 'extension=lzf.so' > /etc/php/8.1/mods-available/lzf.ini
-                ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/fpm/conf.d/40-lzf.ini
-                ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/cli/conf.d/40-lzf.ini
-              fi
-
-              # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
-              apt-get install -q -y php8.1-zstd
-              if (! php -m | grep -q zstd); then
-                apt-get install -q -y libzstd-dev
-                yes 'no' | pecl install zstd
-                echo 'extension=zstd.so' > /etc/php/8.1/mods-available/zstd.ini
-                ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/fpm/conf.d/40-zstd.ini
-                ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/cli/conf.d/40-zstd.ini
-              fi
-
-              # php-lz4: https://github.com/kjdev/php-ext-lz4
-              apt-get install -q -y php8.1-lz4
-              if (! php -m | grep -q lz4); then
-                cd /tmp/cfn
-                apt-get install -q -y git liblz4-dev
-                git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
-                cd php-ext-lz4
-                phpize
-                ./configure --with-lz4-includedir=/usr
-                make
-                make install
-                echo 'extension=lz4.so' > /etc/php/8.1/mods-available/lz4.ini
-                ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/fpm/conf.d/40-lz4.ini
-                ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/cli/conf.d/40-lz4.ini
-              fi
-              cd /tmp/cfn
-
-              # Composer: https://getcomposer.org/download/
-              apt-get install -q -y composer
-
-              systemctl enable php8.1-fpm
-              systemctl restart php8.1-fpm
-
-              ;;
-          esac
+          # Install PHP
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
 
           # Certbot
           apt-get install -q -y certbot

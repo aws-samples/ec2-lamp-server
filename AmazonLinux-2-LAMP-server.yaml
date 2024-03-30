@@ -282,6 +282,96 @@ Mappings:
       IpPrefix: 18.237.140.160/29
 
 Resources:
+  instanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: dcvLicensing
+          PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
+        - PolicyName: S3BucketAccess
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+        - PolicyName: MountPointS3ExpressAccess
+          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3express:CreateSession
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
+                  - bucketName:
+                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+        - PolicyName: R53ZoneAccess
+          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - route53:ListHostedZones
+                  - route53:GetChange
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                Resource: !Sub
+                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
+                  - hostedZone:
+                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
+                Condition:
+                  ForAllValues:StringEquals:
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  instanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref instanceIamRole
+
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -395,85 +485,6 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
-  instanceIamRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ec2.amazonaws.com]
-            Action: ["sts:AssumeRole"]
-      Path: /
-      Policies: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
-        - PolicyName: dcvLicensing
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
-        - PolicyName: S3BucketAccess
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:AbortMultipartUpload
-                  - s3:DeleteObject
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "NONEXISTENT-BUCKET"]
-        - PolicyName: R53ZoneAccess
-          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "NONEXISTENT-ZONE"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-      ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
-      Tags:
-        - Key: StackName
-          Value: !Sub ${AWS::StackName}
-        - Key: StackId
-          Value: !Sub ${AWS::StackId}
-        - Key: GitHub
-          Value: https://github.com/aws-samples/ec2-lamp-server
-
-  instanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref instanceIamRole
-
   ec2Instance:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -485,6 +496,8 @@ Resources:
         configSets:
           setup:
             - 00_setup
+          php_install:
+            - 01_php_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ec2-user/update-dcv":
@@ -540,6 +553,44 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
+            "/etc/systemd/system/mount-s3-helper.service":
+              content: |
+                # https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md#automatically-mounting-an-s3-bucket-at-boot
+                [Unit]
+                Description=Mountpoint for S3 helper
+                Wants=network.target
+
+                [Service]
+                Type=forking
+                User=root
+                Group=root
+                ExecStart=/opt/mount-s3-helper.sh
+                ExecStop=/usr/bin/fusermount -u /mnt/s3-bucket-mount
+
+                [Install]
+                WantedBy=remote-fs.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/mount-s3-helper.sh":
+              content: !Sub
+                - |
+                  #!/bin/bash
+                  S3_BUCKET_NAME=${S3-BUCKET-NAME}
+                  MOUNT_FOLDER=/mnt/s3-bucket-mount
+                  USER=ec2-user
+                  GROUP=apache
+
+                  USERID=$(cat /etc/passwd | grep ^$USER | cut -d":" -f 3)
+                  GROUPID=$(cat /etc/group | grep ^$GROUP | cut -d":" -f 3)
+
+                  mkdir -p $MOUNT_FOLDER
+                  /usr/bin/mount-s3 --uid $USERID --gid $GROUPID --allow-overwrite --allow-delete --allow-other $S3_BUCKET_NAME $MOUNT_FOLDER
+                - S3-BUCKET-NAME:
+                    !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
+              mode: "000744"
+              owner: "root"
+              group: "root"
             "/home/ec2-user/update-certbot":
               content: |
                 #!/bin/bash
@@ -566,15 +617,24 @@ Resources:
             "/opt/dcv-virtual-session.sh":
               content: |
                 #!/bin/bash
-                dcvUser=ec2-user
+                dcvUsers=( "ec2-user" )
                 while true;
                 do
-                  if (/usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                    sleep 5
-                  else
-                    /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
-                    /usr/bin/dcv list-sessions
-                  fi
+                  for dcvUser in "${dcvUsers[@]}"
+                  do
+                    if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
+                      case $dcvUser in
+                        root)
+                          /usr/bin/dcv create-session $dcvUser --owner root --storage-root /root
+                          ;;
+                        *)
+                          /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
+                          ;;
+                      esac
+                    fi
+                  done
+                  /usr/bin/dcv list-sessions
+                  sleep 5
                 done
               mode: "000755"
               owner: "root"
@@ -600,8 +660,8 @@ Resources:
                 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
                 # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
-                yum install -q -y kernel-devel-$(uname -r)
-                yum install -q -y usbutils
+                #yum install -q -y kernel-devel-$(uname -r)
+                #yum install -q -y usbutils
                 # dcvusbdriverinstaller --quiet
 
                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
@@ -717,6 +777,126 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
+        01_php_install:
+          files:
+            "/root/install-php.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                export PHP="${phpVersion}"
+                case $PHP in
+                  none)
+                    ;;
+                  *)
+                    amazon-linux-extras enable ${phpVersion}
+                    yum clean metadata
+                    yum install -q -y php-{cli,fpm,opcache}
+                    yum install -q -y php-{mysqlnd,pgsql,pdo,dba}
+                    yum install -q -y php-{xml,soap,ldap,intl}
+                    yum install -q -y php-{mbstring,bcmath,gd,enchant,pspell,tidy}
+                    yum remove -y mod_php
+
+                    # PHP.INI
+                    cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
+                    sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
+                    sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
+                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
+                    sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
+
+                    cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
+                    # https://www.php.net/manual/en/class.sessionhandler.php
+                    sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+                    sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+                    sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+                    sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+
+                    # https://www.php.net/manual/en/opcache.configuration.php
+                    cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
+                    sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+                    # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
+                    mkdir -p /var/www/.opcache
+                    chown apache:apache /var/www/.opcache
+                    sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
+
+                    # https://www.php.net/manual/en/install.pecl.pear.php
+                    yum install -q -y php-devel php-pear gcc
+                    pear update-channels
+                    pecl update-channels
+
+                    # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
+                    yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
+                    echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
+
+                    # php-igbinary: https://pecl.php.net/package/igbinary
+                    yes 'no' | pecl install igbinary
+                    echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+
+                    # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
+                    yes 'no' | pecl install msgpack
+                    echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+
+                    # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
+                    yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
+                    echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+
+                    # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
+                    yum install -q -y libzstd-devel
+                    yes 'no' | pecl install zstd
+                    echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+
+                    # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
+                    yum install -q -y ImageMagick ImageMagick-devel
+                    yes 'no' | pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
+                    echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+
+                    # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
+                    yum install -q -y redis-devel lz4-devel
+                    yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
+                    echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+
+                    # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
+                    yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel
+                    yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+                    echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+
+                    # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
+                    yum install -q -y php-sodium
+
+                    # php-lz4: https://github.com/kjdev/php-ext-lz4
+                    cd /tmp/cfn
+                    yum install -q -y git lz4-devel
+                    git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
+                    cd php-ext-lz4
+                    phpize
+                    ./configure --with-lz4-includedir=/usr
+                    make
+                    make install
+                    echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+
+                    cd /tmp/cfn
+
+                    # Composer: https://getcomposer.org/download/
+                    yum install -q -y composer
+                    if (! which composer); then
+                      curl -s -L -O https://getcomposer.org/installer
+                      export COMPOSER_HOME=/root && php installer --quiet
+                      mv ./composer.phar /usr/local/bin/composer
+                    fi
+
+                    systemctl enable php-fpm
+                    systemctl restart php-fpm
+
+                    ;;
+                esac
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-php.sh > /var/log/install-php.log"
+              ignoreErrors: "true"
     Properties:
       ImageId: # https://aws.amazon.com/about-aws/whats-new/2021/11/amazon-linux-2-ami-kernel-5-10/
         !If [
@@ -840,112 +1020,8 @@ Resources:
           amazon-linux-extras install -y redis6 memcached1.5
           systemctl enable --now redis memcached
 
-          # PHP
-          export PHP="${phpVersion}"
-          case $PHP in
-            none)
-              ;;
-            *)
-              amazon-linux-extras enable ${phpVersion}
-              yum clean metadata
-              yum install -q -y php-{cli,fpm,opcache}
-              yum install -q -y php-{mysqlnd,pgsql,pdo,dba}
-              yum install -q -y php-{xml,soap,ldap,intl}
-              yum install -q -y php-{mbstring,bcmath,gd,enchant,pspell,tidy}
-              yum remove -y mod_php
-
-              # PHP.INI
-              cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
-              sed -i "/^; max_input_vars/a max_input_vars=5000" /etc/php.ini
-              sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
-              sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
-              sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
-
-              cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
-              # https://www.php.net/manual/en/class.sessionhandler.php
-              sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-              sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-              sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-              sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
-
-              # https://www.php.net/manual/en/opcache.configuration.php
-              cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-              sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
-              # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
-              mkdir -p /var/www/.opcache
-              chown apache:apache /var/www/.opcache
-              sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php.d/10-opcache.ini
-
-              # https://www.php.net/manual/en/install.pecl.pear.php
-              yum install -q -y php-devel php-pear gcc
-              pear update-channels
-              pecl update-channels
-
-              # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
-              yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
-              echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
-
-              # php-igbinary: https://pecl.php.net/package/igbinary
-              yes 'no' | pecl install igbinary
-              echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
-
-              # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
-              yes 'no' | pecl install msgpack
-              echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
-
-              # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
-              yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-              echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
-
-              # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
-              yum install -q -y libzstd-devel
-              yes 'no' | pecl install zstd
-              echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
-
-              # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
-              yum install -q -y ImageMagick ImageMagick-devel
-              yes 'no' | pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
-              echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
-
-              # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-              yum install -q -y redis-devel lz4-devel
-              yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
-              echo 'extension=redis.so' > /etc/php.d/41-redis.ini
-
-              # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
-              yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel
-              yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
-              echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
-
-              # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
-              yum install -q -y php-sodium
-
-              # php-lz4: https://github.com/kjdev/php-ext-lz4
-              cd /tmp/cfn
-              yum install -q -y git lz4-devel
-              git clone --recursive --depth=1 https://github.com/kjdev/php-ext-lz4.git
-              cd php-ext-lz4
-              phpize
-              ./configure --with-lz4-includedir=/usr
-              make
-              make install
-              echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
-
-              cd /tmp/cfn
-
-              # Composer: https://getcomposer.org/download/
-              yum install -q -y composer
-              if (! which composer); then
-                curl -s -L -O https://getcomposer.org/installer
-                export COMPOSER_HOME=/root && php installer --quiet
-                mv ./composer.phar /usr/local/bin/composer
-              fi
-
-              systemctl enable php-fpm
-              systemctl restart php-fpm
-
-              ;;
-          esac
+          # Install PHP
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
 
           # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
           yum install -q -y augeas-libs
@@ -1062,8 +1138,10 @@ Resources:
           export DB="${databaseOption}"
           case $DB in
             MySQL) # https://dev.mysql.com/downloads/repo/yum/
+              # https://dev.mysql.com/doc/refman/8.0/en/checking-rpm-signature.html
               rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-              yum install -y https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm
+              # https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html
+              yum install -q -y https://dev.mysql.com/get/mysql80-community-release-el7-11.noarch.rpm
               yum install -q -y mysql-community-server
               systemctl enable mysqld
               ;;
