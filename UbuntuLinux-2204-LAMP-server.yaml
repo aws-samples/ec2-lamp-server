@@ -676,6 +676,20 @@ Resources:
               mode: "000755"
               owner: "root"
               group: "root"
+            "/etc/systemd/system/dcv-virtual-session.service":
+              content: |
+                [Unit]
+                Description=Create DCV virtual session
+                After=default.target network.target
+
+                [Service]
+                ExecStart=/opt/dcv-virtual-session.sh
+
+                [Install]
+                WantedBy=default.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
             "/opt/dcv-virtual-session.sh":
               content: |
                 #!/bin/bash
