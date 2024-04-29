@@ -220,6 +220,19 @@ Conditions:
       ],
     ]
   createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
+  hasCFprefix:
+    !Not [
+      !Equals [
+        !FindInMap [
+          CFprefixMap,
+          !Ref AWS::Region,
+          "PrefixList",
+          DefaultValue: pl-none,
+        ],
+        pl-none,
+      ],
+    ]
+  createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -287,6 +300,66 @@ Mappings:
       IpPrefix: 13.52.6.112/29
     us-west-2:
       IpPrefix: 18.237.140.160/29
+
+  CFprefixMap: # aws ec2 describe-managed-prefix-lists --query "PrefixLists[?PrefixListName=='com.amazonaws.global.cloudfront.origin-facing']" --region <REGION>
+    af-south-1:
+      PrefixList: pl-c0aa4fa9
+    ap-east-1:
+      PrefixList: pl-14b2577d
+    ap-northeast-1:
+      PrefixList: pl-58a04531
+    ap-northeast-2:
+      PrefixList: pl-22a6434b
+    ap-northeast-3:
+      PrefixList: pl-31a14458
+    ap-south-1:
+      PrefixList: pl-9aa247f3
+    ap-south-2:
+      PrefixList: pl-0a25c3463226fcc61
+    ap-southeast-1:
+      PrefixList: pl-31a34658
+    ap-southeast-2:
+      PrefixList: pl-b8a742d1
+    ap-southeast-3:
+      PrefixList: pl-bca247d5
+    ap-southeast-4:
+      PrefixList: pl-0fb7e7cfe038ae0e9
+    ca-central-1:
+      PrefixList: pl-38a64351
+    ca-west-1:
+      PrefixList: pl-0530d4c590b35122b
+    eu-central-1:
+      PrefixList: pl-a3a144ca
+    eu-central-2:
+      PrefixList: pl-00b37293991dbe6a8
+    eu-north-1:
+      PrefixList: pl-fab65393
+    eu-south-1:
+      PrefixList: pl-1bbc5972
+    eu-south-2:
+      PrefixList: pl-052dcbe0f793f19da
+    eu-west-1:
+      PrefixList: pl-4fa04526
+    eu-west-2:
+      PrefixList: pl-93a247fa
+    eu-west-3:
+      PrefixList: pl-75b1541c
+    il-central-1:
+      PrefixList: pl-0dd89524416301988
+    me-central-1:
+      PrefixList: pl-05266a86378662c23
+    me-south-1:
+      PrefixList: pl-17b2577e
+    sa-east-1:
+      PrefixList: pl-5da64334
+    us-east-1:
+      PrefixList: pl-3b927c52
+    us-east-2:
+      PrefixList: pl-b6a144df
+    us-west-1:
+      PrefixList: pl-4ea04527
+    us-west-2:
+      PrefixList: pl-82a045eb
 
 Resources:
   instanceIamRole:
@@ -380,7 +453,7 @@ Resources:
                       !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
                 Condition:
                   ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["A", "AAAA"]
+                    "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
                   ForAllValues:StringLike:
                     "route53:ChangeResourceRecordSetsNormalizedRecordNames":
                       ["site.example.com"]
@@ -460,6 +533,32 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIpv6: ::/0
+        - !If
+          - createEICsg
+          - Description: SSH (EC2 Instance Connect IP)
+            IpProtocol: "tcp"
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, "IpPrefix"]
+          - !Ref AWS::NoValue
+        - !If
+          - createCFsg
+          - Description: HTTP (Cloudfront origin facing IP)
+            IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            SourcePrefixListId:
+              !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+          - !Ref AWS::NoValue
+        - !If
+          - createCFsg
+          - Description: HTTPS (Cloudfront origin facing IP)
+            IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            SourcePrefixListId:
+              !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+          - !Ref AWS::NoValue
       SecurityGroupEgress:
         - Description: Allow all outbound traffic (IPv4)
           IpProtocol: "-1"
@@ -474,46 +573,6 @@ Resources:
           Value: !Sub ${AWS::StackId}
         - Key: Name
           Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
-        - Key: GitHub
-          Value: https://github.com/aws-samples/ec2-lamp-server
-
-  securityGroupForEIC:
-    Condition: createEICsg
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow in-browser SSH via EC2 Instance Connect
-      VpcId: !Ref vpcID
-      SecurityGroupIngress:
-        - Description: SSH from EIC IP
-          IpProtocol: "tcp"
-          FromPort: 22
-          ToPort: 22
-          CidrIp:
-            !FindInMap [
-              EICprefixMap,
-              !Ref AWS::Region,
-              "IpPrefix",
-              DefaultValue: 127.0.0.1/32,
-            ]
-      SecurityGroupEgress:
-        - Description: Allow ICMP to EIC IP
-          IpProtocol: "icmp"
-          FromPort: -1
-          ToPort: -1
-          CidrIp:
-            !FindInMap [
-              EICprefixMap,
-              !Ref AWS::Region,
-              "IpPrefix",
-              DefaultValue: 127.0.0.1/32,
-            ]
-      Tags:
-        - Key: StackName
-          Value: !Sub ${AWS::StackName}
-        - Key: StackId
-          Value: !Sub ${AWS::StackId}
-        - Key: Name
-          Value: !Sub "[${AWS::StackName}] - ${ec2Name} - EIC"
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -956,7 +1015,6 @@ Resources:
       Monitoring: true
       SecurityGroupIds:
         - !Ref securityGroup
-        - !If [createEICsg, !Ref securityGroupForEIC, !Ref AWS::NoValue]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
