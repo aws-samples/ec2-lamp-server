@@ -541,24 +541,6 @@ Resources:
             ToPort: 22
             CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, "IpPrefix"]
           - !Ref AWS::NoValue
-        - !If
-          - createCFsg
-          - Description: HTTP (Cloudfront origin facing IP)
-            IpProtocol: tcp
-            FromPort: 80
-            ToPort: 80
-            SourcePrefixListId:
-              !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
-          - !Ref AWS::NoValue
-        - !If
-          - createCFsg
-          - Description: HTTPS (Cloudfront origin facing IP)
-            IpProtocol: tcp
-            FromPort: 443
-            ToPort: 443
-            SourcePrefixListId:
-              !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
-          - !Ref AWS::NoValue
       SecurityGroupEgress:
         - Description: Allow all outbound traffic (IPv4)
           IpProtocol: "-1"
@@ -573,6 +555,52 @@ Resources:
           Value: !Sub ${AWS::StackId}
         - Key: Name
           Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  securityGroupForCloudFrontHTTP:
+    Type: AWS::EC2::SecurityGroup
+    Condition: createCFsg
+    Properties:
+      GroupDescription: Allow inbound HTTP from CloudFront
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: HTTP (CloudFront origin IP)
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId:
+            !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name} CloudFront HTTP"
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  securityGroupForCloudFrontHTTPS:
+    Type: AWS::EC2::SecurityGroup
+    Condition: createCFsg
+    Properties:
+      GroupDescription: Allow inbound HTTPS from CloudFront
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - Description: HTTPS (CloudFront origin IP)
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          SourcePrefixListId:
+            !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+      Tags:
+        - Key: StackName
+          Value: !Sub ${AWS::StackName}
+        - Key: StackId
+          Value: !Sub ${AWS::StackId}
+        - Key: Name
+          Value: !Sub "[${AWS::StackName}] - ${ec2Name} CloudFront HTTPS"
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1015,6 +1043,16 @@ Resources:
       Monitoring: true
       SecurityGroupIds:
         - !Ref securityGroup
+        - !If [
+            createCFsg,
+            !Ref securityGroupForCloudFrontHTTP,
+            !Ref AWS::NoValue,
+          ]
+        - !If [
+            createCFsg,
+            !Ref securityGroupForCloudFrontHTTPS,
+            !Ref AWS::NoValue,
+          ]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
