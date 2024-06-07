@@ -37,10 +37,11 @@ Metadata:
           - displayPublicIP
           - assignStaticIP
       - Label:
-          default: Remote administration
+          default: Allowed source IP and ports
         Parameters:
           - ingressIPv4
           - ingressIPv6
+          - allowSSHport
       - Label:
           default: LAMP
         Parameters:
@@ -79,6 +80,8 @@ Metadata:
         default: "Allowed IPv4 prefix to SSH"
       ingressIPv6:
         default: "Allowed IPv6 prefix to SSH"
+      allowSSHport:
+        default: "Allow SSH from internet"
       webOption:
         default: "Web server to install"
       databaseOption:
@@ -117,7 +120,7 @@ Parameters:
     #Description: Volume size in GiBs
     MinValue: 10
     MaxValue: 16384
-    Default: 30
+    Default: 50
   volumeType:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
@@ -159,7 +162,13 @@ Parameters:
     Type: String
     Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#ipv6-addressing"
     Default: ::/0
-
+  allowSSHport:
+    Type: String
+    # Description: Allow SSH from internet
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
   webOption:
     Type: String
     #Description: Web server to install
@@ -206,10 +215,10 @@ Conditions:
         !FindInMap [
           EICprefixMap,
           !Ref AWS::Region,
-          "IpPrefix",
+          IpPrefix,
           DefaultValue: 127.0.0.1/32,
         ],
-        "127.0.0.1/32",
+        127.0.0.1/32,
       ],
     ]
   createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
@@ -219,13 +228,14 @@ Conditions:
         !FindInMap [
           CFprefixMap,
           !Ref AWS::Region,
-          "PrefixList",
+          PrefixList,
           DefaultValue: pl-none,
         ],
         pl-none,
       ],
     ]
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
+  createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -468,43 +478,49 @@ Resources:
       GroupDescription: Allow inbound SSH, HTTP, HTTPS
       VpcId: !Ref vpcID
       SecurityGroupIngress:
-        - Description: SSH (IPv4)
-          IpProtocol: "tcp"
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref ingressIPv4
-        - Description: SSH (IPv6)
-          IpProtocol: "tcp"
-          FromPort: 22
-          ToPort: 22
-          CidrIpv6: !Ref ingressIPv6
+        - !If
+          - createSgSSH
+          - Description: SSH (IPv4)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - createSgSSH
+          - Description: SSH (IPv6)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
         - Description: HTTP (IPv4)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
         - Description: HTTP (IPv6)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIpv6: ::/0
         - Description: HTTPS (IPv4)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
         - Description: HTTPS (IPv6)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIpv6: ::/0
         - !If
           - createEICsg
           - Description: SSH (EC2 Instance Connect IP)
-            IpProtocol: "tcp"
+            IpProtocol: tcp
             FromPort: 22
             ToPort: 22
-            CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, "IpPrefix"]
+            CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, IpPrefix]
           - !Ref AWS::NoValue
       SecurityGroupEgress:
         - Description: Allow all outbound traffic (IPv4)
@@ -531,11 +547,11 @@ Resources:
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - Description: HTTP (CloudFront origin IP)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourcePrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -554,11 +570,11 @@ Resources:
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - Description: HTTPS (CloudFront origin IP)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           SourcePrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -802,7 +818,7 @@ Resources:
                 metadata_expire=7d
                 repo_gpgcheck=0
                 type=rpm
-                gpgcheck=1
+                gpgcheck=0
                 gpgkey=https://getfedora.org/static/fedora.gpg
                 skip_if_unavailable=False
               mode: "000644"
@@ -1147,9 +1163,11 @@ Resources:
             MySQL) # https://dev.mysql.com/downloads/repo/yum/
               # https://dev.mysql.com/doc/refman/8.0/en/checking-rpm-signature.html
               rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
               # https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html
-              dnf install -q -y https://dev.mysql.com/get/mysql80-community-release-el9-5.noarch.rpm
+              dnf install -q -y https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm
               dnf install -q -y mysql-community-server
+
               systemctl enable mysqld
               ;;
             MariaDB)

@@ -37,10 +37,11 @@ Metadata:
           - displayPublicIP
           - assignStaticIP
       - Label:
-          default: Remote administration
+          default: Allowed source IP and ports
         Parameters:
           - ingressIPv4
           - ingressIPv6
+          - allowSSHport
       - Label:
           default: LAMP
         Parameters:
@@ -78,7 +79,9 @@ Metadata:
       ingressIPv4:
         default: "Allowed IPv4 prefix to SSH and NICE DCV"
       ingressIPv6:
-        default: "Allowed IPv6 prefix to SSH and NICE DCV"
+        default: "Allowed IPv6 prefix to SSH"
+      allowSSHport:
+        default: "Allow SSH from internet"
       webOption:
         default: "Web server to install"
       databaseOption:
@@ -119,7 +122,7 @@ Parameters:
     #Description: Volume size in GiBs
     MinValue: 10
     MaxValue: 16384
-    Default: 30
+    Default: 50
   volumeType:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
@@ -161,7 +164,13 @@ Parameters:
     Type: String
     Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#ipv6-addressing"
     Default: ::/0
-
+  allowSSHport:
+    Type: String
+    # Description: Allow SSH from internet
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
   webOption:
     Type: String
     #Description: Web server to install
@@ -213,10 +222,10 @@ Conditions:
         !FindInMap [
           EICprefixMap,
           !Ref AWS::Region,
-          "IpPrefix",
+          IpPrefix,
           DefaultValue: 127.0.0.1/32,
         ],
-        "127.0.0.1/32",
+        127.0.0.1/32,
       ],
     ]
   createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
@@ -226,13 +235,14 @@ Conditions:
         !FindInMap [
           CFprefixMap,
           !Ref AWS::Region,
-          "PrefixList",
+          PrefixList,
           DefaultValue: pl-none,
         ],
         pl-none,
       ],
     ]
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
+  createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -380,7 +390,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: !Sub "arn:${AWS::Partition}:s3:::dcv-license.${AWS::Region}/*"
+                Resource: !Sub "arn:*:s3:::dcv-license.${AWS::Region}/*"
         - PolicyName: MountPointS3Access
           PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
             Version: "2012-10-17"
@@ -483,63 +493,69 @@ Resources:
       GroupDescription: Allow inbound DCV, SSH, HTTP, HTTPS
       VpcId: !Ref vpcID
       SecurityGroupIngress:
-        - Description: SSH (IPv4)
-          IpProtocol: "tcp"
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref ingressIPv4
-        - Description: SSH (IPv6)
-          IpProtocol: "tcp"
-          FromPort: 22
-          ToPort: 22
-          CidrIpv6: !Ref ingressIPv6
+        - !If
+          - createSgSSH
+          - Description: SSH (IPv4)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - createSgSSH
+          - Description: SSH (IPv6)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
         - Description: NICE DCV (IPv4)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 8443
           ToPort: 8443
           CidrIp: !Ref ingressIPv4
         - Description: NICE DCV (IPv6)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 8443
           ToPort: 8443
           CidrIpv6: !Ref ingressIPv6
         - Description: NICE DCV QUIC (IPv4)
-          IpProtocol: "udp"
+          IpProtocol: udp
           FromPort: 8443
           ToPort: 8443
           CidrIp: !Ref ingressIPv4
         - Description: NICE DCV QUIC (IPv6)
-          IpProtocol: "udp"
+          IpProtocol: udp
           FromPort: 8443
           ToPort: 8443
           CidrIpv6: !Ref ingressIPv6
         - Description: HTTP (IPv4)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
         - Description: HTTP (IPv6)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIpv6: ::/0
         - Description: HTTPS (IPv4)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
         - Description: HTTPS (IPv6)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIpv6: ::/0
         - !If
           - createEICsg
           - Description: SSH (EC2 Instance Connect IP)
-            IpProtocol: "tcp"
+            IpProtocol: tcp
             FromPort: 22
             ToPort: 22
-            CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, "IpPrefix"]
+            CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, IpPrefix]
           - !Ref AWS::NoValue
       SecurityGroupEgress:
         - Description: Allow all outbound traffic (IPv4)
@@ -566,11 +582,18 @@ Resources:
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - Description: HTTP (CloudFront origin IP)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourcePrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
+      SecurityGroupEgress:
+        - Description: Ping (CloudFront origin IP)
+          IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          DestinationPrefixListId:
+            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -589,11 +612,18 @@ Resources:
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - Description: HTTPS (CloudFront origin IP)
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           SourcePrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, "PrefixList"]
+            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
+      SecurityGroupEgress:
+        - Description: Ping (CloudFront origin IP)
+          IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          DestinationPrefixListId:
+            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
           Value: !Sub ${AWS::StackName}
@@ -1158,6 +1188,7 @@ Resources:
           # Disable reporting : https://wiki.ubuntu.com/Apport
           sed -i "s/enabled=1/enable=0/g" /etc/default/apport
           apt-get remove -q -y ubuntu-report whoopsie apport
+          apt-get autoremove -q -y
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           if (uname -a | grep -q x86); then

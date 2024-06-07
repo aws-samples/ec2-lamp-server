@@ -55,12 +55,13 @@ Networking
 Remote Administration
 - `ingressIPv4`: allowed IPv4 internet source prefix to SSH and NICE DCV ports, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Use `127.0.0.1/32` to block incoming access from public internet. Default is `0.0.0.0/0`. 
 - `ingressIPv6`: allowed IPv6 internet source prefix to SSH and NICE DCV ports. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
+- `allowSSHport`: allow inbound SSH from `ingressIPv4` and `ingressIPv6`. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
 
 
 LAMP
 - `webOption`: `Apache`, `Nginx` web server or `none`.
 - `phpVersion`: PHP version to install or `none`
-- `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux 2 and Amazon Linux 2023 uses [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
+- `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux will attempt to use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance to [via IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is usually not recommended. Default is empty.
 - `r53ZoneID` (optional): [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access to. Enable this if your DNS is on Route 53 and you want to use Certbot with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/) plugin to get HTTPS certificate. A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to TXT DNS records only using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty. 
 
@@ -167,69 +168,6 @@ To futher secure your EC2 instance, you may want to
 - Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with [AWS WAF](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-awswaf.html) to protect your instance from DDoS attacks and common web threats. The AWS blog [Accelerate and protect your websites using Amazon CloudFront and AWS WAF](https://aws.amazon.com/blogs/networking-and-content-delivery/accelerate-and-protect-your-websites-using-amazon-cloudfront-and-aws-waf/) and [CloudFront dynamic websites](https://github.com/aws-samples/amazon-cloudfront-dynamic-websites) CloudFormation template may help with CloudFront distribution setup. When using CloudFront, you can restrict your EC2 instance HTTP and HTTPS port access to CloudFront IPs only. The CloudFormation template creates additional inbound HTTP and HTTPS security group rules with [AWS-managed prefix list for Amazon CloudFront](https://aws.amazon.com/blogs/networking-and-content-delivery/limit-access-to-your-origins-using-the-aws-managed-prefix-list-for-amazon-cloudfront/) as source where possible. 
 - Backup data on your EBS volumes with [EBS snapshots](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html). You can setup automatic snapshots using [Amazon Data Lifecycle Manager](https://aws.amazon.com/blogs/storage/automating-amazon-ebs-snapshot-and-ami-management-using-amazon-dlm/) or [AWS Backup](https://aws.amazon.com/blogs/aws/aws-backup-ec2-instances-efs-single-file-restore-and-cross-region-backup/) (with [AWS Backup Vault Lock](https://aws.amazon.com/blogs/storage/enhance-the-security-posture-of-your-backups-with-aws-backup-vault-lock/) for enhanced security posture)
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) security monitoring service with [Malware Protection](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html) to detect the potential presence of malware in EBS volumes
-
-
-## EC2 Instance Connect IP prefixes
-AWS IP prefixes used by EC2 instance connect are [documented](https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html) in [ip-ranges.json](https://ip-ranges.amazonaws.com/ip-ranges.json) where .service is `EC2_INSTANCE_CONNECT`. You can retrieve IP prefix for your [AWS Region](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-available-regions) (e.g. ap-southeast-1) using the following command
-
-
-```
-curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | \
-jq -r '.prefixes[] | select (.service=="EC2_INSTANCE_CONNECT" and .region=="ap-southeast-1")'
-```
-
-Output as follows
-```
-{
-  "ip_prefix": "3.0.5.32/29",
-  "region": "ap-southeast-1",
-  "service": "EC2_INSTANCE_CONNECT",
-  "network_border_group": "ap-southeast-1"
-}
-```
-
-IP prefixes can also be retrieved using [AWS Tools for PowerShell](https://aws.amazon.com/powershell/) with the following command
-```
-Get-AWSPublicIpAddressRange -ServiceKey EC2_INSTANCE_CONNECT | Select Region, IpPrefix
-```
-
-Below is the current list as of January 2024.
-|	Region	|	IpPrefix	|
-|	------	|	--------	|
-|	cn-north-1	|	43.196.20.40/29	|
-|	cn-northwest-1	|	43.192.155.8/29	|
-|	us-gov-east-1	|	18.252.4.0/30	|
-|	us-gov-west-1	|	15.200.28.80/30	|
-|	af-south-1	|	13.244.121.196/30	|
-|	ap-east-1	|	43.198.192.104/29	|
-|	ap-northeast-1	|	3.112.23.0/29	|
-|	ap-northeast-2	|	13.209.1.56/29	|
-|	ap-northeast-3	|	15.168.105.160/29	|
-|	ap-south-1	|	13.233.177.0/29	|
-|	ap-south-2	|	18.60.252.248/29	|
-|	ap-southeast-1	|	3.0.5.32/29	|
-|	ap-southeast-2	|	13.239.158.0/29	|
-|	ap-southeast-3	|	43.218.193.64/29	|
-|	ap-southeast-4	|	16.50.248.80/29	|
-|	ca-central-1	|	35.183.92.176/29	|
-|	eu-central-1	|	3.120.181.40/29	|
-|	eu-central-2	|	16.63.77.8/29	|
-|	eu-north-1	|	13.48.4.200/30	|
-|	eu-south-1	|	15.161.135.164/30	|
-|	eu-south-2	|	18.101.90.48/29	|
-|	eu-west-1	|	18.202.216.48/29	|
-|	eu-west-2	|	3.8.37.24/29	|
-|	eu-west-3	|	35.180.112.80/29	|
-| il-central-1 | 51.16.183.224/29 |
-|	me-central-1	|	3.29.147.40/29	|
-|	me-south-1	|	16.24.46.56/29	|
-|	sa-east-1	|	18.228.70.32/29	|
-|	us-east-1	|	18.206.107.24/29	|
-|	us-east-2	|	3.16.146.0/29	|
-|	us-west-1	|	13.52.6.112/29	|
-|	us-west-2	|	18.237.140.160/29	|
-
-
 
 ## Security
 
