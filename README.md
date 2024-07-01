@@ -16,7 +16,7 @@ The template provides the following features:
 - [NICE DCV](https://aws.amazon.com/hpc/dcv/) remote desktop streaming (Amazon Linux 2 and Ubuntu Linux)
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
-- [PHP 8.1](https://www.php.net/releases/8.1/en.php) or [PHP 8.2](https://www.php.net/releases/8.2/en.php)(Amazon Linux 2 and 2023) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, xdebug, zip, etc for Amazon Linux)
+- [PHP 8.1](https://www.php.net/releases/8.1/en.php), [PHP 8.2](https://www.php.net/releases/8.2/en.php)(Amazon Linux 2 and 2023) or [PHP 8.3](https://www.php.net/releases/8.3/en.php) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, zip, etc)
 - [Composer](https://getcomposer.org/)
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html) for SSH access
