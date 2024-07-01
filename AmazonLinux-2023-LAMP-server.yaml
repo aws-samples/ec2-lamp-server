@@ -192,8 +192,9 @@ Parameters:
     AllowedValues:
       - "php8.1"
       - "php8.2"
+      - "php8.3"
       - "none"
-    Default: "php8.2"
+    Default: "php8.3"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
