@@ -37,7 +37,7 @@ The template provides the following features:
 
 ## Notice
 Although this repository is released under the [MIT-0](LICENSE) license, its CloudFormation template uses features from 
-[MySQL Community Edition](https://www.mysql.com/products/community/) and [Webmin](https://webmin.com/) which are licensed under [GPL](https://www.mysql.com/products/community/) and [BSD-3-Clause](https://webmin.com/about/) license respectively. 
+[MySQL Community Edition](https://github.com/mysql/mysql-server) and [Webmin](https://github.com/webmin/webmin) which are licensed under [GPL](https://github.com/mysql/mysql-server?tab=License-1-ov-file) and [BSD-3-Clause](https://github.com/webmin/webmin?tab=BSD-3-Clause-1-ov-file) license respectively. 
 
 Usage indicates acceptance of [NICE DCV EULA](https://www.nice-dcv.com/eula.html) and license agreements of all software that is installed in the EC2 instance. 
 
