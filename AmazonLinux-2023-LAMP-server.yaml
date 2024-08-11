@@ -632,7 +632,7 @@ Conditions:
     ]
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
-  useAWSbackup: !Equals [!Ref enableBackup, "Yes"]
+  createBackup: !Equals [!Ref enableBackup, "Yes"]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
@@ -1248,9 +1248,9 @@ Resources:
                     # PHP.INI
                     cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
                     sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
-                    sed -i 's/memory_limit =.*/memory_limit = 4096M/' /etc/php.ini
-                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 16M/' /etc/php.ini
-                    sed -i 's/post_max_size =.*/post_max_size = 16M/' /etc/php.ini
+                    sed -i 's/memory_limit =.*/memory_limit = 256M/' /etc/php.ini
+                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 2G/' /etc/php.ini
+                    sed -i 's/post_max_size =.*/post_max_size = 2G/' /etc/php.ini
 
                     cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
                     # https://www.php.net/manual/en/class.sessionhandler.php
@@ -1310,7 +1310,7 @@ Resources:
                     fi
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/207
-                    # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
+                    # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml                    
                     dnf install -q -y php-imagick
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
@@ -1665,7 +1665,7 @@ Resources:
 
   backupPlan:
     Type: AWS::Backup::BackupPlan
-    Condition: useAWSbackup
+    Condition: createBackup
     Properties:
       BackupPlan:
         BackupPlanName: !Sub
@@ -1688,10 +1688,16 @@ Resources:
             ScheduleExpressionTimezone: !Ref scheduleExpressionTimezone
             Lifecycle:
               DeleteAfterDays: !Ref deleteAfterDays
+      BackupPlanTags:
+        {
+          "StackName": !Sub "${AWS::StackName}",
+          "StackId": !Sub "${AWS::StackId}",
+          "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
+        }
 
   backupVault:
     Type: AWS::Backup::BackupVault
-    Condition: useAWSbackup
+    Condition: createBackup
     UpdateReplacePolicy: Delete
     DeletionPolicy: !Ref AWS::NoValue
     Properties:
@@ -1702,10 +1708,16 @@ Resources:
               3,
               !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
             ]
+      BackupVaultTags:
+        {
+          "StackName": !Sub "${AWS::StackName}",
+          "StackId": !Sub "${AWS::StackId}",
+          "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
+        }
 
   backupSelection:
     Type: AWS::Backup::BackupSelection
-    Condition: useAWSbackup
+    Condition: createBackup
     Properties:
       BackupPlanId: !Ref backupPlan
       BackupSelection:
@@ -1714,11 +1726,15 @@ Resources:
           - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}"
         SelectionName: !Sub
           - "${AWS::StackName}-backupSelection-${UID}"
-          - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
+          - UID:
+              !Select [
+                3,
+                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+              ]
 
   backupRestoreRole:
     Type: AWS::IAM::Role
-    Condition: useAWSbackup
+    Condition: createBackup
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
