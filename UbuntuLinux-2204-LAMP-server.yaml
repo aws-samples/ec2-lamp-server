@@ -42,6 +42,7 @@ Metadata:
           - ingressIPv4
           - ingressIPv6
           - allowSSHport
+          - installDCV
           - installWebmin
       - Label:
           default: LAMP
@@ -85,12 +86,14 @@ Metadata:
       assignStaticIP:
         default: "[Elastic IP] Assign static public internet IPv4 address?"
       ingressIPv4:
-        default: "Allowed IPv4 prefix to SSH and NICE DCV"
+        default: "Allowed IPv4 prefix"
       ingressIPv6:
-        default: "Allowed IPv6 prefix to SSH"
+        default: "Allowed IPv6 prefix"
       allowSSHport:
         default: "Allow SSH from internet"
-      installWebMin:
+      installDCV:
+        default: "Install graphical desktop environment and NICE DCV server"
+      installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
         default: "Web server to install"
@@ -189,6 +192,13 @@ Parameters:
       - "Yes"
       - "No"
     Default: "Yes"
+  installDCV:
+    Type: String
+    Description: https://aws.amazon.com/hpc/dcv/
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
   installWebmin:
     Type: String
     Description: https://webmin.com/
@@ -218,6 +228,8 @@ Parameters:
     #Description: PHP version to install
     AllowedValues:
       - "php8.1"
+      - "php8.2"
+      - "php8.3"
       - "none"
     Default: "php8.1"
   s3BucketName:
@@ -638,6 +650,9 @@ Conditions:
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
   createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  installDCV: !Equals [!Ref installDCV, "Yes"]
+  noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
@@ -733,6 +748,8 @@ Mappings:
       PrefixList: pl-bca247d5
     ap-southeast-4:
       PrefixList: pl-0fb7e7cfe038ae0e9
+    ap-southeast-5:
+      PrefixList: pl-09076f83e90b139d0
     ca-central-1:
       PrefixList: pl-38a64351
     ca-west-1:
@@ -782,90 +799,90 @@ Resources:
             Action: ["sts:AssumeRole"]
       Path: /
       Policies:
-        - PolicyName: dcvLicensing
-          PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub "arn:*:s3:::dcv-license.${AWS::Region}/*"
-        - PolicyName: MountPointS3Access
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:AbortMultipartUpload
-                  - s3:DeleteObject
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: MountPointS3ExpressAccess
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3express:CreateSession
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: Route53CertbotAccess
-          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
-            Version: "2012-10-17"
-            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-                  ForAllValues:StringLike:
-                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                      ["_acme-challenge.*"]
-        - PolicyName: Route53UpdaterAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
-                  ForAllValues:StringLike:
-                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                      ["site.example.com"]
+        - !If
+          - installDCV
+          - PolicyName: dcvLicensing
+            PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource: !Sub "arn:*:s3:::dcv-license.${AWS::Region}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - hasS3Bucket
+          - PolicyName: MountPointS3Access
+            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:ListBucket
+                  Resource: !Sub "arn:${AWS::Partition}:s3:::${s3BucketName}"
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:PutObject
+                    - s3:AbortMultipartUpload
+                    - s3:DeleteObject
+                  Resource: !Sub "arn:${AWS::Partition}:s3:::${s3BucketName}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - hasS3Bucket
+          - PolicyName: MountPointS3ExpressAccess
+            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3express:CreateSession
+                  Resource: !Sub "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${s3BucketName}--az_id--x-s3"
+          - !Ref AWS::NoValue
+        - !If
+          - hasR53Zone
+          - PolicyName: Route53CertbotAccess
+            PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+              Version: "2012-10-17"
+              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+                - Effect: Allow
+                  Action:
+                    - route53:ListHostedZones
+                    - route53:GetChange
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - route53:ChangeResourceRecordSets
+                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Condition:
+                    ForAllValues:StringEquals:
+                      "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+                    ForAllValues:StringLike:
+                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                        ["_acme-challenge.*"]
+          - !Ref AWS::NoValue
+        - !If
+          - hasR53Zone
+          - PolicyName: Route53UpdaterAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+                - Effect: Allow
+                  Action:
+                    - route53:ListHostedZones
+                    - route53:GetChange
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - route53:ChangeResourceRecordSets
+                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Condition:
+                    ForAllValues:StringEquals:
+                      "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
+                    ForAllValues:StringLike:
+                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                        ["site.example.com"]
+          - !Ref AWS::NoValue
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -889,7 +906,7 @@ Resources:
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow inbound DCV, SSH, HTTP, HTTPS
+      GroupDescription: Allow inbound HTTP, HTTPS and any remote admin ports
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - !If
@@ -924,26 +941,38 @@ Resources:
             ToPort: 22
             CidrIpv6: !Ref ingressIPv6
           - !Ref AWS::NoValue
-        - Description: NICE DCV (IPv4)
-          IpProtocol: tcp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIp: !Ref ingressIPv4
-        - Description: NICE DCV (IPv6)
-          IpProtocol: tcp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIpv6: !Ref ingressIPv6
-        - Description: NICE DCV QUIC (IPv4)
-          IpProtocol: udp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIp: !Ref ingressIPv4
-        - Description: NICE DCV QUIC (IPv6)
-          IpProtocol: udp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIpv6: !Ref ingressIPv6
+        - !If
+          - installDCV
+          - Description: NICE DCV (IPv4)
+            IpProtocol: tcp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: NICE DCV (IPv6)
+            IpProtocol: tcp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: NICE DCV QUIC (IPv4)
+            IpProtocol: udp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: NICE DCV QUIC (IPv6)
+            IpProtocol: udp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
         - Description: HTTP (IPv4)
           IpProtocol: tcp
           FromPort: 80
@@ -1078,6 +1107,8 @@ Resources:
         configSets:
           setup:
             - 00_setup
+          dcv_install:
+            - 00_dcv_install
           php_install:
             - 01_php_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
@@ -1086,8 +1117,6 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                sudo dcv close-session ubuntu
-                sudo dcv close-session console
                 if ((arch | grep -q x86) && (cat /etc/os-release | grep -q 22.04)); then
                   rm -f /tmp/nice-dcv-ubuntu2204-x86_64.tgz
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
@@ -1097,12 +1126,10 @@ Resources:
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
                   tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
                 fi
-                sudo systemctl stop dcvserver
                 sudo apt-get install -y ./nice-dcv-server_*.deb
                 sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
                 sudo apt-get install -y ./nice-xdcv_*.deb
-                sudo apt-get install -y ./nice-dcv-gltest_*.deb
-                sudo systemctl restart dcvserver
+                sudo systemctl daemon-reload
               mode: "000755"
               owner: "ubuntu"
               group: "ubuntu"
@@ -1110,7 +1137,7 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                rm -f awscliv2.zip
+                sudo rm -f /tmp/awscliv2.zip
                 if (arch | grep -q x86); then
                   curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
                 else
@@ -1127,7 +1154,7 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                rm -f ./mount-s3.deb
+                sudo rm -f /tmp/mount-s3.deb
                 if (uname -a | grep -q x86); then
                   wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
                 else
@@ -1293,8 +1320,31 @@ Resources:
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
-                systemctl enable dcv-virtual-session && systemctl restart dcv-virtual-session
-                systemctl enable dcvserver && systemctl restart dcvserver
+                # NICE DCV?
+                export installDCV="${installDCV}"
+                case $installDCV in
+                  Yes)
+                    systemctl enable dcv-virtual-session && systemctl restart dcv-virtual-session
+                    systemctl enable dcvserver && systemctl restart dcvserver
+                    ;;
+                  No)
+                    rm -f /etc/systemd/system/dcv-virtual-session.service
+                    rm -f /opt/dcv-virtual-session.sh
+                    rm -f /home/ubuntu/update-dcv
+                    ;;
+                esac
+
+                # S3 bucket access?
+                if [[ -z "${s3BucketName}" ]]; then
+                  rm /etc/systemd/system/mount-s3-helper.service
+                  rm /opt/mount-s3-helper.sh
+                fi
+
+                # Route 53 access?
+                if [[ -z "${r53ZoneID}" ]]; then
+                  rm /etc/systemd/system/route53-updater.service
+                  rm /opt/route53-updater.sh
+                fi
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1326,6 +1376,63 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
+        00_dcv_install:
+          files:
+            "/root/install-dcv.sh":
+              content: |
+                # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+                apt-get install -q -y ubuntu-desktop-minimal
+                apt-get install -q -y gdm3
+                # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                apt-get install -q -y pulseaudio-utils
+                apt-get install -q -y gnome-tweaks gnome-shell-extension-ubuntu-dock
+                apt-get install -q -y gnome-shell-extension-manager
+
+                # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
+                sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm3/custom.conf
+
+                # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
+                apt-get install -q -y dpkg-dev
+
+                # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+                gpg --import NICE-GPG-KEY
+                if (arch | grep -q x86); then
+                  curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
+                  tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
+                else
+                  curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
+                  tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
+                fi
+                apt-get install -q -y ./nice-dcv-server_*.deb
+                apt-get install -q -y ./nice-dcv-web-viewer_*.deb
+                usermod -aG video dcv
+                apt-get install -q -y ./nice-xdcv_*.deb
+
+                # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
+                apt-get install -q -y cups
+                GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
+                usermod -a -G $GROUP dcv
+                systemctl enable cups
+
+                # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
+                cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
+                sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf   
+
+                # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
+                sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
+                # Console session support
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ubuntu\"\nstorage-root=\"\/home\/ubuntu\"" /etc/dcv/dcv.conf
+
+                # USB DKMS
+                apt-get install -q -y dkms
+              mode: "000740"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-dcv.sh > /var/log/install-dcv.log"
+              ignoreErrors: "true"
         01_php_install:
           files:
             "/root/install-php.sh":
@@ -1335,74 +1442,84 @@ Resources:
                 cd /tmp/cfn
 
                 export PHP="${phpVersion}"
+                export PHP_VERSION=`echo ${phpVersion} | cut -c 4-7`
                 case $PHP in
                   none)
                     ;;
                   *)
+                    case $phpVersion in
+                      8.1)
+                        ;;
+                      *)
+                        # PHP from Ondrej repo: https://deb.sury.org/
+                        apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
+                        add-apt-repository -y ppa:ondrej/php
+                    esac
+
                     # PHP install
-                    apt-get install -q -y php8.1
-                    apt-get install -q -y php8.1-{common,fpm,opcache,apcu}
-                    apt-get install -q -y php8.1-{memcached,redis}
-                    apt-get install -q -y php8.1-{mysql,pgsql,dba}
-                    apt-get install -q -y php8.1-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
-                    apt-get install -q -y php8.1-{mbstring,bcmath,imagick,gd}
-                    apt-get install -q -y php8.1-{igbinary,msgpack}
+                    apt-get install -q -y ${phpVersion}
+                    apt-get install -q -y ${phpVersion}-{common,fpm,opcache,apcu}
+                    apt-get install -q -y ${phpVersion}-{memcached,redis}
+                    apt-get install -q -y ${phpVersion}-{mysql,pgsql,dba}
+                    apt-get install -q -y ${phpVersion}-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
+                    apt-get install -q -y ${phpVersion}-{mbstring,bcmath,imagick,gd}
+                    apt-get install -q -y ${phpVersion}-{igbinary,msgpack}
 
                     # PHP-FPM ini
-                    cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/fpm/php.ini."`date +"%Y-%m-%d"`"
+                    cp /etc/php/$PHP_VERSION/fpm/php.ini /etc/php/$PHP_VERSION/fpm/php.ini."`date +"%Y-%m-%d"`"
 
                     # https://www.php.net/manual/en/opcache.configuration.php
                     # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
-                    sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/8.1/fpm/php.ini
-                    sed -i "s/^opcache.enable_cli/;&" /etc/php/8.1/fpm/php.ini
-                    sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/8.1/fpm/php.ini
+                    sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "s/^opcache.enable_cli/;&" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/$PHP_VERSION/fpm/php.ini
 
-                    sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/8.1/fpm/php.ini
-                    sed -i 's/memory_limit =.*/memory_limit = 256M/' /etc/php/8.1/fpm/php.ini
-                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 2G/' /etc/php/8.1/fpm/php.ini
-                    sed -i 's/post_max_size =.*/post_max_size = 2G/' /etc/php/8.1/fpm/php.ini
+                    sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i 's/memory_limit =.*/memory_limit = 256M/' /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i 's/upload_max_filesize =.*/upload_max_filesize = 2G/' /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i 's/post_max_size =.*/post_max_size = 2G/' /etc/php/$PHP_VERSION/fpm/php.ini
 
                     # https://www.php.net/manual/en/class.sessionhandler.php
-                    sed -i "s/^session.save_handler/;&/" /etc/php/8.1/fpm/php.ini
-                    sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/8.1/fpm/php.ini
-                    sed -i "s/^session.save_path/;&/" /etc/php/8.1/fpm/php.ini
-                    sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/8.1/fpm/php.ini
+                    sed -i "s/^session.save_handler/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "s/^session.save_path/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/$PHP_VERSION/fpm/php.ini
 
                     # PHP CLI ini
-                    cp /etc/php/8.1/cli/php.ini /etc/php/8.1/cli/php.ini."`date +"%Y-%m-%d"`"
-                    cp /etc/php/8.1/fpm/php.ini /etc/php/8.1/cli/php.ini
+                    cp /etc/php/$PHP_VERSION/cli/php.ini /etc/php/$PHP_VERSION/cli/php.ini."`date +"%Y-%m-%d"`"
+                    cp /etc/php/$PHP_VERSION/fpm/php.ini /etc/php/$PHP_VERSION/cli/php.ini
 
                     # php-fpm only: https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
                     mkdir -p /var/www/.opcache
                     chown www-data:www-data /var/www/.opcache
-                    sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php/8.1/fpm/php.ini
+                    sed -i 's/;opcache.file_cache=.*/;opcache.file_cache=\/var\/www\/.opcache/' /etc/php/$PHP_VERSION/fpm/php.ini
 
                     # https://www.php.net/manual/en/install.pecl.pear.php
-                    apt-get install -q -y php8.1-dev php-pear gcc
+                    apt-get install -q -y ${phpVersion}-dev php-pear gcc
                     pear update-channels
                     pecl update-channels
 
                     # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
-                    apt-get install -q -y php8.1-lzf
+                    apt-get install -q -y ${phpVersion}-lzf
                     if (! php -m | grep -q lzf); then
                       yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-                      echo 'extension=lzf.so' > /etc/php/8.1/mods-available/lzf.ini
-                      ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/fpm/conf.d/40-lzf.ini
-                      ln -s /etc/php/8.1/mods-available/lzf.ini /etc/php/8.1/cli/conf.d/40-lzf.ini
+                      echo 'extension=lzf.so' > /etc/php/$PHP_VERSION/mods-available/lzf.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/lzf.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-lzf.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/lzf.ini /etc/php/$PHP_VERSION/cli/conf.d/40-lzf.ini
                     fi
 
                     # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
-                    apt-get install -q -y php8.1-zstd
+                    apt-get install -q -y ${phpVersion}-zstd
                     if (! php -m | grep -q zstd); then
                       apt-get install -q -y libzstd-dev
                       yes 'no' | pecl install zstd
-                      echo 'extension=zstd.so' > /etc/php/8.1/mods-available/zstd.ini
-                      ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/fpm/conf.d/40-zstd.ini
-                      ln -s /etc/php/8.1/mods-available/zstd.ini /etc/php/8.1/cli/conf.d/40-zstd.ini
+                      echo 'extension=zstd.so' > /etc/php/$PHP_VERSION/mods-available/zstd.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/zstd.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-zstd.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/zstd.ini /etc/php/$PHP_VERSION/cli/conf.d/40-zstd.ini
                     fi
 
                     # php-lz4: https://github.com/kjdev/php-ext-lz4
-                    apt-get install -q -y php8.1-lz4
+                    apt-get install -q -y ${phpVersion}-lz4
                     if (! php -m | grep -q lz4); then
                       cd /tmp/cfn
                       apt-get install -q -y git liblz4-dev
@@ -1412,17 +1529,17 @@ Resources:
                       ./configure --with-lz4-includedir=/usr
                       make
                       make install
-                      echo 'extension=lz4.so' > /etc/php/8.1/mods-available/lz4.ini
-                      ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/fpm/conf.d/40-lz4.ini
-                      ln -s /etc/php/8.1/mods-available/lz4.ini /etc/php/8.1/cli/conf.d/40-lz4.ini
+                      echo 'extension=lz4.so' > /etc/php/$PHP_VERSION/mods-available/lz4.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/lz4.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-lz4.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/lz4.ini /etc/php/$PHP_VERSION/cli/conf.d/40-lz4.ini
                     fi
                     cd /tmp/cfn
 
                     # Composer: https://getcomposer.org/download/
                     apt-get install -q -y composer
 
-                    systemctl enable php8.1-fpm
-                    systemctl restart php8.1-fpm
+                    systemctl enable ${phpVersion}-fpm
+                    systemctl restart ${phpVersion}-fpm
 
                     ;;
                 esac
@@ -1453,6 +1570,8 @@ Resources:
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
       Monitoring: true
+      DisableApiTermination: true
+      EbsOptimized: true
       SecurityGroupIds:
         - !Ref securityGroup
         - !If [
@@ -1471,6 +1590,7 @@ Resources:
             VolumeType: !Ref volumeType
             VolumeSize: !Ref volumeSize
             DeleteOnTermination: true
+            Encrypted: true
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -1500,45 +1620,13 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
-          apt-get install -q -y ubuntu-desktop-minimal
-          apt-get install -q -y gdm3
-          # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-          apt-get install -q -y pulseaudio-utils
-          apt-get install -q -y gnome-tweaks gnome-shell-extension-ubuntu-dock
-          apt-get install -q -y gnome-shell-extension-manager
-
-          # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
-          sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm3/custom.conf
-
-          # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
-          apt-get install -q -y dpkg-dev
-
-          # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-          curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
-          gpg --import NICE-GPG-KEY
-          if (arch | grep -q x86); then
-            curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-x86_64.tgz
-            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-x86_64
-          else
-            curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu2204-aarch64.tgz
-            tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-aarch64
-          fi
-          apt-get install -q -y ./nice-dcv-server_*.deb
-          apt-get install -q -y ./nice-dcv-web-viewer_*.deb
-          usermod -aG video dcv
-          apt-get install -q -y ./nice-xdcv_*.deb
-          apt-get install -q -y ./nice-dcv-gltest_*.deb
-
-          # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
-          apt-get install -q -y cups
-          GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
-          usermod -a -G $GROUP dcv
-          systemctl enable cups
-
-          # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
-          cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
-          sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+          # Install desktop environment and NICE DCV?
+          export installDCV="${installDCV}"
+          case $installDCV in
+            Yes)
+              $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
+              ;;
+          esac 
 
           # remove AWSCLI version 1
           apt-get remove -q -y awscli
@@ -1554,18 +1642,10 @@ Resources:
           ./aws/install -b /usr/bin
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
 
-          # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
-          sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
-          # Console session support
-          sed -i "/^\[session-management\/automatic-console-session/a owner=\"ubuntu\"\nstorage-root=\"\/home\/ubuntu\"" /etc/dcv/dcv.conf
-
           # Update OS
           apt-get update -q
           apt-get upgrade -q -y
           apt-get autoremove -q -y
-
-          # USB and GPU driver DKMS
-          apt-get install -q -y dkms
 
           # Disable reporting : https://wiki.ubuntu.com/Apport
           sed -i "s/enabled=1/enable=0/g" /etc/default/apport
@@ -1600,10 +1680,10 @@ Resources:
               systemctl enable apache2
 
               # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
-              a2dismod php8.1
+              a2dismod ${phpVersion}
               a2dismod mpm_prefork
               a2enmod mpm_event proxy_fcgi setenvif
-              a2enconf php8.1-fpm
+              a2enconf ${phpVersion}-fpm
 
               # Enable HTTPS 
               a2enmod ssl
@@ -1633,12 +1713,12 @@ Resources:
               systemctl enable nginx
 
               cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
-              # Enable HTTPS and PHP8.1-FPM
+              # Enable HTTPS and ${phpVersion}-FPM
               sed -i "27,28s/#//g" /etc/nginx/sites-available/default
               sed -i "39,39s/#//g" /etc/nginx/sites-available/default
               sed -i "56,57s/#//g" /etc/nginx/sites-available/default
               sed -i "60,60s/#//g" /etc/nginx/sites-available/default
-              sed -i "s/7.4/8.1/g" /etc/nginx/sites-available/default
+              sed -i "s/7.4/$PHP_VERSION/g" /etc/nginx/sites-available/default
               sed -i "63,63s/#//g" /etc/nginx/sites-available/default
               # Enable index.php
               sed -i "s/index index.html index.htm index.nginx-debian.html;/index index.php index.html index.htm index.nginx-debian.html;/g" /etc/nginx/sites-available/default
@@ -1742,7 +1822,13 @@ Resources:
         - Key: StackId
           Value: !Sub ${AWS::StackId}
         - Key: Name
-          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+          Value: !Sub
+            - "${AWS::StackName}-elasticIP-${UID}"
+            - UID:
+                !Select [
+                  3,
+                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+                ]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1857,11 +1943,18 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
   SSMsessionManager:
-    Description: SSM Session Manager login ("sudo passwd ubuntu" to change password)
+    Condition: noDCV
+    Description: SSM Session Manager
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  SSMsessionManagerDCV:
+    Description: SSM Session Manager ("sudo passwd ubuntu" to change password)
+    Condition: installDCV
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:
     Description: NICE DCV web browser client (login as ubuntu)
+    Condition: installDCV
     Value:
       !If [
         displayPublicIP,

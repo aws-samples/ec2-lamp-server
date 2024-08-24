@@ -42,6 +42,7 @@ Metadata:
           - ingressIPv4
           - ingressIPv6
           - allowSSHport
+          - installDCV
           - installWebmin
       - Label:
           default: LAMP
@@ -85,12 +86,14 @@ Metadata:
       assignStaticIP:
         default: "[Elastic IP] Assign static public internet IPv4 address?"
       ingressIPv4:
-        default: "Allowed IPv4 prefix to SSH and NICE DCV"
+        default: "Allowed IPv4 prefix"
       ingressIPv6:
-        default: "Allowed IPv6 prefix to SSH and NICE DCV"
+        default: "Allowed IPv6 prefix"
       allowSSHport:
         default: "Allow SSH from internet"
-      installWebMin:
+      installDCV:
+        default: "Install graphical desktop environment and NICE DCV server"
+      installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
         default: "Web server to install"
@@ -183,6 +186,13 @@ Parameters:
   allowSSHport:
     Type: String
     # Description: Allow SSH from internet
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+  installDCV:
+    Type: String
+    Description: https://aws.amazon.com/hpc/dcv/
     AllowedValues:
       - "Yes"
       - "No"
@@ -632,6 +642,9 @@ Conditions:
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
   createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  installDCV: !Equals [!Ref installDCV, "Yes"]
+  noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
@@ -727,6 +740,8 @@ Mappings:
       PrefixList: pl-bca247d5
     ap-southeast-4:
       PrefixList: pl-0fb7e7cfe038ae0e9
+    ap-southeast-5:
+      PrefixList: pl-09076f83e90b139d0
     ca-central-1:
       PrefixList: pl-38a64351
     ca-west-1:
@@ -776,90 +791,90 @@ Resources:
             Action: ["sts:AssumeRole"]
       Path: /
       Policies:
-        - PolicyName: dcvLicensing
-          PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub "arn:*:s3:::dcv-license.${AWS::Region}/*"
-        - PolicyName: MountPointS3Access
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:AbortMultipartUpload
-                  - s3:DeleteObject
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: MountPointS3ExpressAccess
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3express:CreateSession
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: Route53CertbotAccess
-          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
-            Version: "2012-10-17"
-            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-                  ForAllValues:StringLike:
-                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                      ["_acme-challenge.*"]
-        - PolicyName: Route53UpdaterAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
-                  ForAllValues:StringLike:
-                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                      ["site.example.com"]
+        - !If
+          - installDCV
+          - PolicyName: dcvLicensing
+            PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource: !Sub "arn:*:s3:::dcv-license.${AWS::Region}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - hasS3Bucket
+          - PolicyName: MountPointS3Access
+            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:ListBucket
+                  Resource: !Sub "arn:${AWS::Partition}:s3:::${s3BucketName}"
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:PutObject
+                    - s3:AbortMultipartUpload
+                    - s3:DeleteObject
+                  Resource: !Sub "arn:${AWS::Partition}:s3:::${s3BucketName}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - hasS3Bucket
+          - PolicyName: MountPointS3ExpressAccess
+            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3express:CreateSession
+                  Resource: !Sub "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${s3BucketName}--az_id--x-s3"
+          - !Ref AWS::NoValue
+        - !If
+          - hasR53Zone
+          - PolicyName: Route53CertbotAccess
+            PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+              Version: "2012-10-17"
+              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+                - Effect: Allow
+                  Action:
+                    - route53:ListHostedZones
+                    - route53:GetChange
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - route53:ChangeResourceRecordSets
+                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Condition:
+                    ForAllValues:StringEquals:
+                      "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+                    ForAllValues:StringLike:
+                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                        ["_acme-challenge.*"]
+          - !Ref AWS::NoValue
+        - !If
+          - hasR53Zone
+          - PolicyName: Route53UpdaterAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+                - Effect: Allow
+                  Action:
+                    - route53:ListHostedZones
+                    - route53:GetChange
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - route53:ChangeResourceRecordSets
+                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Condition:
+                    ForAllValues:StringEquals:
+                      "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
+                    ForAllValues:StringLike:
+                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                        ["site.example.com"]
+          - !Ref AWS::NoValue
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -883,7 +898,7 @@ Resources:
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow inbound DCV, SSH, HTTP, HTTPS
+      GroupDescription: Allow inbound HTTP, HTTPS and any remote admin ports
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - !If
@@ -918,26 +933,38 @@ Resources:
             ToPort: 22
             CidrIpv6: !Ref ingressIPv6
           - !Ref AWS::NoValue
-        - Description: NICE DCV (IPv4)
-          IpProtocol: tcp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIp: !Ref ingressIPv4
-        - Description: NICE DCV (IPv6)
-          IpProtocol: tcp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIpv6: !Ref ingressIPv6
-        - Description: NICE DCV QUIC (IPv4)
-          IpProtocol: udp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIp: !Ref ingressIPv4
-        - Description: NICE DCV QUIC (IPv6)
-          IpProtocol: udp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIpv6: !Ref ingressIPv6
+        - !If
+          - installDCV
+          - Description: NICE DCV (IPv4)
+            IpProtocol: tcp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: NICE DCV (IPv6)
+            IpProtocol: tcp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: NICE DCV QUIC (IPv4)
+            IpProtocol: udp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: NICE DCV QUIC (IPv6)
+            IpProtocol: udp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
         - Description: HTTP (IPv4)
           IpProtocol: tcp
           FromPort: 80
@@ -1072,6 +1099,8 @@ Resources:
         configSets:
           setup:
             - 00_setup
+          dcv_install:
+            - 00_dcv_install
           php_install:
             - 01_php_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
@@ -1080,7 +1109,6 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                sudo dcv close-session ec2-user                
                 if (arch | grep -q x86); then
                   rm -f nice-dcv-el7-x86_64.tgz
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
@@ -1090,12 +1118,10 @@ Resources:
                   wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
                   tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
                 fi
-                sudo systemctl stop dcvserver
                 sudo yum install -y ./nice-dcv-server-*.rpm
                 sudo yum install -y ./nice-dcv-web-viewer-*.rpm
                 sudo yum install -y ./nice-xdcv-*.rpm
-                sudo yum install -y ./nice-dcv-gltest-*.rpm
-                sudo systemctl restart dcvserver
+                sudo systemctl daemon-reload
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
@@ -1103,7 +1129,7 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                rm -f awscliv2.zip
+                sudo rm -f /tmp/awscliv2.zip
                 if (arch | grep -q x86); then
                   curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
                 else
@@ -1120,6 +1146,7 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
+                sudo rm -f /tmp/mount-s3.rpm
                 if (uname -a | grep -q x86); then
                   wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
                 else
@@ -1293,8 +1320,31 @@ Resources:
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
-                systemctl enable dcv-virtual-session && systemctl restart dcv-virtual-session
-                systemctl enable dcvserver && systemctl restart dcvserver
+                # NICE DCV?
+                export installDCV="${installDCV}"
+                case $installDCV in
+                  Yes)
+                    systemctl enable dcv-virtual-session && systemctl restart dcv-virtual-session
+                    systemctl enable dcvserver && systemctl restart dcvserver
+                    ;;
+                  No)
+                    rm -f /etc/systemd/system/dcv-virtual-session.service
+                    rm -f /opt/dcv-virtual-session.sh
+                    rm -f /home/ubuntu/update-dcv
+                    ;;
+                esac
+
+                # S3 bucket access?
+                if [[ -z "${s3BucketName}" ]]; then
+                  rm /etc/systemd/system/mount-s3-helper.service
+                  rm /opt/mount-s3-helper.sh
+                fi
+
+                # Route 53 access?
+                if [[ -z "${r53ZoneID}" ]]; then
+                  rm /etc/systemd/system/route53-updater.service
+                  rm /opt/route53-updater.sh
+                fi
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1353,6 +1403,62 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
+        00_dcv_install:
+          files:
+            "/root/install-dcv.sh":
+              content: |
+                # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+                yum install -q -y gdm gnome-session gnome-classic-session gnome-session-xsession
+                yum install -q -y xorg-x11-server-Xorg xorg-x11-fonts-Type1 xorg-x11-drivers 
+                yum install -q -y gnome-terminal gnu-free-fonts-common gnu-free-mono-fonts gnu-free-sans-fonts gnu-free-serif-fonts
+
+                # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                yum install -q -y pulseaudio pulseaudio-utils
+                amazon-linux-extras install -y firefox
+
+                # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
+                sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
+
+                # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+                if (arch | grep -q x86); then
+                  curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
+                  tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
+                else
+                  curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
+                  tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
+                fi
+                yum install -q -y ./nice-dcv-server-*.rpm
+                yum install -q -y ./nice-dcv-web-viewer-*.rpm
+                yum install -q -y ./nice-xdcv-*.rpm
+
+                # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
+                yum install -q -y cups
+                GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
+                usermod -a -G $GROUP dcv
+                systemctl enable cups
+
+                # EPEL: https://docs.fedoraproject.org/en-US/epel/
+                amazon-linux-extras install -y epel
+
+                # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
+                cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
+                sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+
+                # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
+                sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
+                # Console session support
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"\/home\/ec2-user\"" /etc/dcv/dcv.conf
+
+                # USB driver DKMS
+                yum install -q -y dkms
+              mode: "000740"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-dcv.sh > /var/log/install-dcv.log"
+              ignoreErrors: "true"
         01_php_install:
           files:
             "/root/install-php.sh":
@@ -1487,6 +1593,8 @@ Resources:
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
       Monitoring: true
+      DisableApiTermination: true
+      EbsOptimized: true
       SecurityGroupIds:
         - !Ref securityGroup
         - !If [
@@ -1505,6 +1613,7 @@ Resources:
             VolumeType: !Ref volumeType
             VolumeSize: !Ref volumeSize
             DeleteOnTermination: true
+            Encrypted: true
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -1523,44 +1632,13 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
-          yum install -q -y gdm gnome-session gnome-classic-session gnome-session-xsession
-          yum install -q -y xorg-x11-server-Xorg xorg-x11-fonts-Type1 xorg-x11-drivers 
-          yum install -q -y gnome-terminal gnu-free-fonts-common gnu-free-mono-fonts gnu-free-sans-fonts gnu-free-serif-fonts
-
-          # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-          yum install -q -y pulseaudio pulseaudio-utils
-          amazon-linux-extras install -y firefox
-
-          # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
-          sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
-
-          # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-          rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
-          if (arch | grep -q x86); then
-            curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
-            tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
-          else
-            curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
-            tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
-          fi
-          yum install -q -y ./nice-dcv-server-*.rpm
-          yum install -q -y ./nice-dcv-web-viewer-*.rpm
-          yum install -q -y ./nice-xdcv-*.rpm
-          yum install -q -y ./nice-dcv-gltest-*.rpm
-
-          # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
-          yum install -q -y cups
-          GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
-          usermod -a -G $GROUP dcv
-          systemctl enable cups
-
-          # EPEL: https://docs.fedoraproject.org/en-US/epel/
-          amazon-linux-extras install -y epel
-
-          # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
-          cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
-          sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+          # Install desktop environment and NICE DCV?
+          export installDCV="${installDCV}"
+          case $installDCV in
+            Yes)
+              $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
+              ;;
+          esac 
 
           # remove AWSCLI version 1
           yum remove -q -y awscli
@@ -1576,20 +1654,12 @@ Resources:
           ./aws/install -b /usr/bin
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
 
-          # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
-          sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
-          # Console session support
-          sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"\/home\/ec2-user\"" /etc/dcv/dcv.conf
-
           # Update OS
           yum update -q -y
           # yum-cron
           yum install -q -y yum-cron
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
           systemctl enable yum-cron
-
-          # USB driver DKMS
-          yum install -q -y dkms
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
           yum install -q -y mount-s3
@@ -1820,7 +1890,13 @@ Resources:
         - Key: StackId
           Value: !Sub ${AWS::StackId}
         - Key: Name
-          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+          Value: !Sub
+            - "${AWS::StackName}-elasticIP-${UID}"
+            - UID:
+                !Select [
+                  3,
+                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+                ]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1935,11 +2011,18 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
 
   SSMsessionManager:
+    Condition: noDCV
+    Description: SSM Session Manager
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  SSMsessionManagerDCV:
     Description: SSM Session Manager ("sudo passwd ec2-user" to change password)
+    Condition: installDCV
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:
     Description: NICE DCV web browser client (login as ec2-user)
+    Condition: installDCV
     Value:
       !If [
         displayPublicIP,

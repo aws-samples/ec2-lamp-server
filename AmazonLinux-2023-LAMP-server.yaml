@@ -85,12 +85,12 @@ Metadata:
       assignStaticIP:
         default: "[Elastic IP] Assign static public internet IPv4 address?"
       ingressIPv4:
-        default: "Allowed IPv4 prefix to SSH"
+        default: "Allowed IPv4 prefix"
       ingressIPv6:
-        default: "Allowed IPv6 prefix to SSH"
+        default: "Allowed IPv6 prefix"
       allowSSHport:
         default: "Allow SSH from internet"
-      installWebMin:
+      installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
         default: "Web server to install"
@@ -728,6 +728,8 @@ Mappings:
       PrefixList: pl-bca247d5
     ap-southeast-4:
       PrefixList: pl-0fb7e7cfe038ae0e9
+    ap-southeast-5:
+      PrefixList: pl-09076f83e90b139d0
     ca-central-1:
       PrefixList: pl-38a64351
     ca-west-1:
@@ -777,82 +779,79 @@ Resources:
             Action: ["sts:AssumeRole"]
       Path: /
       Policies:
-        - PolicyName: MountPointS3Access
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:AbortMultipartUpload
-                  - s3:DeleteObject
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3:::${bucketName}/*"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: MountPointS3ExpressAccess
-          PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3express:CreateSession
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${bucketName}--az_id--x-s3"
-                  - bucketName:
-                      !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-        - PolicyName: Route53CertbotAccess
-          PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
-            Version: "2012-10-17"
-            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
-                  ForAllValues:StringLike:
-                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                      ["_acme-challenge.*"]
-        - PolicyName: Route53UpdaterAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
-              - Effect: Allow
-                Action:
-                  - route53:ListHostedZones
-                  - route53:GetChange
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - route53:ChangeResourceRecordSets
-                Resource: !Sub
-                  - "arn:${AWS::Partition}:route53:::hostedzone/${hostedZone}"
-                  - hostedZone:
-                      !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-                Condition:
-                  ForAllValues:StringEquals:
-                    "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
-                  ForAllValues:StringLike:
-                    "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                      ["site.example.com"]
+        - !If
+          - hasS3Bucket
+          - PolicyName: MountPointS3Access
+            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:ListBucket
+                  Resource: !Sub "arn:${AWS::Partition}:s3:::${s3BucketName}"
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:PutObject
+                    - s3:AbortMultipartUpload
+                    - s3:DeleteObject
+                  Resource: !Sub "arn:${AWS::Partition}:s3:::${s3BucketName}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - hasS3Bucket
+          - PolicyName: MountPointS3ExpressAccess
+            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3express:CreateSession
+                  Resource: !Sub "arn:${AWS::Partition}:s3express:${AWS::Region}:${AWS::AccountId}:bucket/${s3BucketName}--az_id--x-s3"
+          - !Ref AWS::NoValue
+        - !If
+          - hasR53Zone
+          - PolicyName: Route53CertbotAccess
+            PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+              Version: "2012-10-17"
+              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+                - Effect: Allow
+                  Action:
+                    - route53:ListHostedZones
+                    - route53:GetChange
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - route53:ChangeResourceRecordSets
+                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Condition:
+                    ForAllValues:StringEquals:
+                      "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+                    ForAllValues:StringLike:
+                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                        ["_acme-challenge.*"]
+          - !Ref AWS::NoValue
+        - !If
+          - hasR53Zone
+          - PolicyName: Route53UpdaterAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+                - Effect: Allow
+                  Action:
+                    - route53:ListHostedZones
+                    - route53:GetChange
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - route53:ChangeResourceRecordSets
+                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Condition:
+                    ForAllValues:StringEquals:
+                      "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
+                    ForAllValues:StringLike:
+                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
+                        ["site.example.com"]
+          - !Ref AWS::NoValue
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -876,7 +875,7 @@ Resources:
   securityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow inbound SSH, HTTP, HTTPS
+      GroupDescription: Allow inbound HTTP, HTTPS and any remote admin ports
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - !If
@@ -1053,6 +1052,7 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
+                sudo rm -f /tmp/mount-s3.rpm
                 if (uname -a | grep -q x86); then
                   wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
                 else
@@ -1177,6 +1177,18 @@ Resources:
 
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+                # S3 bucket access?
+                if [[ -z "${s3BucketName}" ]]; then
+                  rm /etc/systemd/system/mount-s3-helper.service
+                  rm /opt/mount-s3-helper.sh
+                fi
+
+                # Route 53 access?
+                if [[ -z "${r53ZoneID}" ]]; then
+                  rm /etc/systemd/system/route53-updater.service
+                  rm /opt/route53-updater.sh
+                fi
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1310,7 +1322,8 @@ Resources:
                     fi
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/207
-                    # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml                    
+                    # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
+                    # https://gist.github.com/Wirone/d5c794b4fef0203146a27687e80588a6#file-workaround-dockerfile
                     dnf install -q -y php-imagick
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
@@ -1402,6 +1415,8 @@ Resources:
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
       Monitoring: true
+      DisableApiTermination: true
+      EbsOptimized: true
       SecurityGroupIds:
         - !Ref securityGroup
         - !If [
@@ -1420,6 +1435,7 @@ Resources:
             VolumeType: !Ref volumeType
             VolumeSize: !Ref volumeSize
             DeleteOnTermination: true
+            Encrypted: true
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -1659,7 +1675,13 @@ Resources:
         - Key: StackId
           Value: !Sub ${AWS::StackId}
         - Key: Name
-          Value: !Sub "[${AWS::StackName}] - ${ec2Name}"
+          Value: !Sub
+            - "${AWS::StackName}-elasticIP-${UID}"
+            - UID:
+                !Select [
+                  3,
+                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+                ]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
