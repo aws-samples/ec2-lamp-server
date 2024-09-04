@@ -1109,15 +1109,9 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                if (arch | grep -q x86); then
-                  rm -f nice-dcv-el7-x86_64.tgz
-                  wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
-                  tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
-                else
-                  rm -f nice-dcv-el7-aarch64.tgz
-                  wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
-                  tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
-                fi
+                sudo rm -f nice-dcv-el7-$(arch).tgz
+                wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-$(arch).tgz
+                tar -xvzf nice-dcv-el7-$(arch).tgz && cd nice-dcv-*-el7-$(arch)
                 sudo yum install -y ./nice-dcv-server-*.rpm
                 sudo yum install -y ./nice-dcv-web-viewer-*.rpm
                 sudo yum install -y ./nice-xdcv-*.rpm
@@ -1130,11 +1124,7 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 sudo rm -f /tmp/awscliv2.zip
-                if (arch | grep -q x86); then
-                  curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
-                else
-                  curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
-                fi
+                curl https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
                 unzip -q -o awscliv2.zip
                 /usr/bin/aws --version
                 sudo ./aws/install --update -b /usr/bin
@@ -1421,13 +1411,8 @@ Resources:
 
                 # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
                 rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
-                if (arch | grep -q x86); then
-                  curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-x86_64.tgz
-                  tar -xvzf nice-dcv-el7-x86_64.tgz && cd nice-dcv-*-el7-x86_64
-                else
-                  curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-aarch64.tgz
-                  tar -xvzf nice-dcv-el7-aarch64.tgz && cd nice-dcv-*-el7-aarch64
-                fi
+                curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-$(arch).tgz
+                tar -xvzf nice-dcv-el7-$(arch).tgz && cd nice-dcv-*-el7-$(arch)
                 yum install -q -y ./nice-dcv-server-*.rpm
                 yum install -q -y ./nice-dcv-web-viewer-*.rpm
                 yum install -q -y ./nice-xdcv-*.rpm
@@ -1448,7 +1433,7 @@ Resources:
                 # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
                 # Console session support
-                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"\/home\/ec2-user\"" /etc/dcv/dcv.conf
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
                 # USB driver DKMS
                 yum install -q -y dkms
@@ -1645,11 +1630,7 @@ Resources:
 
           cd /tmp/cfn
           # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          if (arch | grep -q x86); then
-            curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
-          else
-            curl -s https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
-          fi
+          curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
           unzip -q -o awscliv2.zip
           ./aws/install -b /usr/bin
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
