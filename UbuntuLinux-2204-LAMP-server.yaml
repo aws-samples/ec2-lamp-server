@@ -227,9 +227,17 @@ Parameters:
     Type: String
     #Description: PHP version to install
     AllowedValues:
+      - "php5.6"
+      - "php7.0"
+      - "php7.1"
+      - "php7.2"
+      - "php7.3"
+      - "php7.4"
+      - "php8.0"
       - "php8.1"
       - "php8.2"
       - "php8.3"
+      - "php8.4"
       - "none"
     Default: "php8.1"
   s3BucketName:
@@ -1371,6 +1379,10 @@ Resources:
           files:
             "/root/install-dcv.sh":
               content: |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
                 # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 apt-get install -q -y ubuntu-desktop-minimal
                 apt-get install -q -y gdm3
@@ -1404,7 +1416,7 @@ Resources:
 
                 # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
                 cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
-                sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf   
+                sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
 
                 # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
@@ -1594,6 +1606,7 @@ Resources:
           apt-get clean all
           apt-get update -q
           apt-get install -q -y wget tmux unzip tar curl sed
+          apt-get install -q -y amazon-ec2-utils
 
           # CfN scripts: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
           apt-get install -q -y python3 python3-pip python3-setuptools python3-docutils python3-daemon
@@ -1607,7 +1620,7 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # Install desktop environment and NICE DCV?
+          # Install desktop environment and NICE DCV
           export installDCV="${installDCV}"
           case $installDCV in
             Yes)
@@ -1617,7 +1630,6 @@ Resources:
 
           # remove AWSCLI version 1
           apt-get remove -q -y awscli
-
           cd /tmp/cfn
           # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
           curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip

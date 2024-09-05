@@ -1109,7 +1109,6 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                sudo rm -f nice-dcv-el7-$(arch).tgz
                 wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-$(arch).tgz
                 tar -xvzf nice-dcv-el7-$(arch).tgz && cd nice-dcv-*-el7-$(arch)
                 sudo yum install -y ./nice-dcv-server-*.rpm
@@ -1397,6 +1396,10 @@ Resources:
           files:
             "/root/install-dcv.sh":
               content: |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
                 # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 yum install -q -y gdm gnome-session gnome-classic-session gnome-session-xsession
                 yum install -q -y xorg-x11-server-Xorg xorg-x11-fonts-Type1 xorg-x11-drivers 
