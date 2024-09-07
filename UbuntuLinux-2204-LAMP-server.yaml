@@ -1428,6 +1428,14 @@ Resources:
               mode: "000740"
               owner: "root"
               group: "root"
+            "/home/ubuntu/.gnomerc":
+              content: |
+                export XDG_CURRENT_DESKTOP=ubuntu:GNOME
+                export GNOME_SHELL_SESSION_MODE=ubuntu
+                export XDG_DATA_DIRS=/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop
+              mode: "000644"
+              owner: "ubuntu"
+              group: "ubuntu"
           commands:
             install:
               command: "/root/install-dcv.sh > /var/log/install-dcv.log"
