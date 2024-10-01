@@ -642,7 +642,7 @@ Conditions:
         127.0.0.1/32,
       ],
     ]
-  createEICsg: !And [!Condition hasEIC, !Condition displayPublicIP]
+  createSgEIC: !And [!Condition hasEIC, !Condition displayPublicIP]
   hasCFprefix:
     !Not [
       !Equals [
@@ -668,70 +668,103 @@ Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
     af-south-1:
       IpPrefix: 13.244.121.196/30
+      Ipv6Prefix: 2406:da11:700:3b00::/56
     ap-east-1:
       IpPrefix: 43.198.192.104/29
+      Ipv6Prefix: 2406:da1e:da1:3c00::/56
     ap-northeast-1:
       IpPrefix: 3.112.23.0/29
+      Ipv6Prefix: 2406:da14:1c18:2100::/56
     ap-northeast-2:
       IpPrefix: 13.209.1.56/29
+      Ipv6Prefix: 2406:da12:1e1:d900::/56
     ap-northeast-3:
       IpPrefix: 15.168.105.160/29
+      Ipv6Prefix: 2406:da16:856:a500::/56
     ap-south-1:
       IpPrefix: 13.233.177.0/29
+      Ipv6Prefix: 2406:da1a:74a:4b00::/56
     ap-south-2:
       IpPrefix: 18.60.252.248/29
+      Ipv6Prefix: 2406:da1b:d1d:8800::/56
     ap-southeast-1:
       IpPrefix: 3.0.5.32/29
+      Ipv6Prefix: 2406:da18:752:6600::/56
     ap-southeast-2:
       IpPrefix: 13.239.158.0/29
+      Ipv6Prefix: 2406:da1c:90e:4a00::/56
     ap-southeast-3:
       IpPrefix: 43.218.193.64/29
+      Ipv6Prefix: 2406:da19:14b:8c00::/56
     ap-southeast-4:
       IpPrefix: 16.50.248.80/29
+      Ipv6Prefix: 2406:da1f:b4f:4600::/56
     ca-central-1:
       IpPrefix: 35.183.92.176/29
+      Ipv6Prefix: 2600:1f11:ae3:700::/56
     ca-west-1:
       IpPrefix: 40.176.213.168/29
+      Ipv6Prefix: 2600:1f1a:4ff6:d500::/56
     cn-north-1:
       IpPrefix: 43.196.20.40/29
+      Ipv6Prefix: 2400:7fc0:86fd:e00::/56
     cn-northwest-1:
       IpPrefix: 43.192.155.8/29
+      Ipv6Prefix: 2404:c2c0:87aa:4800::/56
     eu-central-1:
       IpPrefix: 3.120.181.40/29
+      Ipv6Prefix: 2a05:d014:17a8:8b00::/56
     eu-central-2:
       IpPrefix: 16.63.77.8/29
+      Ipv6Prefix: 2a05:d019:1d6:2100::/56
     eu-north-1:
       IpPrefix: 13.48.4.200/30
+      Ipv6Prefix: 2a05:d016:494:f00::/56
     eu-south-1:
       IpPrefix: 15.161.135.164/30
+      Ipv6Prefix: 2a05:d01a:c03:4a00::/56
     eu-south-2:
       IpPrefix: 18.101.90.48/29
+      Ipv6Prefix: 2a05:d011:cbe:f700::/56
     eu-west-1:
       IpPrefix: 18.202.216.48/29
+      Ipv6Prefix: 2a05:d018:403:4e00::/56
     eu-west-2:
       IpPrefix: 3.8.37.24/29
+      Ipv6Prefix: 2a05:d01c:4ac:3100::/56
     eu-west-3:
       IpPrefix: 35.180.112.80/29
+      Ipv6Prefix: 2a05:d012:c9e:d600::/56
     il-central-1:
       IpPrefix: 51.16.183.224/29
+      Ipv6Prefix: 2a05:d025:451:7d00::/56
     me-central-1:
       IpPrefix: 3.29.147.40/29
+      Ipv6Prefix: 2406:da17:1db:b00::/56
     me-south-1:
       IpPrefix: 16.24.46.56/29
+      Ipv6Prefix: 2a05:d01e:27f:ac00::/56
     sa-east-1:
       IpPrefix: 18.228.70.32/29
+      Ipv6Prefix: 2600:1f1e:d1d:e700::/56
     us-east-1:
       IpPrefix: 18.206.107.24/29
+      Ipv6Prefix: 2600:1f18:6fe3:8c00::/56
     us-east-2:
       IpPrefix: 3.16.146.0/29
+      Ipv6Prefix: 2600:1f16:138f:cf00::/56
     us-gov-east-1:
       IpPrefix: 18.252.4.0/30
+      Ipv6Prefix: 2600:1f15:d63:bd00::/56
     us-gov-west-1:
       IpPrefix: 15.200.28.80/30
+      Ipv6Prefix: 2600:1f12:fa9:5100::/56
     us-west-1:
       IpPrefix: 13.52.6.112/29
+      Ipv6Prefix: 2600:1f1c:12d:e900::/56
     us-west-2:
       IpPrefix: 18.237.140.160/29
+      Ipv6Prefix: 2600:1f13:a0d:a700::/56
 
   CFprefixMap: # aws ec2 describe-managed-prefix-lists --query "PrefixLists[?PrefixListName=='com.amazonaws.global.cloudfront.origin-facing']" --region <REGION>
     af-south-1:
@@ -898,9 +931,9 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
       Tags:
         - Key: StackName
-          Value: !Sub ${AWS::StackName}
+          Value: !Ref AWS::StackName
         - Key: StackId
-          Value: !Sub ${AWS::StackId}
+          Value: !Ref AWS::StackId
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1002,12 +1035,20 @@ Resources:
           ToPort: 443
           CidrIpv6: ::/0
         - !If
-          - createEICsg
+          - createSgEIC
           - Description: SSH (EC2 Instance Connect IP)
             IpProtocol: tcp
             FromPort: 22
             ToPort: 22
             CidrIp: !FindInMap [EICprefixMap, !Ref AWS::Region, IpPrefix]
+          - !Ref AWS::NoValue
+        - !If
+          - createSgEIC
+          - Description: SSH (EC2 Instance Connect IPv6)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIpv6: !FindInMap [EICprefixMap, !Ref AWS::Region, Ipv6Prefix]
           - !Ref AWS::NoValue
       SecurityGroupEgress:
         - Description: Allow all outbound traffic (IPv4)
@@ -1018,9 +1059,9 @@ Resources:
           CidrIpv6: ::/0
       Tags:
         - Key: StackName
-          Value: !Sub ${AWS::StackName}
+          Value: !Ref AWS::StackName
         - Key: StackId
-          Value: !Sub ${AWS::StackId}
+          Value: !Ref AWS::StackId
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-securityGroup-${UID}"
@@ -1054,9 +1095,9 @@ Resources:
             !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
-          Value: !Sub ${AWS::StackName}
+          Value: !Ref AWS::StackName
         - Key: StackId
-          Value: !Sub ${AWS::StackId}
+          Value: !Ref AWS::StackId
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-CloudFrontHTTP-${UID}"
@@ -1090,9 +1131,9 @@ Resources:
             !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
-          Value: !Sub ${AWS::StackName}
+          Value: !Ref AWS::StackName
         - Key: StackId
-          Value: !Sub ${AWS::StackId}
+          Value: !Ref AWS::StackId
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-CloudFrontHTTPS-${UID}"
@@ -1280,7 +1321,7 @@ Resources:
                           /usr/bin/dcv create-session $dcvUser --owner root --storage-root /root
                           ;;
                         *)
-                          /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root /home/$dcvUser
+                          /usr/bin/dcv create-session $dcvUser --owner $dcvUser --user $dcvUser --storage-root /home/$dcvUser
                           ;;
                       esac
                     fi
@@ -1310,6 +1351,13 @@ Resources:
                 #!/bin/bash
                 sysctl -w net.ipv6.conf.all.disable_ipv6=1
                 sysctl -w net.ipv6.conf.default.disable_ipv6=1
+                export DEBIAN_FRONTEND=noninteractive
+
+                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
+                apt-get install -q -y linux-headers-aws
+                apt-get install -q -y linux-modules-extra-aws
+                apt-get install -q -y usbutils
+                # dcvusbdriverinstaller --quiet
 
                 python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
@@ -1386,10 +1434,7 @@ Resources:
                 # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 apt-get install -q -y ubuntu-desktop-minimal
                 apt-get install -q -y gdm3
-                # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
-                apt-get install -q -y pulseaudio-utils
-                apt-get install -q -y gnome-tweaks gnome-shell-extension-ubuntu-dock
-                apt-get install -q -y gnome-shell-extension-manager
+                apt-get install -q -y amazon-ec2-utils
 
                 # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
                 sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm3/custom.conf
@@ -1397,6 +1442,10 @@ Resources:
                 # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
                 apt-get install -q -y dpkg-dev
 
+                # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                apt-get install -q -y pulseaudio-utils
+                apt-get install -q -y gnome-tweaks gnome-shell-extension-ubuntu-dock
+                apt-get install -q -y gnome-shell-extension-manager
                 # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
                 gpg --import NICE-GPG-KEY
@@ -1421,7 +1470,7 @@ Resources:
                 # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
                 # Console session support
-                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ubuntu\"\nstorage-root=\"\/home\/ubuntu\"" /etc/dcv/dcv.conf
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ubuntu\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
                 # USB DKMS
                 apt-get install -q -y dkms
@@ -1478,8 +1527,9 @@ Resources:
                     # https://www.php.net/manual/en/opcache.configuration.php
                     # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
                     sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/$PHP_VERSION/fpm/php.ini
-                    sed -i "s/^opcache.enable_cli/;&" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "s/^opcache.enable_cli/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "s/^opcache.jit=/;&/" /etc/php/$PHP_VERSION/mods-available/opcache.ini                    
 
                     sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i 's/memory_limit =.*/memory_limit = 256M/' /etc/php/$PHP_VERSION/fpm/php.ini
@@ -1614,8 +1664,6 @@ Resources:
           apt-get clean all
           apt-get update -q
           apt-get install -q -y wget tmux unzip tar curl sed
-          apt-get install -q -y amazon-ec2-utils
-
           # CfN scripts: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
           apt-get install -q -y python3 python3-pip python3-setuptools python3-docutils python3-daemon
           curl -s -L -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
@@ -1806,9 +1854,9 @@ Resources:
         - Key: Name
           Value: !Ref ec2Name
         - Key: StackName
-          Value: !Sub ${AWS::StackName}
+          Value: !Ref AWS::StackName
         - Key: StackId
-          Value: !Sub ${AWS::StackId}
+          Value: !Ref AWS::StackId
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1821,9 +1869,9 @@ Resources:
       InstanceId: !Ref ec2Instance
       Tags:
         - Key: StackName
-          Value: !Sub ${AWS::StackName}
+          Value: !Ref AWS::StackName
         - Key: StackId
-          Value: !Sub ${AWS::StackId}
+          Value: !Ref AWS::StackId
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-elasticIP-${UID}"
@@ -1862,8 +1910,8 @@ Resources:
               DeleteAfterDays: !Ref deleteAfterDays
       BackupPlanTags:
         {
-          "StackName": !Sub "${AWS::StackName}",
-          "StackId": !Sub "${AWS::StackId}",
+          "StackName": !Ref AWS::StackName,
+          "StackId": !Ref AWS::StackId,
           "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
         }
 
@@ -1871,19 +1919,14 @@ Resources:
     Type: AWS::Backup::BackupVault
     Condition: createBackup
     UpdateReplacePolicy: Delete
-    DeletionPolicy: !Ref AWS::NoValue
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID:
-            !Select [
-              3,
-              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-            ]
+        - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
       BackupVaultTags:
         {
-          "StackName": !Sub "${AWS::StackName}",
-          "StackId": !Sub "${AWS::StackId}",
+          "StackName": !Ref AWS::StackName,
+          "StackId": !Ref AWS::StackId,
           "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
         }
 
@@ -1898,11 +1941,7 @@ Resources:
           - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}"
         SelectionName: !Sub
           - "${AWS::StackName}-backupSelection-${UID}"
-          - UID:
-              !Select [
-                3,
-                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-              ]
+          - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
 
   backupRestoreRole:
     Type: AWS::IAM::Role
@@ -1941,7 +1980,7 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
   EC2instanceConnect:
-    Condition: createEICsg
+    Condition: createSgEIC
     Description: EC2 Instance Connect
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
