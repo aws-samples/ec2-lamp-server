@@ -1036,7 +1036,7 @@ Resources:
           CidrIpv6: ::/0
         - !If
           - createSgEIC
-          - Description: SSH (EC2 Instance Connect IP)
+          - Description: SSH (EC2 Instance Connect IPv4)
             IpProtocol: tcp
             FromPort: 22
             ToPort: 22
@@ -1474,6 +1474,11 @@ Resources:
 
                 # USB DKMS
                 apt-get install -q -y dkms
+
+                # Disable reporting : https://wiki.ubuntu.com/Apport
+                sed -i "s/enabled=1/enable=0/g" /etc/default/apport
+                apt-get remove -q -y ubuntu-report whoopsie apport
+                apt-get autoremove -q -y
               mode: "000740"
               owner: "root"
               group: "root"
@@ -1664,6 +1669,7 @@ Resources:
           apt-get clean all
           apt-get update -q
           apt-get install -q -y wget tmux unzip tar curl sed
+
           # CfN scripts: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
           apt-get install -q -y python3 python3-pip python3-setuptools python3-docutils python3-daemon
           curl -s -L -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
@@ -1696,11 +1702,6 @@ Resources:
           # Update OS
           apt-get update -q
           apt-get upgrade -q -y
-          apt-get autoremove -q -y
-
-          # Disable reporting : https://wiki.ubuntu.com/Apport
-          sed -i "s/enabled=1/enable=0/g" /etc/default/apport
-          apt-get remove -q -y ubuntu-report whoopsie apport
           apt-get autoremove -q -y
 
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
@@ -1825,7 +1826,6 @@ Resources:
             curl -s -L -O https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
           fi
           apt-get install -q -y ./amazon-cloudwatch-agent.deb
-
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
           systemctl enable amazon-cloudwatch-agent
 
