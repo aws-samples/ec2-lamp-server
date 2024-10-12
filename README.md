@@ -12,7 +12,7 @@ This repo provides CloudFormation template to provision a EC2 instance with opti
 
 ## Overview of features
 The template provides the following features:
-- Choice of [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/), [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), [Ubuntu 22.04](https://ubuntu.com/aws) and [Ubuntu Pro 22.04](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/)
+- Choice of [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/), [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/), [Ubuntu 22.04/24.04](https://ubuntu.com/aws) and [Ubuntu Pro 22.04/24.04](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/)
 - [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote desktop streaming (Amazon Linux 2 and Ubuntu Linux)
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
@@ -71,7 +71,7 @@ SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressI
 
 LAMP
 - `webOption`: `Apache`, `Nginx` web server or `none`.
-- `phpVersion`: PHP version to install or `none`. Ubuntu template will use [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository to PHP versions that are not in default Ubuntu repository
+- `phpVersion`: PHP version to install or `none`. Ubuntu template will use [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
 - `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux will attempt to use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance access using [IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is usually not recommended. Default is empty.
 - `r53ZoneID` (optional):  [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access for use with Certbot [certbot-dns-route53](#option-2-using-certbot-certbot-dns-route53-plugin) DNS plugin.  A `*` value will grant access to all Route 53 zones in your AWS account. Permission is restricted to **_acme-challenge.\*** TXT DNS records using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Default is empty string for no access

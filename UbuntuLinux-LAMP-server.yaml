@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux 22.04 ( https://github.com/aws-samples/ec2-lamp-server )
+Description: Ubuntu Linux ( https://github.com/aws-samples/ec2-lamp-server )
 Transform: "AWS::LanguageExtensions"
 
 Metadata:
@@ -23,11 +23,11 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: EC2 instance
+          default: EC2
         Parameters:
           - ec2Name
           - ec2KeyPair
-          - processorArchitecture
+          - osVersion
           - instanceType
       - Label:
           default: Network
@@ -65,18 +65,20 @@ Metadata:
           - scheduleExpressionTimezone
           - deleteAfterDays
     ParameterLabels:
-      processorArchitecture:
-        default: "Processor architecture"
+      osVersion:
+        default: "OS version and architecture"
       instanceType:
         default: "Instance type (x86_64 or arm64)"
       ec2Name:
         default: "Instance name"
       ec2KeyPair:
         default: "Keypair name"
+
       volumeSize:
         default: "Volume size (GiB)"
       volumeType:
         default: "Volume type"
+
       vpcID:
         default: "VPC with internet connectivity"
       subnetID:
@@ -84,15 +86,16 @@ Metadata:
       displayPublicIP:
         default: "EC2 in public subnet with public IP assigned?"
       assignStaticIP:
-        default: "[Elastic IP] Assign static public internet IPv4 address?"
+        default: "[Elastic IP] Assign static public internet IPv4 address"
+
       ingressIPv4:
         default: "Allowed IPv4 prefix"
       ingressIPv6:
         default: "Allowed IPv6 prefix"
       allowSSHport:
-        default: "Allow SSH from internet"
+        default: "Allow SSH from network"
       installDCV:
-        default: "Install graphical desktop environment and DCV server"
+        default: "Install graphical desktop environment and NICE DCV server"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -115,42 +118,32 @@ Metadata:
         default: "Number of days after creation that a recovery point (backup) is deleted"
 
 Parameters:
-  processorArchitecture:
-    Type: String
-    Description: https://aws.amazon.com/ec2/graviton/ https://ubuntu.com/aws/pro
-    AllowedValues:
-      - "Ubuntu (Graviton arm64)"
-      - "Ubuntu (Intel/AMD x86_64)"
-      - "Ubuntu Pro (Graviton arm64)"
-      - "Ubuntu Pro (Intel/AMD x86_64)"
-    Default: "Ubuntu (Graviton arm64)"
-  instanceType:
-    Type: String
-    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
-    Default: t4g.large
-
   ec2Name:
     Type: String
     #Description: EC2 instance name
-    Default: Ubuntu Linux 22.04
+    Default: Ubuntu Linux
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
-  volumeSize:
-    Type: Number
-    #Description: Volume size in GiBs
-    MinValue: 10
-    MaxValue: 16384
-    Default: 50
-  volumeType:
+  osVersion:
     Type: String
-    Description: https://aws.amazon.com/ebs/general-purpose/
+    Description: https://aws.amazon.com/ec2/graviton/ https://ubuntu.com/aws/pro
     AllowedValues:
-      - "gp3"
-      - "gp2"
-    Default: "gp3"
+      - Ubuntu 24.04 (arm64)
+      - Ubuntu 24.04 (x86_64)
+      - Ubuntu 22.04 (arm64)
+      - Ubuntu 22.04 (x86_64)
+      - Ubuntu Pro 24.04 (arm64)
+      - Ubuntu Pro 24.04 (x86_64)
+      - Ubuntu Pro 22.04 (arm64)
+      - Ubuntu Pro 22.04 (x86_64)
+    Default: Ubuntu 24.04 (arm64)
+  instanceType:
+    Type: String
+    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
+    Default: t4g.large
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -239,7 +232,7 @@ Parameters:
       - "php8.3"
       - "php8.4"
       - "none"
-    Default: "php8.1"
+    Default: "php8.3"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
@@ -248,6 +241,21 @@ Parameters:
     Type: String
     Description: "https://console.aws.amazon.com/route53/v2/hostedzones"
     Default: ""
+
+  volumeSize:
+    Type: Number
+    #Description: Volume size in GiBs
+    MinValue: 10
+    MaxValue: 16384
+    Default: 50
+  volumeType:
+    Type: String
+    Description: https://aws.amazon.com/ebs/general-purpose/
+    AllowedValues:
+      - "gp3"
+      - "gp2"
+    Default: "gp3"
+
   enableBackup:
     Type: String
     AllowedValues:
@@ -619,12 +627,14 @@ Parameters:
     Default: 7
 
 Conditions:
-  useUbuntu2204x86:
-    !Equals [!Ref processorArchitecture, "Ubuntu (Intel/AMD x86_64)"]
-  useUbuntu2204arm64:
-    !Equals [!Ref processorArchitecture, "Ubuntu (Graviton arm64)"]
-  useUbuntuPro2204x86:
-    !Equals [!Ref processorArchitecture, "Ubuntu Pro (Intel/AMD x86_64)"]
+  useUbuntu2404x86: !Equals [!Ref osVersion, "Ubuntu 24.04 (x86_64)"]
+  useUbuntu2404arm64: !Equals [!Ref osVersion, "Ubuntu 24.04 (arm64)"]
+  useUbuntu2204x86: !Equals [!Ref osVersion, "Ubuntu 22.04 (x86_64)"]
+  useUbuntu2204arm64: !Equals [!Ref osVersion, "Ubuntu 22.04 (arm64)"]
+  useUbuntuPro2404x86: !Equals [!Ref osVersion, "Ubuntu Pro 24.04 (x86_64)"]
+  useUbuntuPro2404arm64: !Equals [!Ref osVersion, "Ubuntu Pro 24.04 (arm64)"]
+  useUbuntuPro2204x86: !Equals [!Ref osVersion, "Ubuntu Pro 22.04 (x86_64)"]
+  useUbuntuPro2204arm64: !Equals [!Ref osVersion, "Ubuntu Pro 22.04 (arm64)"]
 
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
@@ -896,6 +906,8 @@ Resources:
                     - route53:ChangeResourceRecordSets
                   Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
                   Condition:
+                    IpAddress:
+                      aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
                       "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
                     ForAllValues:StringLike:
@@ -918,6 +930,8 @@ Resources:
                     - route53:ChangeResourceRecordSets
                   Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
                   Condition:
+                    IpAddress:
+                      aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
                       "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
                     ForAllValues:StringLike:
@@ -984,7 +998,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: DCV (IPv4)
+          - Description: NICE DCV (IPv4)
             IpProtocol: tcp
             FromPort: 8443
             ToPort: 8443
@@ -992,7 +1006,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: DCV (IPv6)
+          - Description: NICE DCV (IPv6)
             IpProtocol: tcp
             FromPort: 8443
             ToPort: 8443
@@ -1000,7 +1014,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: DCV QUIC (IPv4)
+          - Description: NICE DCV QUIC (IPv4)
             IpProtocol: udp
             FromPort: 8443
             ToPort: 8443
@@ -1008,7 +1022,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: DCV QUIC (IPv6)
+          - Description: NICE DCV QUIC (IPv6)
             IpProtocol: udp
             FromPort: 8443
             ToPort: 8443
@@ -1167,9 +1181,9 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 OS_VERSION=$(. /etc/os-release;echo $VERSION_ID | sed -e 's/\.//g')
-                sudo rm -f nice-dcv-ubuntu$OS_VERSION-$(arch).tgz
+                sudo rm -f /tmp/nice-dcv-ubuntu$OS_VERSION-$(arch).tgz
                 wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu$OS_VERSION-$(arch).tgz
-                tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-$(arch)
+                tar -xvzf nice-dcv-ubuntu$OS_VERSION-$(arch).tgz && cd nice-dcv-*-ubuntu$OS_VERSION-$(arch)
                 sudo apt-get install -y ./nice-dcv-server_*.deb
                 sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
                 sudo apt-get install -y ./nice-xdcv_*.deb
@@ -1367,7 +1381,7 @@ Resources:
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
-                # DCV?
+                # NICE DCV?
                 export installDCV="${installDCV}"
                 case $installDCV in
                   Yes)
@@ -1431,7 +1445,7 @@ Resources:
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
 
-                # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+                # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 apt-get install -q -y ubuntu-desktop-minimal
                 apt-get install -q -y gdm3
                 apt-get install -q -y amazon-ec2-utils
@@ -1446,7 +1460,8 @@ Resources:
                 apt-get install -q -y pulseaudio-utils
                 apt-get install -q -y gnome-tweaks gnome-shell-extension-ubuntu-dock
                 apt-get install -q -y gnome-shell-extension-manager
-                # DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+
+                # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
                 gpg --import NICE-GPG-KEY
                 OS_VERSION=$(. /etc/os-release;echo $VERSION_ID | sed -e 's/\.//g')
@@ -1508,13 +1523,9 @@ Resources:
                   none)
                     ;;
                   *)
-                    case $phpVersion in
-                      8.1)
-                        ;;
-                      *)
-                        # PHP from Ondrej repo: https://deb.sury.org/
-                        apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
-                        add-apt-repository -y ppa:ondrej/php
+                    # PHP from Ondrej repo: https://deb.sury.org/
+                    apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
+                    add-apt-repository -y ppa:ondrej/php
                     esac
 
                     # PHP install
@@ -1615,15 +1626,31 @@ Resources:
     Properties:
       ImageId: # https://ubuntu.com/server/docs/cloud-images/amazon-ec2 https://ubuntu.com/blog/ubuntu-pro-is-now-part-of-the-aws-ec2-console
         !If [
-          useUbuntu2204x86,
-          "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+          useUbuntu2404x86,
+          "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
           !If [
-            useUbuntu2204arm64,
-            "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+            useUbuntu2404arm64,
+            "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
             !If [
-              useUbuntuPro2204x86,
-              "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
-              "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+              useUbuntu2204x86,
+              "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+              !If [
+                useUbuntu2204arm64,
+                "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+                !If [
+                  useUbuntuPro2404x86,
+                  "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
+                  !If [
+                    useUbuntuPro2404arm64,
+                    "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+                    !If [
+                      useUbuntuPro2204x86,
+                      "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+                      "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+                    ],
+                  ],
+                ],
+              ],
             ],
           ],
         ]
@@ -1682,7 +1709,7 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # Install desktop environment and DCV
+          # Install desktop environment and NICE DCV
           export installDCV="${installDCV}"
           case $installDCV in
             Yes)
@@ -1827,7 +1854,8 @@ Resources:
           fi
           apt-get install -q -y ./amazon-cloudwatch-agent.deb
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-          systemctl enable amazon-cloudwatch-agent
+          usermod -a -G www-data cwagent
+          systemctl enable --now amazon-cloudwatch-agent
 
           # Webmin
           export webmin="${installWebmin}"
@@ -1995,7 +2023,7 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:
-    Description: DCV web browser client (login as ubuntu)
+    Description: NICE DCV web browser client (login as ubuntu)
     Condition: installDCV
     Value:
       !If [
