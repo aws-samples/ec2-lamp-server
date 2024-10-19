@@ -13,11 +13,11 @@ This repo provides CloudFormation template to provision a EC2 instance with opti
 ## Overview of features
 The template provides the following features:
 - Choice of [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/), [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/) and [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04
-- [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote desktop streaming (Amazon Linux 2 and Ubuntu Linux)
+- Amazon Linux 2/Ubuntu Linux: [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote display protocol server
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
-- [PHP 8](https://www.php.net/releases/8.1/en.php) (Amazon Linux) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, zip, etc)
-- [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) (Ubuntu) using [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
+- Amazon Linux: [PHP 8](https://www.php.net/releases/8.1/en.php) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, zip, etc)
+- Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) using [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
 - [Composer](https://getcomposer.org/)
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
 - [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html) for SSH access
@@ -47,11 +47,11 @@ Download .yaml file for the desired operating system ([Amazon Linux 2](https://g
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values.
 
-EC2 instance
+EC2
 - `ec2Name`: EC2 instance name 
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `processorArchitecture`: Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`.
-- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.large` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance
+- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.xlarge` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance
 
 Network
 - `vpcID`: [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) with internet connectivity. Select [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) if unsure
@@ -60,7 +60,7 @@ Network
 - `assignStaticIP`: associates a static public IPv4 address using [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html). Default is `Yes`
 
 Remote Administration
-- `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Use `127.0.0.1/32` to block incoming access from public internet. Default is `0.0.0.0/0`. 
+- `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`. 
 - `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
 - `allowSSHport`: allow inbound SSH. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
@@ -80,16 +80,17 @@ EBS
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
 - `volumeType`: [EBS General Purpose Volume](https://aws.amazon.com/ebs/general-purpose/) type
 
-AWS Backup (optional)
+Backup
 - `enableBackup` : EC2 data protection with [AWS Backup](https://aws.amazon.com/backup/). Default is `Yes`
 - `scheduleExpression`: start time of backup using [CRON expression](https://en.wikipedia.org/wiki/Cron#CRON_expression). Default is 1 am
 - `scheduleExpressionTimezone`: timezone in which the schedule expression is set. Default is `Etc/UTC`
-- `deleteAfterDays`:  number of days after backup creation that a recovery point is deleted. Default is `7`
+- `deleteAfterDays`:  number of days after backup creation that a recovery point is deleted. Default is `35`
 
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `EC2console`: EC2 console URL link to manage your EC2 instance
 - `EC2instanceConnect`: [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) URL link. Functionality is only available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html)
+- `EC2serialConsole` (if available, Linux): [EC2 Serial Console](https://aws.amazon.com/blogs/aws/troubleshoot-boot-and-networking-issues-with-new-ec2-serial-console/) URL link. Functionality is available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html).
 - `SSMsessionManager` or `SSMsessionManagerDCV`: [SSM Session Manager](https://aws.amazon.com/blogs/aws/new-session-manager/) URL link
 - `WebUrl`: EC2 web server URL link
 - `DCVwebConsole`  (where applicable): DCV web browser client URL link#. Login as the user specified in *Description* field 
@@ -196,6 +197,7 @@ To futher secure your EC2 instance, you may want to
 
 ## Clean Up
 To remove created resources, you will need to
+- [Delete](https://docs.aws.amazon.com/aws-backup/latest/devguide/deleting-backups.html) recovery points in created backup vault
 - [Disable](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html) EC2 instance termination protection
 - [Delete](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-delete-stack.html) CloudFormation stack
 

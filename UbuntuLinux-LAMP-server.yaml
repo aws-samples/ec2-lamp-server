@@ -53,12 +53,12 @@ Metadata:
           - s3BucketName
           - r53ZoneID
       - Label:
-          default: EBS volume
+          default: EBS
         Parameters:
           - volumeSize
           - volumeType
       - Label:
-          default: AWS Backup
+          default: Backup
         Parameters:
           - enableBackup
           - scheduleExpression
@@ -95,7 +95,7 @@ Metadata:
       allowSSHport:
         default: "Allow SSH from network"
       installDCV:
-        default: "Install graphical desktop environment and NICE DCV server"
+        default: "Install graphical desktop environment and DCV server"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -108,6 +108,7 @@ Metadata:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
         default: "(optional) Route 53 hosted zone ID to grant access to"
+
       enableBackup:
         default: "Backup EC2 instance"
       scheduleExpression:
@@ -118,15 +119,6 @@ Metadata:
         default: "Number of days after creation that a recovery point (backup) is deleted"
 
 Parameters:
-  ec2Name:
-    Type: String
-    #Description: EC2 instance name
-    Default: Ubuntu Linux
-  ec2KeyPair:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
-    ConstraintDescription: Specify a key pair
-    AllowedPattern: ".+"
   osVersion:
     Type: String
     Description: https://aws.amazon.com/ec2/graviton/ https://ubuntu.com/aws/pro
@@ -143,7 +135,17 @@ Parameters:
   instanceType:
     Type: String
     Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
-    Default: t4g.large
+    Default: t4g.xlarge
+
+  ec2Name:
+    Type: String
+    #Description: EC2 instance name
+    Default: Ubuntu Linux
+  ec2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
+    ConstraintDescription: Specify a key pair
+    AllowedPattern: ".+"
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -624,7 +626,7 @@ Parameters:
     Default: "Etc/UTC"
   deleteAfterDays:
     Type: Number
-    Default: 7
+    Default: 35
 
 Conditions:
   useUbuntu2404x86: !Equals [!Ref osVersion, "Ubuntu 24.04 (x86_64)"]
@@ -998,7 +1000,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: NICE DCV (IPv4)
+          - Description: DCV (IPv4)
             IpProtocol: tcp
             FromPort: 8443
             ToPort: 8443
@@ -1006,7 +1008,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: NICE DCV (IPv6)
+          - Description: DCV (IPv6)
             IpProtocol: tcp
             FromPort: 8443
             ToPort: 8443
@@ -1014,7 +1016,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: NICE DCV QUIC (IPv4)
+          - Description: DCV QUIC (IPv4)
             IpProtocol: udp
             FromPort: 8443
             ToPort: 8443
@@ -1022,7 +1024,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - installDCV
-          - Description: NICE DCV QUIC (IPv6)
+          - Description: DCV QUIC (IPv6)
             IpProtocol: udp
             FromPort: 8443
             ToPort: 8443
@@ -1381,7 +1383,7 @@ Resources:
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
-                # NICE DCV?
+                # DCV?
                 export installDCV="${installDCV}"
                 case $installDCV in
                   Yes)
@@ -1445,7 +1447,7 @@ Resources:
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
 
-                # NICE DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+                # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 apt-get install -q -y ubuntu-desktop-minimal
                 apt-get install -q -y gdm3
                 apt-get install -q -y amazon-ec2-utils
@@ -1461,7 +1463,7 @@ Resources:
                 apt-get install -q -y gnome-tweaks gnome-shell-extension-ubuntu-dock
                 apt-get install -q -y gnome-shell-extension-manager
 
-                # NICE DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                # DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
                 gpg --import NICE-GPG-KEY
                 OS_VERSION=$(. /etc/os-release;echo $VERSION_ID | sed -e 's/\.//g')
@@ -1576,9 +1578,11 @@ Resources:
                     apt-get install -q -y ${phpVersion}-lzf
                     if (! php -m | grep -q lzf); then
                       yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-                      echo 'extension=lzf.so' > /etc/php/$PHP_VERSION/mods-available/lzf.ini
-                      ln -s /etc/php/$PHP_VERSION/mods-available/lzf.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-lzf.ini
-                      ln -s /etc/php/$PHP_VERSION/mods-available/lzf.ini /etc/php/$PHP_VERSION/cli/conf.d/40-lzf.ini
+                      if [ $? -eq 0 ]; then
+                        echo 'extension=lzf.so' > /etc/php/$PHP_VERSION/mods-available/lzf.ini
+                        ln -s /etc/php/$PHP_VERSION/mods-available/lzf.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-lzf.ini
+                        ln -s /etc/php/$PHP_VERSION/mods-available/lzf.ini /etc/php/$PHP_VERSION/cli/conf.d/40-lzf.ini
+                      fi
                     fi
 
                     # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
@@ -1586,9 +1590,11 @@ Resources:
                     if (! php -m | grep -q zstd); then
                       apt-get install -q -y libzstd-dev
                       yes 'no' | pecl install zstd
-                      echo 'extension=zstd.so' > /etc/php/$PHP_VERSION/mods-available/zstd.ini
-                      ln -s /etc/php/$PHP_VERSION/mods-available/zstd.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-zstd.ini
-                      ln -s /etc/php/$PHP_VERSION/mods-available/zstd.ini /etc/php/$PHP_VERSION/cli/conf.d/40-zstd.ini
+                      if [ $? -eq 0 ]; then
+                        echo 'extension=zstd.so' > /etc/php/$PHP_VERSION/mods-available/zstd.ini
+                        ln -s /etc/php/$PHP_VERSION/mods-available/zstd.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-zstd.ini
+                        ln -s /etc/php/$PHP_VERSION/mods-available/zstd.ini /etc/php/$PHP_VERSION/cli/conf.d/40-zstd.ini
+                      fi
                     fi
 
                     # php-lz4: https://github.com/kjdev/php-ext-lz4
@@ -1602,9 +1608,11 @@ Resources:
                       ./configure --with-lz4-includedir=/usr
                       make
                       make install
-                      echo 'extension=lz4.so' > /etc/php/$PHP_VERSION/mods-available/lz4.ini
-                      ln -s /etc/php/$PHP_VERSION/mods-available/lz4.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-lz4.ini
-                      ln -s /etc/php/$PHP_VERSION/mods-available/lz4.ini /etc/php/$PHP_VERSION/cli/conf.d/40-lz4.ini
+                      if [ $? -eq 0 ]; then
+                        echo 'extension=lz4.so' > /etc/php/$PHP_VERSION/mods-available/lz4.ini
+                        ln -s /etc/php/$PHP_VERSION/mods-available/lz4.ini /etc/php/$PHP_VERSION/fpm/conf.d/40-lz4.ini
+                        ln -s /etc/php/$PHP_VERSION/mods-available/lz4.ini /etc/php/$PHP_VERSION/cli/conf.d/40-lz4.ini
+                      fi
                     fi
                     cd /tmp/cfn
 
@@ -1709,7 +1717,7 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # Install desktop environment and NICE DCV
+          # Install desktop environment and DCV
           export installDCV="${installDCV}"
           case $installDCV in
             Yes)
@@ -1863,7 +1871,7 @@ Resources:
             Yes) # https://webmin.com/download/
               cd /tmp/cfn
               curl -s -L -O https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
-              echo 'Y' | sh ./setup-repos.sh
+              echo 'Y' | sh ./setup-repos.sh -f
               apt-get install -q -y webmin --install-recommends
               ;;
           esac
@@ -2012,6 +2020,10 @@ Outputs:
     Description: EC2 Instance Connect
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ubuntu&sshPort=22#/"
 
+  EC2serialConsole:
+    Description: EC2 Serial Console
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?&connType=serial&instanceId=${ec2Instance}&serialPort=0#/"
+
   SSMsessionManager:
     Condition: noDCV
     Description: SSM Session Manager
@@ -2023,7 +2035,7 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:
-    Description: NICE DCV web browser client (login as ubuntu)
+    Description: DCV web browser client (login as ubuntu)
     Condition: installDCV
     Value:
       !If [

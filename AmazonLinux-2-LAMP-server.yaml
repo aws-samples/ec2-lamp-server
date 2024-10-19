@@ -23,7 +23,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: EC2 instance
+          default: EC2
         Parameters:
           - ec2Name
           - ec2KeyPair
@@ -53,12 +53,12 @@ Metadata:
           - s3BucketName
           - r53ZoneID
       - Label:
-          default: EBS volume
+          default: EBS
         Parameters:
           - volumeSize
           - volumeType
       - Label:
-          default: AWS Backup
+          default: Backup
         Parameters:
           - enableBackup
           - scheduleExpression
@@ -73,10 +73,12 @@ Metadata:
         default: "Instance name"
       ec2KeyPair:
         default: "Keypair name"
+
       volumeSize:
         default: "Volume size (GiB)"
       volumeType:
         default: "Volume type"
+
       vpcID:
         default: "VPC with internet connectivity"
       subnetID:
@@ -85,12 +87,13 @@ Metadata:
         default: "EC2 in public subnet with public IP assigned?"
       assignStaticIP:
         default: "[Elastic IP] Assign static public internet IPv4 address?"
+
       ingressIPv4:
         default: "Allowed IPv4 prefix"
       ingressIPv6:
         default: "Allowed IPv6 prefix"
       allowSSHport:
-        default: "Allow SSH from internet"
+        default: "Allow SSH from network"
       installDCV:
         default: "Install graphical desktop environment and DCV server"
       installWebmin:
@@ -105,6 +108,7 @@ Metadata:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
         default: "(optional) Route 53 hosted zone ID to grant access to"
+
       enableBackup:
         default: "Backup EC2 instance"
       scheduleExpression:
@@ -125,7 +129,7 @@ Parameters:
   instanceType:
     Type: String
     Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
-    Default: t4g.large
+    Default: t4g.xlarge
 
   ec2Name:
     Type: String
@@ -136,19 +140,6 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
-  volumeSize:
-    Type: Number
-    #Description: Volume size in GiBs
-    MinValue: 10
-    MaxValue: 16384
-    Default: 50
-  volumeType:
-    Type: String
-    Description: https://aws.amazon.com/ebs/general-purpose/
-    AllowedValues:
-      - "gp3"
-      - "gp2"
-    Default: "gp3"
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -238,6 +229,21 @@ Parameters:
     Type: String
     Description: "https://console.aws.amazon.com/route53/v2/hostedzones"
     Default: ""
+
+  volumeSize:
+    Type: Number
+    #Description: Volume size in GiBs
+    MinValue: 10
+    MaxValue: 16384
+    Default: 50
+  volumeType:
+    Type: String
+    Description: https://aws.amazon.com/ebs/general-purpose/
+    AllowedValues:
+      - "gp3"
+      - "gp2"
+    Default: "gp3"
+
   enableBackup:
     Type: String
     AllowedValues:
@@ -606,7 +612,7 @@ Parameters:
     Default: "Etc/UTC"
   deleteAfterDays:
     Type: Number
-    Default: 7
+    Default: 35
 
 Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
@@ -880,6 +886,8 @@ Resources:
                     - route53:ChangeResourceRecordSets
                   Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
                   Condition:
+                    IpAddress:
+                      aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
                       "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
                     ForAllValues:StringLike:
@@ -902,6 +910,8 @@ Resources:
                     - route53:ChangeResourceRecordSets
                   Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
                   Condition:
+                    IpAddress:
+                      aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
                       "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
                     ForAllValues:StringLike:
@@ -1020,7 +1030,7 @@ Resources:
           CidrIpv6: ::/0
         - !If
           - createSgEIC
-          - Description: SSH (EC2 Instance Connect IP)
+          - Description: SSH (EC2 Instance Connect IPv4)
             IpProtocol: tcp
             FromPort: 22
             ToPort: 22
@@ -1545,39 +1555,55 @@ Resources:
 
                     # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
                     yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
-                    echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
-                    
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
+                    fi
+
                     # php-igbinary: https://pecl.php.net/package/igbinary
                     yes 'no' | pecl install igbinary
-                    echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+                    fi
 
                     # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
                     yes 'no' | pecl install msgpack
-                    echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+                    fi
 
                     # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
                     yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
-                    echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+                    fi
 
                     # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
                     yum install -q -y libzstd-devel
                     yes 'no' | pecl install zstd
-                    echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+                    fi
 
                     # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
                     yum install -q -y ImageMagick ImageMagick-devel
                     yes 'no' | pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
-                    echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
+                    fi
 
                     # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
                     yum install -q -y redis-devel lz4-devel
-                    yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
-                    echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+                    yes 'no' | pecl install --configureoptions ' enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+                    fi
 
                     # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
-                    yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel
-                    yes 'no' | pecl install --configureoptions 'enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
-                    echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+                    yum install -q -y memcached-devel libmemcached-devel zlib-devel cyrus-sasl-devel libevent-devel fastlz-devel
+                    yes 'no' | pecl install --configureoptions 'with-libmemcached-dir="yes" with-zlib-dir="yes" with-system-fastlz="no" enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+                    fi
 
                     # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
                     yum install -q -y php-sodium
@@ -1591,7 +1617,9 @@ Resources:
                     ./configure --with-lz4-includedir=/usr
                     make
                     make install
-                    echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+                    fi
 
                     cd /tmp/cfn
 
@@ -1666,7 +1694,7 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # Install desktop environment and DCV?
+          # Install desktop environment and DCV
           export installDCV="${installDCV}"
           case $installDCV in
             Yes)
@@ -1882,7 +1910,7 @@ Resources:
             Yes) # https://webmin.com/download/
               cd /tmp/cfn
               curl -s -L -O https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
-              echo 'Y' | sh ./setup-repos.sh
+              echo 'Y' | sh ./setup-repos.sh -f
               yum install -q -y webmin
               ;;
           esac
@@ -2030,6 +2058,10 @@ Outputs:
     Condition: createSgEIC
     Description: EC2 Instance Connect
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?connType=standard&instanceId=${ec2Instance}&osUser=ec2-user&sshPort=22#/"
+
+  EC2serialConsole:
+    Description: EC2 Serial Console
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?&connType=serial&instanceId=${ec2Instance}&serialPort=0#/"
 
   SSMsessionManager:
     Condition: noDCV
