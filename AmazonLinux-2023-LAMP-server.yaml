@@ -1388,7 +1388,17 @@ Resources:
                     dnf install -q -y php-imagick
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
-                      yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
+                      if (php --version | grep -q '8.3'); then
+                        pecl download Imagick
+                        tar -xf imagick*.tgz && rm -f imagick*.tgz && cd imagick*
+                        phpize
+                        ./configure
+                        make
+                        make install
+                        cd /tmp/cfn
+                      else
+                        yes 'no' | sudo pecl install -f --configureoptions 'with-imagick="autodetect"' imagick
+                      fi
                       if [ $? -eq 0 ]; then
                         echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
                       fi
@@ -1409,7 +1419,7 @@ Resources:
                     # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
                     dnf install -q -y php-memcached
                     if (! php -m | grep -q memcached); then
-                      dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel
+                      dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel libzstd-devel
                       yes 'no' | pecl install --configureoptions 'with-libmemcached-dir="yes" with-zlib-dir="yes" with-system-fastlz="no" enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
                       if [ $? -eq 0 ]; then
                         echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
@@ -1531,13 +1541,13 @@ Resources:
 
           # Update OS
           dnf update -q -y
+          sleep 30
+
           # dnf-automatic: https://dnf.readthedocs.io/en/latest/automatic.html
           dnf install -q -y dnf-automatic
           sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
           sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
           systemctl enable dnf-automatic-install.timer
-          dnf clean all
-          sleep 30
 
           # https://github.com/amazonlinux/amazon-linux-2023/issues/493
           # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
