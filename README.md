@@ -16,7 +16,7 @@ The template provides the following features:
 - Amazon Linux 2/Ubuntu Linux: [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote display protocol server
 - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
 - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
-- Amazon Linux: [PHP 8](https://www.php.net/releases/8.1/en.php) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, libsodium, zip, etc)
+- Amazon Linux: [PHP 8](https://www.php.net/releases/8.1/en.php) with common PHP extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) compiled [*](#compiling-php-extensions-on-amazon-linux-2023-al2023)
 - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) using [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
 - [Composer](https://getcomposer.org/)
 - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
@@ -32,7 +32,6 @@ The template provides the following features:
 - [EC2 IAM role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) for [DCV license verification](https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html#setting-up-license-ec2), [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/setup-instance-permissions.html), [CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-iam-roles-for-cloudwatch-agent.html#create-iam-roles-for-cloudwatch-agent-roles), [Mountpoint for S3](https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md#iam-permissions), [Code Deploy](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEC2RoleforAWSCodeDeployLimited.html), [X-Ray](https://docs.aws.amazon.com/xray/latest/devguide/security_iam_service-with-iam.html#xray-permissions-aws) and [Route 53](https://certbot-dns-route53.readthedocs.io/en/stable/)
 - [AWS Backup](https://aws.amazon.com/backup/) to protect EC2 instance data
 - [Webmin](https://webmin.com/) web-based system administration
-
 
 
 ## Notice
@@ -167,6 +166,9 @@ sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-c
 
 Refer to [How do I install and configure the unified CloudWatch agent to push metrics and logs from my EC2 instance to CloudWatch?](https://repost.aws/knowledge-center/cloudwatch-push-metrics-unified-agent) for more details.
 
+
+## Compiling PHP extensions on Amazon Linux 2023 (AL2023)
+If you are looking to compile PHP extensions on AL2023, refer to community article [How do I compile PHP extensions on Amazon Linux 2023?](https://repost.aws/articles/ARM9q-NiODRKC9V7N_jJnNbg/how-do-i-compile-php-extensions-on-amazon-linux-2023)
 
 
 ## About EC2 instance
