@@ -1193,19 +1193,6 @@ Resources:
               mode: "000755"
               owner: "ubuntu"
               group: "ubuntu"
-            "/home/ubuntu/update-awscli":
-              content: |
-                #!/bin/bash
-                cd /tmp
-                sudo rm -f /tmp/awscliv2.zip
-                curl https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
-                unzip -q -o awscliv2.zip
-                /usr/bin/aws --version
-                sudo ./aws/install --update -b /usr/bin
-                /usr/bin/aws --version
-              mode: "000755"
-              owner: "ubuntu"
-              group: "ubuntu"
             "/home/ubuntu/update-mountpoint-s3":
               content: |
                 #!/bin/bash
@@ -1729,9 +1716,7 @@ Resources:
           apt-get remove -q -y awscli
           cd /tmp/cfn
           # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
-          unzip -q -o awscliv2.zip
-          ./aws/install -b /usr/bin
+          snap install aws-cli --classic
           echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
 
           # Update OS
