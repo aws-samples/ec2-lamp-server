@@ -1621,6 +1621,12 @@ Resources:
                       echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
                     fi
 
+                    # php-timezonedb: https://github.com/php/pecl-datetime-timezonedb/blob/master/package.xml
+                    yes 'no' | pecl install -f timezonedb
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=timezonedb.so' > /etc/php.d/25-timezonedb.ini
+                    fi
+
                     cd /tmp/cfn
 
                     # Composer: https://getcomposer.org/download/
@@ -1637,6 +1643,12 @@ Resources:
                     ;;
                 esac
               mode: "000755"
+              owner: "root"
+              group: "root"
+            "/root/index.php":
+              content: |
+                <?php phpinfo(); ?>
+              mode: "000644"
               owner: "root"
               group: "root"
           commands:
@@ -1789,6 +1801,8 @@ Resources:
               chmod -R 2775 /var/www/html
               find /var/www/html -type d -exec sudo chmod 2775 {} \;
               find /var/www/html -type f -exec sudo chmod 0664 {} \;
+              
+              cp /root/index.php /var/www/html/
 
               systemctl restart httpd
               ;;
@@ -1843,6 +1857,8 @@ Resources:
               chmod -R 2775 /usr/share/nginx/html
               find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
               find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
+              cp /root/index.php /usr/share/nginx/html/
 
               systemctl restart nginx
               ;;
@@ -1997,7 +2013,11 @@ Resources:
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
+        - UID:
+            !Select [
+              3,
+              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+            ]
       BackupVaultTags:
         {
           "StackName": !Ref AWS::StackName,

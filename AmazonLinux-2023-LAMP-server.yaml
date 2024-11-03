@@ -1341,7 +1341,7 @@ Resources:
                     if (! php -m | grep -q apcu); then
                       yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
                       if [ $? -eq 0 ]; then
-                        echo 'extension=apcu.so' > /etc/php.d/42-apcu.ini
+                        echo 'extension=apcu.so' > /etc/php.d/40-apcu.ini
                       fi
                     fi
 
@@ -1350,7 +1350,7 @@ Resources:
                     if (! php -m | grep -q igbinary); then
                       yes 'no' | pecl install igbinary
                       if [ $? -eq 0 ]; then
-                        echo 'extension=igbinary.so' > /etc/php.d/30-igbinary.ini
+                        echo 'extension=igbinary.so' > /etc/php.d/25-igbinary.ini
                       fi
                     fi
 
@@ -1359,7 +1359,7 @@ Resources:
                     if (! php -m | grep -q msgpack); then
                       yes 'no' | pecl install msgpack
                       if [ $? -eq 0 ]; then
-                        echo 'extension=msgpack.so' > /etc/php.d/30-msgpack.ini
+                        echo 'extension=msgpack.so' > /etc/php.d/25-msgpack.ini
                       fi
                     fi
 
@@ -1368,7 +1368,7 @@ Resources:
                     if (! php -m | grep -q lzf); then
                       yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
                       if [ $? -eq 0 ]; then
-                        echo 'extension=lzf.so' > /etc/php.d/40-lzf.ini
+                        echo 'extension=lzf.so' > /etc/php.d/25-lzf.ini
                       fi
                     fi
 
@@ -1378,7 +1378,7 @@ Resources:
                       dnf install -q -y libzstd-devel
                       yes 'no' | pecl install zstd
                       if [ $? -eq 0 ]; then
-                        echo 'extension=zstd.so' > /etc/php.d/40-zstd.ini
+                        echo 'extension=zstd.so' > /etc/php.d/25-zstd.ini
                       fi
                     fi
 
@@ -1411,7 +1411,7 @@ Resources:
                       dnf install -q -y redis6-devel lz4-devel
                       yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
                       if [ $? -eq 0 ]; then
-                        echo 'extension=redis.so' > /etc/php.d/41-redis.ini
+                        echo 'extension=redis.so' > /etc/php.d/40-redis.ini
                       fi
                     fi
 
@@ -1422,7 +1422,7 @@ Resources:
                       dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel libzstd-devel
                       yes 'no' | pecl install --configureoptions 'with-libmemcached-dir="yes" with-zlib-dir="yes" with-system-fastlz="no" enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
                       if [ $? -eq 0 ]; then
-                        echo 'extension=memcached.so' > /etc/php.d/41-memcached.ini
+                        echo 'extension=memcached.so' > /etc/php.d/40-memcached.ini
                       fi
                     fi
 
@@ -1433,7 +1433,7 @@ Resources:
                       dnf install -q -y libzip-devel
                       yes 'no' | pecl install zip
                       if [ $? -eq 0 ]; then
-                        echo 'extension=zip.so' > /etc/php.d/20-zip.ini
+                        echo 'extension=zip.so' > /etc/php.d/25-zip.ini
                       fi
                     fi
 
@@ -1444,7 +1444,7 @@ Resources:
                       dnf install -q -y libsodium-devel
                       yes 'no' | pecl install -f libsodium
                       if [ $? -eq 0 ]; then
-                        echo 'extension=sodium.so' > /etc/php.d/20-sodium.ini
+                        echo 'extension=sodium.so' > /etc/php.d/25-sodium.ini
                       fi
                     fi
 
@@ -1460,9 +1460,29 @@ Resources:
                       make
                       make install
                       if [ $? -eq 0 ]; then
-                        echo 'extension=lz4.so' > /etc/php.d/40-lz4.ini
+                        echo 'extension=lz4.so' > /etc/php.d/25-lz4.ini
                       fi
                     fi
+
+                    # php-timezonedb: https://github.com/php/pecl-datetime-timezonedb/blob/master/package.xml
+                    dnf install -q -y php-timezonedb
+                    if (! php -m | grep -q timezonedb); then
+                      yes 'no' | pecl install -f timezonedb
+                      if [ $? -eq 0 ]; then
+                        echo 'extension=timezonedb.so' > /etc/php.d/25-timezonedb.ini
+                      fi
+                    fi
+
+                    # php-ssh2: https://github.com/php/pecl-networking-ssh2/blob/master/package.xml
+                    dnf install -q -y php-ssh2
+                    if (! php -m | grep -q timezonedb); then
+                      sudo dnf install -y libssh2-devel
+                      yes 'no' | pecl install --configureoptions 'with-ssh2="yes"' ssh2
+                      if [ $? -eq 0 ]; then
+                        echo 'extension=ssh2.so' > /etc/php.d/25-ssh2.ini
+                      fi
+                    fi
+                    
                     cd /tmp/cfn
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/371
@@ -1480,6 +1500,12 @@ Resources:
                     ;;
                 esac
               mode: "000755"
+              owner: "root"
+              group: "root"
+            "/root/index.php":
+              content: |
+                <?php phpinfo(); ?>
+              mode: "000644"
               owner: "root"
               group: "root"
           commands:
@@ -1597,6 +1623,8 @@ Resources:
               chmod -R 2775 /var/www/html
               find /var/www/html -type d -exec sudo chmod 2775 {} \;
               find /var/www/html -type f -exec sudo chmod 0664 {} \;
+              
+              cp /root/index.php /var/www/html/
 
               systemctl restart httpd
               ;;
@@ -1649,6 +1677,8 @@ Resources:
               chmod -R 2775 /usr/share/nginx/html
               find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
               find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
+              cp /root/index.php /usr/share/nginx/html/
 
               systemctl restart nginx
               ;;
@@ -1795,8 +1825,8 @@ Resources:
               DeleteAfterDays: !Ref deleteAfterDays
       BackupPlanTags:
         {
-          "StackName": !Sub "${AWS::StackName}",
-          "StackId": !Sub "${AWS::StackId}",
+          "StackName": !Ref AWS::StackName,
+          "StackId": !Ref AWS::StackId,
           "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
         }
 
@@ -1804,7 +1834,6 @@ Resources:
     Type: AWS::Backup::BackupVault
     Condition: createBackup
     UpdateReplacePolicy: Delete
-    DeletionPolicy: !Ref AWS::NoValue
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
@@ -1815,8 +1844,8 @@ Resources:
             ]
       BackupVaultTags:
         {
-          "StackName": !Sub "${AWS::StackName}",
-          "StackId": !Sub "${AWS::StackId}",
+          "StackName": !Ref AWS::StackName,
+          "StackId": !Ref AWS::StackId,
           "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
         }
 
