@@ -1475,7 +1475,7 @@ Resources:
 
                     # php-ssh2: https://github.com/php/pecl-networking-ssh2/blob/master/package.xml
                     dnf install -q -y php-ssh2
-                    if (! php -m | grep -q timezonedb); then
+                    if (! php -m | grep -q ssh2); then
                       sudo dnf install -y libssh2-devel
                       yes 'no' | pecl install --configureoptions 'with-ssh2="yes"' ssh2
                       if [ $? -eq 0 ]; then
