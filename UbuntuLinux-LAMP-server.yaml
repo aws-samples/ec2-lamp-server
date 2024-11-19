@@ -29,6 +29,7 @@ Metadata:
           - ec2KeyPair
           - osVersion
           - instanceType
+          - ec2TerminationProtection
       - Label:
           default: Network
         Parameters:
@@ -73,6 +74,8 @@ Metadata:
         default: "Instance name"
       ec2KeyPair:
         default: "Keypair name"
+      ec2TerminationProtection:
+        default: "Enable EC2 termination protection to prevent accidental deletion"
 
       volumeSize:
         default: "Volume size (GiB)"
@@ -146,6 +149,13 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
+  ec2TerminationProtection:
+    Type: String
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
+    Default: "Yes"
+    AllowedValues:
+      - "Yes"
+      - "No"
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -640,8 +650,8 @@ Conditions:
 
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
-  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
-  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  enableProtection: !Equals [!Ref ec2TerminationProtection, "Yes"]
+
   hasEIC:
     !Not [
       !Equals [
@@ -669,12 +679,16 @@ Conditions:
     ]
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
-  createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
+  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
 
   installDCV: !Equals [!Ref installDCV, "Yes"]
   noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
+
+  createBackup: !Equals [!Ref enableBackup, "Yes"]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -1356,15 +1370,9 @@ Resources:
                 sysctl -w net.ipv6.conf.default.disable_ipv6=1
                 export DEBIAN_FRONTEND=noninteractive
 
-                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
-                apt-get install -q -y linux-headers-aws
-                apt-get install -q -y linux-modules-extra-aws
-                apt-get install -q -y usbutils
-                # dcvusbdriverinstaller --quiet
-
                 python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
-                apt-get update -y
+                apt-get update
                 apt-get upgrade -q -y
 
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
@@ -1478,6 +1486,12 @@ Resources:
 
                 # USB DKMS
                 apt-get install -q -y dkms
+                systemctl enable dkms
+
+                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
+                apt-get install -q -y linux-headers-aws linux-modules-extra-aws
+                apt-get install -q -y usbutils
+                # dcvusbdriverinstaller --quiet
 
                 # Disable reporting : https://wiki.ubuntu.com/Apport
                 sed -i "s/enabled=1/enable=0/g" /etc/default/apport
@@ -1660,7 +1674,7 @@ Resources:
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
       Monitoring: true
-      DisableApiTermination: true
+      DisableApiTermination: !If [enableProtection, true, false]
       EbsOptimized: true
       SecurityGroupIds:
         - !Ref securityGroup
@@ -1710,7 +1724,7 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # Install desktop environment and DCV
+          # Install desktop environment and DCV?
           export installDCV="${installDCV}"
           case $installDCV in
             Yes)
@@ -2025,13 +2039,13 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   SSMsessionManagerDCV:
-    Description: SSM Session Manager ("sudo passwd ubuntu" to change password)
     Condition: installDCV
+    Description: SSM Session Manager ("sudo passwd ubuntu" to set password for DCV login)
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:
-    Description: DCV web browser client (login as ubuntu)
     Condition: installDCV
+    Description: DCV web browser client (login as ubuntu)
     Value:
       !If [
         displayPublicIP,
@@ -2045,8 +2059,8 @@ Outputs:
     Value:
       !If [
         displayPublicIP,
-        !Sub "http://${ec2Instance.PublicIp}",
-        !Sub "http://${ec2Instance.PrivateIp}",
+        !Sub "https://${ec2Instance.PublicIp}",
+        !Sub "https://${ec2Instance.PrivateIp}",
       ]
 
   WebminUrl:

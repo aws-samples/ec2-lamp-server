@@ -29,6 +29,7 @@ Metadata:
           - ec2KeyPair
           - processorArchitecture
           - instanceType
+          - ec2TerminationProtection
       - Label:
           default: Network
         Parameters:
@@ -72,6 +73,8 @@ Metadata:
         default: "Instance name"
       ec2KeyPair:
         default: "Keypair name"
+      ec2TerminationProtection:
+        default: "Enable EC2 termination protection to prevent accidental deletion"
 
       volumeSize:
         default: "Volume size (GiB)"
@@ -85,14 +88,14 @@ Metadata:
       displayPublicIP:
         default: "EC2 in public subnet with public IP assigned?"
       assignStaticIP:
-        default: "[Elastic IP] Assign static public internet IPv4 address?"
+        default: "[Elastic IP] Assign static public internet IPv4 address"
 
       ingressIPv4:
         default: "Allowed IPv4 prefix"
       ingressIPv6:
         default: "Allowed IPv6 prefix"
       allowSSHport:
-        default: "Allow SSH from internet"
+        default: "Allow SSH from network"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -137,6 +140,13 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
+  ec2TerminationProtection:
+    Type: String
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
+    Default: "Yes"
+    AllowedValues:
+      - "Yes"
+      - "No"
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -609,8 +619,8 @@ Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
-  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
-  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  enableProtection: !Equals [!Ref ec2TerminationProtection, "Yes"]
+
   hasEIC:
     !Not [
       !Equals [
@@ -638,9 +648,13 @@ Conditions:
     ]
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
-  createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
+  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
+
+  createBackup: !Equals [!Ref enableBackup, "Yes"]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -1524,7 +1538,7 @@ Resources:
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
       Monitoring: true
-      DisableApiTermination: true
+      DisableApiTermination: !If [enableProtection, true, false]
       EbsOptimized: true
       SecurityGroupIds:
         - !Ref securityGroup
@@ -1715,8 +1729,7 @@ Resources:
               systemctl enable mariadb
               ;;
             PostgreSQL)
-              dnf clean metadata
-              dnf install -q -y postgresql1*-server
+              dnf install -q -y postgresql16*-server
               /usr/bin/postgresql-setup --initdb
               systemctl enable postgresql
               ;;
@@ -1837,11 +1850,7 @@ Resources:
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID:
-            !Select [
-              3,
-              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-            ]
+        - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
       BackupVaultTags:
         {
           "StackName": !Ref AWS::StackName,
@@ -1917,8 +1926,8 @@ Outputs:
     Value:
       !If [
         displayPublicIP,
-        !Sub "http://${ec2Instance.PublicIp}",
-        !Sub "http://${ec2Instance.PrivateIp}",
+        !Sub "https://${ec2Instance.PublicIp}",
+        !Sub "https://${ec2Instance.PrivateIp}",
       ]
 
   WebminUrl:

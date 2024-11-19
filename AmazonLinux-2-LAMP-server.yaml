@@ -29,6 +29,7 @@ Metadata:
           - ec2KeyPair
           - processorArchitecture
           - instanceType
+          - ec2TerminationProtection
       - Label:
           default: Network
         Parameters:
@@ -73,6 +74,8 @@ Metadata:
         default: "Instance name"
       ec2KeyPair:
         default: "Keypair name"
+      ec2TerminationProtection:
+        default: "Enable EC2 termination protection to prevent accidental deletion"
 
       volumeSize:
         default: "Volume size (GiB)"
@@ -86,7 +89,7 @@ Metadata:
       displayPublicIP:
         default: "EC2 in public subnet with public IP assigned?"
       assignStaticIP:
-        default: "[Elastic IP] Assign static public internet IPv4 address?"
+        default: "[Elastic IP] Assign static public internet IPv4 address"
 
       ingressIPv4:
         default: "Allowed IPv4 prefix"
@@ -140,6 +143,13 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
+  ec2TerminationProtection:
+    Type: String
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
+    Default: "Yes"
+    AllowedValues:
+      - "Yes"
+      - "No"
 
   vpcID:
     Type: AWS::EC2::VPC::Id
@@ -618,8 +628,8 @@ Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
-  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
-  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  enableProtection: !Equals [!Ref ec2TerminationProtection, "Yes"]
+
   hasEIC:
     !Not [
       !Equals [
@@ -647,12 +657,16 @@ Conditions:
     ]
   createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
-  createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
+  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
 
   installDCV: !Equals [!Ref installDCV, "Yes"]
   noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
+
+  createBackup: !Equals [!Ref enableBackup, "Yes"]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -1160,7 +1174,7 @@ Resources:
               content: |
                 #!/bin/bash
                 cd /tmp
-                sudo rm -f nice-dcv-el7-$(arch).tgz
+                sudo rm -f /tmp/nice-dcv-el7-$(arch).tgz
                 wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-el7-$(arch).tgz
                 tar -xvzf nice-dcv-el7-$(arch).tgz && cd nice-dcv-*-el7-$(arch)
                 sudo yum install -y ./nice-dcv-server-*.rpm
@@ -1353,10 +1367,6 @@ Resources:
                 #!/bin/bash
                 sysctl -w net.ipv6.conf.all.disable_ipv6=1
                 sysctl -w net.ipv6.conf.default.disable_ipv6=1
-                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
-                yum install -q -y kernel-devel
-                yum install -q -y usbutils
-                #dcvusbdriverinstaller --quiet
 
                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
@@ -1496,6 +1506,12 @@ Resources:
 
                 # USB driver DKMS
                 yum install -q -y dkms
+                systemctl enable dkms
+
+                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
+                yum install -q -y kernel-devel
+                yum install -q -y usbutils
+                #dcvusbdriverinstaller --quiet
               mode: "000740"
               owner: "root"
               group: "root"
@@ -1667,7 +1683,7 @@ Resources:
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
       Monitoring: true
-      DisableApiTermination: true
+      DisableApiTermination: !If [enableProtection, true, false]
       EbsOptimized: true
       SecurityGroupIds:
         - !Ref securityGroup
@@ -2013,11 +2029,7 @@ Resources:
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID:
-            !Select [
-              3,
-              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-            ]
+        - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
       BackupVaultTags:
         {
           "StackName": !Ref AWS::StackName,
@@ -2094,8 +2106,8 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:
-    Description: DCV web browser client (login as ec2-user)
     Condition: installDCV
+    Description: DCV web browser client (login as ec2-user)
     Value:
       !If [
         displayPublicIP,
@@ -2109,8 +2121,8 @@ Outputs:
     Value:
       !If [
         displayPublicIP,
-        !Sub "http://${ec2Instance.PublicIp}",
-        !Sub "http://${ec2Instance.PrivateIp}",
+        !Sub "https://${ec2Instance.PublicIp}",
+        !Sub "https://${ec2Instance.PrivateIp}",
       ]
 
   WebminUrl:
