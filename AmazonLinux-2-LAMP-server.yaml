@@ -619,7 +619,7 @@ Parameters:
       - Pacific/Tarawa
       - Pacific/Tongatapu
       - WET
-    Default: "Etc/UTC"
+    Default: Etc/UTC
   deleteAfterDays:
     Type: Number
     Default: 35
@@ -841,7 +841,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: [ec2.amazonaws.com]
-            Action: ["sts:AssumeRole"]
+            Action: [sts:AssumeRole]
       Path: /
       Policies:
         - !If
@@ -898,15 +898,15 @@ Resources:
                 - Effect: Allow
                   Action:
                     - route53:ChangeResourceRecordSets
-                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}
                   Condition:
                     IpAddress:
                       aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
-                      "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+                      route53:ChangeResourceRecordSetsRecordTypes: [TXT]
                     ForAllValues:StringLike:
-                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                        ["_acme-challenge.*"]
+                      route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                        [_acme-challenge.*]
           - !Ref AWS::NoValue
         - !If
           - hasR53Zone
@@ -922,15 +922,15 @@ Resources:
                 - Effect: Allow
                   Action:
                     - route53:ChangeResourceRecordSets
-                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}
                   Condition:
                     IpAddress:
                       aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
-                      "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
+                      route53:ChangeResourceRecordSetsRecordTypes: [A]
                     ForAllValues:StringLike:
-                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                        ["site.example.com"]
+                      route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                        ["*.example.com"]
           - !Ref AWS::NoValue
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -1168,6 +1168,8 @@ Resources:
             - 00_dcv_install
           php_install:
             - 01_php_install
+          lamp_install:
+            - 02_lamp_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ec2-user/update-dcv":
@@ -1211,95 +1213,6 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
-            "/etc/systemd/system/mount-s3-helper.service":
-              content: |
-                # https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md#automatically-mounting-an-s3-bucket-at-boot
-                [Unit]
-                Description=Mountpoint for S3 helper
-                Wants=network.target
-
-                [Service]
-                Restart=on-failure
-                RestartSec=5
-                Type=forking
-                ExecStart=/opt/mount-s3-helper.sh
-                ExecStop=/usr/bin/fusermount -u /mnt/s3-bucket-mount
-
-                [Install]
-                WantedBy=remote-fs.target
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/opt/mount-s3-helper.sh":
-              content: !Sub
-                - |
-                  #!/bin/bash
-                  S3_BUCKET_NAME=${S3-BUCKET-NAME}
-                  MOUNT_FOLDER=/mnt/s3-bucket-mount
-                  USER=ec2-user
-                  GROUP=apache
-
-                  USERID=$(cat /etc/passwd | grep ^$USER: | head -n 1 | cut -d":" -f 3)
-                  GROUPID=$(cat /etc/group | grep ^$GROUP: | head -n 1 | cut -d":" -f 3)
-
-                  mkdir -p $MOUNT_FOLDER
-                  /usr/bin/mount-s3 --uid $USERID --gid $GROUPID --allow-overwrite --allow-delete --allow-other $S3_BUCKET_NAME $MOUNT_FOLDER
-                - S3-BUCKET-NAME:
-                    !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-              mode: "000744"
-              owner: "root"
-              group: "root"
-            "/etc/systemd/system/route53-updater.service":
-              content: |
-                [Unit]
-                Description=Route53 DNS updater
-                After=network.target
-
-                [Service]
-                Restart=yes
-                RestartSec=5
-                Type=oneshot
-                ExecStart=/opt/route53-updater.sh
-                RemainAfterExit=true
-
-                [Install]
-                WantedBy=multi-user.target
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/opt/route53-updater.sh":
-              content: !Sub
-                - |
-                  #!/bin/bash
-                  R53_ZONE_ID=${R53-ZONE-ID}
-                  DNS_ENTRY=site.example.com
-
-                  AWS_IP=`curl -s checkip.amazonaws.com`
-                  aws route53 change-resource-record-sets --cli-input-json '{
-                  "HostedZoneId": "/hostedzone/'$R53_ZONE_ID'",
-                  "ChangeBatch": {
-                      "Comment": "Stack ${AWS::StackName}",
-                      "Changes": [
-                          {
-                            "Action": "UPSERT",
-                            "ResourceRecordSet": {
-                                "Name": "'$DNS_ENTRY'",
-                                "Type": "A",
-                                "TTL": 60,
-                              "ResourceRecords": [
-                                {
-                                  "Value": "'$AWS_IP'"
-                                }
-                              ]
-                            }
-                          }
-                      ]
-                  }}'
-                - R53-ZONE-ID:
-                    !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-              mode: "000755"
-              owner: "root"
-              group: "root"
             "/home/ec2-user/update-certbot":
               content: |
                 #!/bin/bash
@@ -1309,6 +1222,33 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
+            "/usr/lib/systemd/system/certbot-renew.timer":
+              content: |
+                [Unit]
+                Description=This is the timer to set the schedule for automated renewals
+
+                [Timer]
+                OnCalendar=*-*-* 00/12:00:00
+                RandomizedDelaySec=12hours
+                Persistent=true
+
+                [Install]
+                WantedBy=timers.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.service":
+              content: |
+                [Unit]
+                Description=This service automatically renews any certbot certificates found
+
+                [Service]
+                EnvironmentFile=/etc/sysconfig/certbot
+                Type=oneshot
+                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+              mode: "000644"
+              owner: "root"
+              group: "root"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
@@ -1389,18 +1329,6 @@ Resources:
                     ;;
                 esac
 
-                # S3 bucket access?
-                if [[ -z "${s3BucketName}" ]]; then
-                  rm /etc/systemd/system/mount-s3-helper.service
-                  rm /opt/mount-s3-helper.sh
-                fi
-
-                # Route 53 access?
-                if [[ -z "${r53ZoneID}" ]]; then
-                  rm /etc/systemd/system/route53-updater.service
-                  rm /opt/route53-updater.sh
-                fi
-
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
                 systemctl daemon-reload
@@ -1431,33 +1359,70 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
-            "/usr/lib/systemd/system/certbot-renew.timer":
-              content: |
-                [Unit]
-                Description=This is the timer to set the schedule for automated renewals
+            "/root/install-sw.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
 
-                [Timer]
-                OnCalendar=*-*-* 00/12:00:00
-                RandomizedDelaySec=12hours
-                Persistent=true
+                # EPEL: https://docs.fedoraproject.org/en-US/epel/
+                amazon-linux-extras install -y epel
 
-                [Install]
-                WantedBy=timers.target
-              mode: "000644"
+                # Update OS
+                yum clean all
+                yum update -q -y
+
+                # remove AWSCLI version 1
+                yum remove -q -y awscli
+                cd /tmp/cfn
+                # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+                curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
+                unzip -q -o awscliv2.zip
+                ./aws/install -b /usr/bin
+                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
+
+                # yum-cron
+                yum install -q -y yum-cron
+                sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
+                systemctl enable yum-cron
+
+                # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-commandline-fleet.html#download-CloudWatch-Agent-on-EC2-Instance-commandline-fleet
+                if (arch | grep -q x86); then
+                  curl -s -L -O https://amazoncloudwatch-agent-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+                else
+                  curl -s -L -O https://amazoncloudwatch-agent-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/amazon_linux/arm64/latest/amazon-cloudwatch-agent.rpm
+                fi
+                yum install -q -y ./amazon-cloudwatch-agent.rpm
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+                systemctl enable --now amazon-cloudwatch-agent
+
+                # Webmin: https://webmin.com/download/
+                export webmin="${installWebmin}"
+                case $webmin in
+                  Yes)
+                    cd /tmp/cfn
+                    curl -s -L -O https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
+                    echo 'Y' | sh ./setup-repos.sh -f
+                    yum install -q -y webmin
+                    ;;
+                esac
+
+                # USB and GPU driver DKMS
+                yum install -q -y dkms
+                systemctl enable dkms
+
+                # Kernel headers for GPU and USB remotization
+                yum install -q -y kernel-devel
+                yum install -q -y usbutils
+
+                rm -f ${!0}
+              mode: "000740"
               owner: "root"
               group: "root"
-            "/usr/lib/systemd/system/certbot-renew.service":
-              content: |
-                [Unit]
-                Description=This service automatically renews any certbot certificates found
-
-                [Service]
-                EnvironmentFile=/etc/sysconfig/certbot
-                Type=oneshot
-                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
-              mode: "000644"
-              owner: "root"
-              group: "root"
+          commands:
+            install:
+              command: "/root/install-sw.sh >> /var/log/install-sw.log 2>&1"
+              ignoreErrors: "true"
         00_dcv_install:
           files:
             "/root/install-dcv.sh":
@@ -1492,9 +1457,6 @@ Resources:
                 usermod -a -G $GROUP dcv
                 systemctl enable cups
 
-                # EPEL: https://docs.fedoraproject.org/en-US/epel/
-                amazon-linux-extras install -y epel
-
                 # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
                 cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
                 sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
@@ -1504,20 +1466,13 @@ Resources:
                 # Console session support
                 sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
-                # USB driver DKMS
-                yum install -q -y dkms
-                systemctl enable dkms
-
-                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
-                yum install -q -y kernel-devel
-                yum install -q -y usbutils
-                #dcvusbdriverinstaller --quiet
+                rm -f ${!0}
               mode: "000740"
               owner: "root"
               group: "root"
           commands:
             install:
-              command: "/root/install-dcv.sh > /var/log/install-dcv.log"
+              command: "/root/install-dcv.sh > /var/log/install-dcv.log 2>&1"
               ignoreErrors: "true"
         01_php_install:
           files:
@@ -1658,7 +1613,9 @@ Resources:
 
                     ;;
                 esac
-              mode: "000755"
+
+                rm -f ${!0}
+              mode: "000740"
               owner: "root"
               group: "root"
             "/root/index.php":
@@ -1669,7 +1626,204 @@ Resources:
               group: "root"
           commands:
             install:
-              command: "/root/install-php.sh > /var/log/install-php.log"
+              command: "/root/install-php.sh > /var/log/install-php.log 2>&1"
+              ignoreErrors: "true"
+        02_lamp_install:
+          files:
+            "/root/install-lamp.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
+                yum install -q -y mount-s3
+                if (yum info mount-s3  | grep -q Installed); then
+                  rm -f /home/ec2-user/update-mountpoint-s3
+                else
+                  if (uname -a | grep -q x86); then
+                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+                  else
+                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+                  fi
+                  yum install -q -y ./mount-s3.rpm
+                fi
+
+                # Redis & Memcached
+                amazon-linux-extras install -y redis6 memcached1.5
+                systemctl enable --now redis memcached
+
+                # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
+                yum install -q -y augeas-libs
+                amazon-linux-extras install -y python3.8        
+                /usr/bin/python3.8 -m venv /opt/certbot/
+                /opt/certbot/bin/pip install --upgrade pip
+                /opt/certbot/bin/pip install certbot
+                /opt/certbot/bin/pip install certbot-dns-route53
+                ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+
+                # Certbot update script
+                # https://certbot.org/renewal-setup: use systemd timer
+                touch /etc/sysconfig/certbot
+                systemctl daemon-reload
+                systemctl enable certbot-renew.timer
+
+                # Web server
+                export WEB="${webOption}"
+                case $WEB in
+                  Apache)
+                    /opt/certbot/bin/pip install certbot-apache
+                    echo "sudo /opt/certbot/bin/pip install --upgrade certbot-apache" >> /home/ec2-user/update-certbot
+                    yum install -q -y httpd mod_ssl mod_fcgid
+                    systemctl enable httpd
+                    cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
+                    # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
+                    sed -i "s/^LoadModule mpm_prefork_module/#&/" /etc/httpd/conf.modules.d/00-mpm.conf
+                    sed -i "/^#LoadModule mpm_event_module/a LoadModule mpm_event_module modules/mod_mpm_event.so" /etc/httpd/conf.modules.d/00-mpm.conf
+                           cp /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf."`date +"%Y-%m-%d"`"
+                    # Harden TLS
+                    sed -i "s/^SSLProtocol/#&/" /etc/httpd/conf.d/ssl.conf
+                    sed -i "/^#SSLProtocol/a SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.d/ssl.conf
+                    sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
+                    sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
+                           # virtual host: for Certbot
+                    cat << EoF > /etc/httpd/conf.d/www.conf
+                <VirtualHost *:80>
+                  ServerAdmin webmaster@localhost
+                  DocumentRoot /var/www/html
+                </VirtualHost>
+                EoF
+
+                    # Change permissions and ownership
+                    usermod -a -G apache ec2-user
+                    chown -R ec2-user:apache /var/www/html
+                    chmod -R 2775 /var/www/html
+                    find /var/www/html -type d -exec sudo chmod 2775 {} \;
+                    find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
+                    cp /root/index.php /var/www/html/
+
+                    systemctl restart httpd
+                    ;;
+                  Nginx)
+                    /opt/certbot/bin/pip install certbot-nginx
+                    echo "sudo /opt/certbot/bin/pip install --upgrade certbot-nginx" >> /home/ec2-user/update-certbot
+                    amazon-linux-extras install -y nginx1
+                    systemctl enable nginx
+
+                    cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
+
+                    # enable sites-enabled and sites-available folders
+                    mkdir -p /etc/nginx/sites-enabled
+                    mkdir -p /etc/nginx/sites-available
+                    cp /etc/nginx/nginx.conf /etc/nginx/sites-available/default
+                    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+                    # nginx.conf: comment out http site
+                    sed -i "38,55s/^/##/g" /etc/nginx/nginx.conf
+                    sed -i "/^http/a \    \include /etc/nginx/sites-enabled/*;" /etc/nginx/nginx.conf
+
+                    # build sites-available/default config
+                    sed -i "1,36s/^/#/g" /etc/nginx/sites-available/default
+                    sed -i "83,84s/^/#/g" /etc/nginx/sites-available/default
+
+                    # default: enable HTTPS
+                    sed -i "58,82s/^#//g" /etc/nginx/sites-available/default
+                    sed -i "s/ssl_ciphers/#&/" /etc/nginx/sites-available/default
+                    sed -i "/#ssl_ciphers/a \        \ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;" /etc/nginx/sites-available/default
+                    sed -i "/^#/d" /etc/nginx/sites-available/default
+
+                    # dummy HTTPS cert
+                    mkdir -p /etc/pki/tls/nginx
+                    openssl req -x509 -newkey rsa:2048 -keyout /etc/pki/tls/nginx/key.pem -out /etc/pki/tls/nginx/cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=State/L=City/O=Company/OU=Dept/CN=Host"
+                    sed -i "s/ssl_certificate/#&/" /etc/nginx/sites-available/default
+                    sed -i "/#ssl_certificate /a \        \ssl_certificate \"/etc/pki/tls/nginx/cert.pem\";" /etc/nginx/sites-available/default
+                    sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-available/default
+                    sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/key.pem\";" /etc/nginx/sites-available/default
+
+                    cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
+
+                    # merge http and https and set default_server
+                    sed -i "18,20d;23,24d;36,45d" /etc/nginx/sites-available/default
+                    sed -i "s/80;/80 default_server;/g" /etc/nginx/sites-available/default
+                    sed -i "s/http2;/http2 default_server;/g" /etc/nginx/sites-available/default
+
+                    # remove leading white spaces and commented lines
+                    sed -i "/^#/d" /etc/nginx/sites-available/default
+                    sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
+
+                    # Change permissions and ownership
+                    usermod -a -G nginx ec2-user
+                    usermod -a -G nginx apache
+                    chown -R ec2-user:nginx /usr/share/nginx/html
+                    chmod -R 2775 /usr/share/nginx/html
+                    find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
+                    find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
+                    cp /root/index.php /usr/share/nginx/html/
+
+                    systemctl restart nginx
+                    ;;
+                  none)
+                    yum remove -q -y httpd
+                    ;;
+                esac
+
+                # Database
+                export DB="${databaseOption}"
+                case $DB in
+                  MySQL8.0) # https://dev.mysql.com/downloads/repo/yum/
+                    # https://dev.mysql.com/doc/refman/8.0/en/checking-rpm-signature.html
+                    rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+                    # https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html
+                    yum install -q -y https://repo.mysql.com/mysql80-community-release-el7-11.noarch.rpm
+                    yum install -q -y mysql-community-server
+
+                    systemctl enable mysqld
+                    ;;
+                  MySQL8.4) # https://dev.mysql.com/downloads/repo/yum/
+                    # https://dev.mysql.com/doc/refman/8.4/en/checking-rpm-signature.html
+                    rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+                    # https://dev.mysql.com/doc/refman/8.4/en/linux-installation-yum-repo.html
+                    yum install -q -y https://repo.mysql.com/mysql84-community-release-el7-1.noarch.rpm
+                    yum install -q -y mysql-community-server
+
+                    systemctl enable mysqld
+                    ;;
+                  MariaDB)
+                    amazon-linux-extras install -y mariadb10.5
+                    systemctl enable mariadb
+                    ;;
+                  PostgreSQL)
+                    amazon-linux-extras enable postgresql14
+                    yum clean metadata
+                    yum install -q -y postgresql postgresql-server
+                    /usr/bin/postgresql-setup --initdb
+                    systemctl enable postgresql
+                    ;;
+                esac
+
+                # NFS client
+                yum install -q -y amazon-efs-utils
+
+                # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-linux.html
+                yum install -q -y ruby
+                yum install -q -y codedeploy-agent
+                if [ ! -f /opt/codedeploy-agent/bin/codedeploy-agent ]; then
+                  curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+                  chmod +x ./install
+                  ./install auto
+                fi
+
+                rm -f ${!0}
+              mode: "000740"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
     Properties:
       ImageId: # https://aws.amazon.com/about-aws/whats-new/2021/11/amazon-linux-2-ami-kernel-5-10/
@@ -1722,7 +1876,7 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # Install desktop environment and DCV
+          # Install desktop environment and DCV?
           export installDCV="${installDCV}"
           case $installDCV in
             Yes)
@@ -1730,222 +1884,11 @@ Resources:
               ;;
           esac 
 
-          # remove AWSCLI version 1
-          yum remove -q -y awscli
-
-          cd /tmp/cfn
-          # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
-          unzip -q -o awscliv2.zip
-          ./aws/install -b /usr/bin
-          echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
-
-          # Update OS
-          yum update -q -y
-          # yum-cron
-          yum install -q -y yum-cron
-          sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
-          systemctl enable yum-cron
-
-          # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
-          yum install -q -y mount-s3
-          if (yum info mount-s3  | grep -q Installed); then
-            rm -f /home/ec2-user/update-mountpoint-s3
-          else
-            if (uname -a | grep -q x86); then
-              curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
-            else
-              curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
-            fi
-            yum install -q -y ./mount-s3.rpm
-          fi
-
-          # Redis & Memcached
-          amazon-linux-extras install -y redis6 memcached1.5
-          systemctl enable --now redis memcached
-
           # Install PHP
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
 
-          # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
-          yum install -q -y augeas-libs
-          amazon-linux-extras install -y python3.8        
-          /usr/bin/python3.8 -m venv /opt/certbot/
-          /opt/certbot/bin/pip install --upgrade pip
-          /opt/certbot/bin/pip install certbot
-          /opt/certbot/bin/pip install certbot-dns-route53
-          ln -s /opt/certbot/bin/certbot /usr/bin/certbot
-
-          # Certbot update script
-          # https://certbot.org/renewal-setup: use systemd timer
-          touch /etc/sysconfig/certbot
-          systemctl daemon-reload
-          systemctl enable certbot-renew.timer
-
-          # Web server
-          export WEB="${webOption}"
-          case $WEB in
-            Apache)
-              /opt/certbot/bin/pip install certbot-apache
-              echo "sudo /opt/certbot/bin/pip install --upgrade certbot-apache" >> /home/ec2-user/update-certbot
-              yum install -q -y httpd mod_ssl mod_fcgid
-              systemctl enable httpd
-
-              cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
-              # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
-              sed -i "s/^LoadModule mpm_prefork_module/#&/" /etc/httpd/conf.modules.d/00-mpm.conf
-              sed -i "/^#LoadModule mpm_event_module/a LoadModule mpm_event_module modules/mod_mpm_event.so" /etc/httpd/conf.modules.d/00-mpm.conf
-
-              cp /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf."`date +"%Y-%m-%d"`"
-              # Harden TLS
-              sed -i "s/^SSLProtocol/#&/" /etc/httpd/conf.d/ssl.conf
-              sed -i "/^#SSLProtocol/a SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.d/ssl.conf
-              sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
-              sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
-
-              # virtual host: for Certbot
-              cat << EoF > /etc/httpd/conf.d/www.conf
-          <VirtualHost *:80>
-            ServerAdmin webmaster@localhost
-            DocumentRoot /var/www/html
-          </VirtualHost>
-          EoF
-
-              # Change permissions and ownership
-              usermod -a -G apache ec2-user
-              chown -R ec2-user:apache /var/www/html
-              chmod -R 2775 /var/www/html
-              find /var/www/html -type d -exec sudo chmod 2775 {} \;
-              find /var/www/html -type f -exec sudo chmod 0664 {} \;
-              
-              cp /root/index.php /var/www/html/
-
-              systemctl restart httpd
-              ;;
-            Nginx)
-              /opt/certbot/bin/pip install certbot-nginx
-              echo "sudo /opt/certbot/bin/pip install --upgrade certbot-nginx" >> /home/ec2-user/update-certbot
-              amazon-linux-extras install -y nginx1
-              systemctl enable nginx
-
-              cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
-              # enable sites-enabled and sites-available folders
-              mkdir -p /etc/nginx/sites-enabled
-              mkdir -p /etc/nginx/sites-available
-              cp /etc/nginx/nginx.conf /etc/nginx/sites-available/default
-              ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-
-              # nginx.conf: comment out http site
-              sed -i "38,55s/^/##/g" /etc/nginx/nginx.conf
-              sed -i "/^http/a \    \include /etc/nginx/sites-enabled/*;" /etc/nginx/nginx.conf
-
-              # build sites-available/default config
-              sed -i "1,36s/^/#/g" /etc/nginx/sites-available/default
-              sed -i "83,84s/^/#/g" /etc/nginx/sites-available/default
-
-              # default: enable HTTPS
-              sed -i "58,82s/^#//g" /etc/nginx/sites-available/default
-              sed -i "s/ssl_ciphers/#&/" /etc/nginx/sites-available/default
-              sed -i "/#ssl_ciphers/a \        \ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;" /etc/nginx/sites-available/default
-              sed -i "/^#/d" /etc/nginx/sites-available/default
-
-              # dummy HTTPS cert
-              mkdir -p /etc/pki/tls/nginx
-              openssl req -x509 -newkey rsa:2048 -keyout /etc/pki/tls/nginx/key.pem -out /etc/pki/tls/nginx/cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=State/L=City/O=Company/OU=Dept/CN=Host"
-              sed -i "s/ssl_certificate/#&/" /etc/nginx/sites-available/default
-              sed -i "/#ssl_certificate /a \        \ssl_certificate \"/etc/pki/tls/nginx/cert.pem\";" /etc/nginx/sites-available/default
-              sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-available/default
-              sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/key.pem\";" /etc/nginx/sites-available/default
-
-              cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
-              # merge http and https and set default_server
-              sed -i "18,20d;23,24d;36,45d" /etc/nginx/sites-available/default
-              sed -i "s/80;/80 default_server;/g" /etc/nginx/sites-available/default
-              sed -i "s/http2;/http2 default_server;/g" /etc/nginx/sites-available/default
-              # remove leading white spaces and commented lines
-              sed -i "/^#/d" /etc/nginx/sites-available/default
-              sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
-
-              # Change permissions and ownership
-              usermod -a -G nginx ec2-user
-              usermod -a -G nginx apache
-              chown -R ec2-user:nginx /usr/share/nginx/html
-              chmod -R 2775 /usr/share/nginx/html
-              find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
-              find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
-
-              cp /root/index.php /usr/share/nginx/html/
-
-              systemctl restart nginx
-              ;;
-            none)
-              yum remove -q -y httpd
-              ;;
-          esac
-
-          # Database
-          export DB="${databaseOption}"
-          case $DB in
-            MySQL8.0) # https://dev.mysql.com/downloads/repo/yum/
-              # https://dev.mysql.com/doc/refman/8.0/en/checking-rpm-signature.html
-              rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-
-              # https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html
-              yum install -q -y https://repo.mysql.com/mysql80-community-release-el7-11.noarch.rpm
-              yum install -q -y mysql-community-server
-
-              systemctl enable mysqld
-              ;;
-            MySQL8.4) # https://dev.mysql.com/downloads/repo/yum/
-              # https://dev.mysql.com/doc/refman/8.4/en/checking-rpm-signature.html
-              rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-
-              # https://dev.mysql.com/doc/refman/8.4/en/linux-installation-yum-repo.html
-              yum install -q -y https://repo.mysql.com/mysql84-community-release-el7-1.noarch.rpm
-              yum install -q -y mysql-community-server
-
-              systemctl enable mysqld
-              ;;
-            MariaDB)
-              amazon-linux-extras install -y mariadb10.5
-              systemctl enable mariadb
-              ;;
-            PostgreSQL)
-              amazon-linux-extras enable postgresql14
-              yum clean metadata
-              yum install -q -y postgresql postgresql-server
-              /usr/bin/postgresql-setup --initdb
-              systemctl enable postgresql
-              ;;
-          esac
-
-          # NFS client
-          yum install -q -y amazon-efs-utils
-
-          # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-linux.html
-          yum install -q -y ruby
-          yum install -q -y codedeploy-agent
-          if [ ! -f /opt/codedeploy-agent/bin/codedeploy-agent ]; then
-            curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
-            chmod +x ./install
-            ./install auto
-          fi
-
-          # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
-          yum install -q -y amazon-cloudwatch-agent
-          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-          systemctl enable amazon-cloudwatch-agent
-
-          # Webmin
-          export webmin="${installWebmin}"
-          case $webmin in
-            Yes) # https://webmin.com/download/
-              cd /tmp/cfn
-              curl -s -L -O https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
-              echo 'Y' | sh ./setup-repos.sh -f
-              yum install -q -y webmin
-              ;;
-          esac
+          # Install rest of LAMP stack components
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c lamp_install
 
           #
           systemctl set-default multi-user.target
@@ -2029,7 +1972,11 @@ Resources:
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
+        - UID:
+            !Select [
+              3,
+              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+            ]
       BackupVaultTags:
         {
           "StackName": !Ref AWS::StackName,
@@ -2048,7 +1995,11 @@ Resources:
           - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}"
         SelectionName: !Sub
           - "${AWS::StackName}-backupSelection-${UID}"
-          - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
+          - UID:
+              !Select [
+                3,
+                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+              ]
 
   backupRestoreRole:
     Type: AWS::IAM::Role
@@ -2060,7 +2011,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: backup.amazonaws.com
-            Action: "sts:AssumeRole"
+            Action: sts:AssumeRole
       Policies:
         - PolicyName: restore-EC2-instance-profile
           PolicyDocument: # https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-ec2.html
@@ -2071,8 +2022,8 @@ Resources:
                   - iam:PassRole
                 Resource: !GetAtt instanceIamRole.Arn
       ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores"
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
@@ -2101,8 +2052,8 @@ Outputs:
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   SSMsessionManagerDCV:
-    Description: SSM Session Manager ("sudo passwd ec2-user" to change password)
     Condition: installDCV
+    Description: SSM Session Manager ("sudo passwd ec2-user" to set password for DCV login)
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
   DCVwebConsole:

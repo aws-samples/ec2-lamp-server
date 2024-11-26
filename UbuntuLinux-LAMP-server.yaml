@@ -633,7 +633,7 @@ Parameters:
       - Pacific/Tarawa
       - Pacific/Tongatapu
       - WET
-    Default: "Etc/UTC"
+    Default: Etc/UTC
   deleteAfterDays:
     Type: Number
     Default: 35
@@ -646,7 +646,6 @@ Conditions:
   useUbuntuPro2404x86: !Equals [!Ref osVersion, "Ubuntu Pro 24.04 (x86_64)"]
   useUbuntuPro2404arm64: !Equals [!Ref osVersion, "Ubuntu Pro 24.04 (arm64)"]
   useUbuntuPro2204x86: !Equals [!Ref osVersion, "Ubuntu Pro 22.04 (x86_64)"]
-  useUbuntuPro2204arm64: !Equals [!Ref osVersion, "Ubuntu Pro 22.04 (arm64)"]
 
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
@@ -863,7 +862,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: [ec2.amazonaws.com]
-            Action: ["sts:AssumeRole"]
+            Action: [sts:AssumeRole]
       Path: /
       Policies:
         - !If
@@ -920,15 +919,15 @@ Resources:
                 - Effect: Allow
                   Action:
                     - route53:ChangeResourceRecordSets
-                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}
                   Condition:
                     IpAddress:
                       aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
-                      "route53:ChangeResourceRecordSetsRecordTypes": ["TXT"]
+                      route53:ChangeResourceRecordSetsRecordTypes: [TXT]
                     ForAllValues:StringLike:
-                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                        ["_acme-challenge.*"]
+                      route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                        [_acme-challenge.*]
           - !Ref AWS::NoValue
         - !If
           - hasR53Zone
@@ -944,15 +943,15 @@ Resources:
                 - Effect: Allow
                   Action:
                     - route53:ChangeResourceRecordSets
-                  Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}"
+                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}
                   Condition:
                     IpAddress:
                       aws:SourceIp: 0.0.0.0/0
                     ForAllValues:StringEquals:
-                      "route53:ChangeResourceRecordSetsRecordTypes": ["A"]
+                      route53:ChangeResourceRecordSetsRecordTypes: [A]
                     ForAllValues:StringLike:
-                      "route53:ChangeResourceRecordSetsNormalizedRecordNames":
-                        ["site.example.com"]
+                      route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                        ["*.example.com"]
           - !Ref AWS::NoValue
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -1190,6 +1189,8 @@ Resources:
             - 00_dcv_install
           php_install:
             - 01_php_install
+          lamp_install:
+            - 02_lamp_install
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ubuntu/update-dcv":
@@ -1221,95 +1222,6 @@ Resources:
               mode: "000755"
               owner: "ubuntu"
               group: "ubuntu"
-            "/etc/systemd/system/mount-s3-helper.service":
-              content: |
-                # https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md#automatically-mounting-an-s3-bucket-at-boot
-                [Unit]
-                Description=Mountpoint for S3 helper
-                Wants=network.target
-
-                [Service]
-                Restart=on-failure
-                RestartSec=5
-                Type=forking
-                ExecStart=/opt/mount-s3-helper.sh
-                ExecStop=/usr/bin/fusermount -u /mnt/s3-bucket-mount
-
-                [Install]
-                WantedBy=remote-fs.target
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/opt/mount-s3-helper.sh":
-              content: !Sub
-                - |
-                  #!/bin/bash
-                  S3_BUCKET_NAME=${S3-BUCKET-NAME}
-                  MOUNT_FOLDER=/mnt/s3-bucket-mount
-                  USER=ubuntu
-                  GROUP=www-data
-
-                  USERID=$(cat /etc/passwd | grep ^$USER: | head -n 1 | cut -d":" -f 3)
-                  GROUPID=$(cat /etc/group | grep ^$GROUP: | head -n 1 | cut -d":" -f 3)
-
-                  mkdir -p $MOUNT_FOLDER
-                  /usr/bin/mount-s3 --uid $USERID --gid $GROUPID --allow-overwrite --allow-delete --allow-other $S3_BUCKET_NAME $MOUNT_FOLDER
-                - S3-BUCKET-NAME:
-                    !If [hasS3Bucket, !Ref s3BucketName, "DOC-EXAMPLE-BUCKET"]
-              mode: "000744"
-              owner: "root"
-              group: "root"
-            "/etc/systemd/system/route53-updater.service":
-              content: |
-                [Unit]
-                Description=Route53 DNS updater
-                After=network.target
-
-                [Service]
-                Restart=on-failure
-                RestartSec=5
-                Type=oneshot
-                ExecStart=/opt/route53-updater.sh
-                RemainAfterExit=true
-
-                [Install]
-                WantedBy=multi-user.target
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/opt/route53-updater.sh":
-              content: !Sub
-                - |
-                  #!/bin/bash
-                  R53_ZONE_ID=${R53-ZONE-ID}
-                  DNS_ENTRY=site.example.com
-
-                  AWS_IP=`curl -s checkip.amazonaws.com`
-                  aws route53 change-resource-record-sets --cli-input-json '{
-                  "HostedZoneId": "/hostedzone/'$R53_ZONE_ID'",
-                  "ChangeBatch": {
-                      "Comment": "Stack ${AWS::StackName}",
-                      "Changes": [
-                          {
-                            "Action": "UPSERT",
-                            "ResourceRecordSet": {
-                                "Name": "'$DNS_ENTRY'",
-                                "Type": "A",
-                                "TTL": 60,
-                              "ResourceRecords": [
-                                {
-                                  "Value": "'$AWS_IP'"
-                                }
-                              ]
-                            }
-                          }
-                      ]
-                  }}'
-                - R53-ZONE-ID:
-                    !If [hasR53Zone, !Ref r53ZoneID, "EXAMPLE-ZONE-ID"]
-              mode: "000755"
-              owner: "root"
-              group: "root"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
@@ -1378,6 +1290,14 @@ Resources:
                 sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
+                # Add DCV ports
+                if (systemctl list-units | grep -q ufw); then
+                  ufw allow 8443/tcp
+                  ufw allow 8443/udp
+                  ufw allow https
+                  ufw allow http
+                fi
+
                 # DCV?
                 export installDCV="${installDCV}"
                 case $installDCV in
@@ -1391,18 +1311,6 @@ Resources:
                     rm -f /home/ubuntu/update-dcv
                     ;;
                 esac
-
-                # S3 bucket access?
-                if [[ -z "${s3BucketName}" ]]; then
-                  rm /etc/systemd/system/mount-s3-helper.service
-                  rm /opt/mount-s3-helper.sh
-                fi
-
-                # Route 53 access?
-                if [[ -z "${r53ZoneID}" ]]; then
-                  rm /etc/systemd/system/route53-updater.service
-                  rm /opt/route53-updater.sh
-                fi
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1434,6 +1342,62 @@ Resources:
               mode: "000644"
               owner: "root"
               group: "root"
+            "/root/install-sw.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                # Update OS
+                apt-get update
+                apt-get upgrade -q -y
+                apt-get autoremove -q -y
+
+                # remove AWSCLI version 1
+                apt-get remove -q -y awscli
+                cd /tmp/cfn
+                # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+                snap install aws-cli --classic
+                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
+
+                # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-commandline-fleet.html#download-CloudWatch-Agent-on-EC2-Instance-commandline-fleet
+                if (arch | grep -q x86); then
+                  curl -s -L -O https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+                else
+                  curl -s -L -O https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
+                fi
+                apt-get install -q -y ./amazon-cloudwatch-agent.deb
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+                systemctl enable --now amazon-cloudwatch-agent
+
+                # Webmin: https://webmin.com/download/
+                export webmin="${installWebmin}"
+                case $webmin in
+                  Yes)
+                    cd /tmp/cfn
+                    curl -s -L -O https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
+                    echo 'Y' | sh ./setup-repos.sh -f
+                    apt-get install -q -y webmin --install-recommends
+                    ;;
+                esac
+
+                # USB and GPU driver DKMS
+                apt-get update
+                apt-get install -q -y dkms
+
+                # Kernel headers for GPU and USB remotization
+                apt-get install -q -y linux-headers-aws
+                apt-get install -q -y linux-modules-extra-aws
+                apt-get install -q -y usbutils
+
+                rm -f ${!0}
+              mode: "000740"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-sw.sh >> /var/log/install-sw.log 2>&1"
+              ignoreErrors: "true"
         00_dcv_install:
           files:
             "/root/install-dcv.sh":
@@ -1484,19 +1448,12 @@ Resources:
                 # Console session support
                 sed -i "/^\[session-management\/automatic-console-session/a owner=\"ubuntu\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
-                # USB DKMS
-                apt-get install -q -y dkms
-                systemctl enable dkms
-
-                # USB remotization: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-usb-remote.html
-                apt-get install -q -y linux-headers-aws linux-modules-extra-aws
-                apt-get install -q -y usbutils
-                # dcvusbdriverinstaller --quiet
-
                 # Disable reporting : https://wiki.ubuntu.com/Apport
                 sed -i "s/enabled=1/enable=0/g" /etc/default/apport
                 apt-get remove -q -y ubuntu-report whoopsie apport
                 apt-get autoremove -q -y
+
+                rm -f ${!0}
               mode: "000740"
               owner: "root"
               group: "root"
@@ -1510,7 +1467,7 @@ Resources:
               group: "ubuntu"
           commands:
             install:
-              command: "/root/install-dcv.sh > /var/log/install-dcv.log"
+              command: "/root/install-dcv.sh > /var/log/install-dcv.log 2>&1"
               ignoreErrors: "true"
         01_php_install:
           files:
@@ -1625,7 +1582,9 @@ Resources:
 
                     ;;
                 esac
-              mode: "000755"
+
+                rm -f ${!0}
+              mode: "000740"
               owner: "root"
               group: "root"
             "/root/index.php":
@@ -1636,7 +1595,142 @@ Resources:
               group: "root"
           commands:
             install:
-              command: "/root/install-php.sh > /var/log/install-php.log"
+              command: "/root/install-php.sh > /var/log/install-php.log 2>&1"
+              ignoreErrors: "true"
+        02_lamp_install:
+          files:
+            "/root/install-lamp.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
+                if (uname -a | grep -q x86); then
+                  curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+                else
+                  curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
+                fi
+                apt-get install -q -y ./mount-s3.deb
+
+                # Redis & Memcached
+                apt-get install -q -y redis-server memcached
+                systemctl enable --now redis-server memcached
+
+
+                # Certbot
+                apt-get install -q -y certbot
+                apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
+                systemctl daemon-reload
+                systemctl enable certbot.timer
+
+                # Web server
+                export WEB="${webOption}"
+                case $WEB in
+                  Apache)
+                    apt-get install -q -y python3-certbot-apache
+                    apt-get install -q -y apache2 libapache2-mod-fcgid
+                    systemctl enable apache2
+
+                    # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
+                    a2dismod ${phpVersion}
+                    a2dismod mpm_prefork
+                    a2enmod mpm_event proxy_fcgi setenvif
+                    a2enconf ${phpVersion}-fpm
+
+                    # Enable HTTPS 
+                    a2enmod ssl
+                    a2enmod rewrite
+                    a2enmod http2
+
+                    # HTTPS site: for Certbot
+                    a2ensite default-ssl
+
+                    # Enable index.php
+                    sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
+
+                    # Change permissions and ownership
+                    usermod -a -G www-data ubuntu
+                    chown -R ubuntu:www-data /var/www/html
+                    chmod -R 2775 /var/www/html
+                    find /var/www/html -type d -exec sudo chmod 2775 {} \;
+                    find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
+                    cp /root/index.php /var/www/html/
+
+                    systemctl restart apache2
+                    ;;
+                  Nginx)
+                    apt-get remove -q -y apache2
+                    apt-get purge -q -y apache2
+                    apt-get install -q -y python3-certbot-nginx
+                    apt-get install -q -y nginx-full
+                    systemctl enable nginx
+
+                    cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
+                    # Enable HTTPS and ${phpVersion}-FPM
+                    sed -i "27,28s/#//g" /etc/nginx/sites-available/default
+                    sed -i "39,39s/#//g" /etc/nginx/sites-available/default
+                    sed -i "56,57s/#//g" /etc/nginx/sites-available/default
+                    sed -i "60,60s/#//g" /etc/nginx/sites-available/default
+                    sed -i "s/7.4/$PHP_VERSION/g" /etc/nginx/sites-available/default
+                    sed -i "63,63s/#//g" /etc/nginx/sites-available/default
+                    # Enable index.php
+                    sed -i "s/index index.html index.htm index.nginx-debian.html;/index index.php index.html index.htm index.nginx-debian.html;/g" /etc/nginx/sites-available/default
+
+                    cp /etc/nginx/nginx.conf  /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
+                    # disable gzip as per https://bugs.debian.org/773332
+                    sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
+
+                    # Change permissions and ownership
+                    usermod -a -G www-data ubuntu
+                    chown -R ubuntu:www-data /var/www/html
+                    chmod -R 2775 /var/www/html
+                    find /var/www/html -type d -exec sudo chmod 2775 {} \;
+                    find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
+                    cp /root/index.php /var/www/html/
+
+                    systemctl restart nginx
+                    ;;
+                  none)
+                    apt-get remove -y apache2
+                    ;;
+                esac
+
+                # Database
+                export DB="${databaseOption}"
+                case $DB in
+                  MySQL)
+                    apt-get install -q -y mysql-server
+                    systemctl enable mysql
+                    ;;
+                  MariaDB)
+                    apt-get install -q -y mariadb-server
+                    systemctl enable mariadb
+                    ;;
+                  PostgreSQL)
+                    apt-get install -q -y postgresql
+                    systemctl enable postgresql
+                    ;;
+                esac
+
+                # NFS client
+                apt-get install -q -y nfs-common
+
+                # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
+                apt-get install -q -y ruby-full
+                curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+                chmod +x ./install
+                ./install auto
+
+                rm -f ${!0}
+              mode: "000740"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
     Properties:
       ImageId: # https://ubuntu.com/server/docs/cloud-images/amazon-ec2 https://ubuntu.com/blog/ubuntu-pro-is-now-part-of-the-aws-ec2-console
@@ -1717,8 +1811,8 @@ Resources:
           curl -s -L -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
           tar -xf aws-cfn-bootstrap-py3-latest.tar.gz
           cd aws-cfn-bootstrap-2.0
-          python3 setup.py build
-          python3 setup.py install
+          python3 setup.py build > /var/log/install-cfn-helper.log 2>&1
+          python3 setup.py install >> /var/log/install-cfn-helper.log 2>&1
           cd /tmp/cfn
           export CFN_INIT="python3 /usr/local/bin/cfn-init"
 
@@ -1732,158 +1826,11 @@ Resources:
               ;;
           esac 
 
-          # remove AWSCLI version 1
-          apt-get remove -q -y awscli
-          cd /tmp/cfn
-          # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-          snap install aws-cli --classic
-          echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
-
-          # Update OS
-          apt-get update -q
-          apt-get upgrade -q -y
-          apt-get autoremove -q -y
-
-          # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
-          if (uname -a | grep -q x86); then
-            curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
-          else
-            curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.deb
-          fi
-          apt-get install -q -y ./mount-s3.deb
-
-          # Redis & Memcached
-          apt-get install -q -y redis-server memcached
-          systemctl enable --now redis-server memcached
-
           # Install PHP
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
 
-          # Certbot
-          apt-get install -q -y certbot
-          apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
-
-          # Web server
-          export WEB="${webOption}"
-          case $WEB in
-            Apache)
-              apt-get install -q -y python3-certbot-apache
-              apt-get install -q -y apache2 libapache2-mod-fcgid
-              systemctl enable apache2
-
-              # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
-              a2dismod ${phpVersion}
-              a2dismod mpm_prefork
-              a2enmod mpm_event proxy_fcgi setenvif
-              a2enconf ${phpVersion}-fpm
-
-              # Enable HTTPS 
-              a2enmod ssl
-              a2enmod rewrite
-              a2enmod http2
-
-              # HTTPS site: for Certbot
-              a2ensite default-ssl
-
-              # Enable index.php
-              sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
-
-              # Change permissions and ownership
-              usermod -a -G www-data ubuntu
-              chown -R ubuntu:www-data /var/www/html
-              chmod -R 2775 /var/www/html
-              find /var/www/html -type d -exec sudo chmod 2775 {} \;
-              find /var/www/html -type f -exec sudo chmod 0664 {} \;
-
-              cp /root/index.php /var/www/html/
-
-              systemctl restart apache2
-              ;;
-            Nginx)
-              apt-get remove -q -y apache2
-              apt-get purge -q -y apache2
-              apt-get install -q -y python3-certbot-nginx
-              apt-get install -q -y nginx-full
-              systemctl enable nginx
-
-              cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
-              # Enable HTTPS and ${phpVersion}-FPM
-              sed -i "27,28s/#//g" /etc/nginx/sites-available/default
-              sed -i "39,39s/#//g" /etc/nginx/sites-available/default
-              sed -i "56,57s/#//g" /etc/nginx/sites-available/default
-              sed -i "60,60s/#//g" /etc/nginx/sites-available/default
-              sed -i "s/7.4/$PHP_VERSION/g" /etc/nginx/sites-available/default
-              sed -i "63,63s/#//g" /etc/nginx/sites-available/default
-              # Enable index.php
-              sed -i "s/index index.html index.htm index.nginx-debian.html;/index index.php index.html index.htm index.nginx-debian.html;/g" /etc/nginx/sites-available/default
-
-              cp /etc/nginx/nginx.conf  /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
-              # disable gzip as per https://bugs.debian.org/773332
-              sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
-
-              # Change permissions and ownership
-              usermod -a -G www-data ubuntu
-              chown -R ubuntu:www-data /var/www/html
-              chmod -R 2775 /var/www/html
-              find /var/www/html -type d -exec sudo chmod 2775 {} \;
-              find /var/www/html -type f -exec sudo chmod 0664 {} \;
-
-              cp /root/index.php /var/www/html/
-
-              systemctl restart nginx
-              ;;
-            none)
-              apt-get remove -y apache2
-              ;;
-          esac
-
-          # Database
-          export DB="${databaseOption}"
-          case $DB in
-            MySQL)
-              apt-get install -q -y mysql-server
-              systemctl enable mysql
-              ;;
-            MariaDB)
-              apt-get install -q -y mariadb-server
-              systemctl enable mariadb
-              ;;
-            PostgreSQL)
-              apt-get install -q -y postgresql
-              systemctl enable postgresql
-              ;;
-          esac
-
-          # NFS client
-          apt-get install -q -y nfs-common
-
-          # CodeDeploy agent: https://docs.aws.amazon.com/codedeploy/latest/userguide/codedeploy-agent-operations-install-ubuntu.html
-          apt-get install -q -y ruby-full
-          curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
-          chmod +x ./install
-          ./install auto
-
-          # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
-          if (uname -a | grep -q x86); then
-            curl -s -L -O https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-          else
-            curl -s -L -O https://s3.${AWS::Region}.amazonaws.com/amazoncloudwatch-agent-${AWS::Region}/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
-          fi
-          apt-get install -q -y ./amazon-cloudwatch-agent.deb
-          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-          usermod -a -G www-data cwagent
-          systemctl enable --now amazon-cloudwatch-agent
-
-          # Webmin
-          export webmin="${installWebmin}"
-          case $webmin in
-            Yes) # https://webmin.com/download/
-              cd /tmp/cfn
-              curl -s -L -O https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
-              echo 'Y' | sh ./setup-repos.sh -f
-              apt-get install -q -y webmin --install-recommends
-              ;;
-          esac
+          # Install rest of LAMP stack components
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c lamp_install
 
           #
           systemctl set-default multi-user.target
@@ -1967,7 +1914,11 @@ Resources:
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
+        - UID:
+            !Select [
+              3,
+              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+            ]
       BackupVaultTags:
         {
           "StackName": !Ref AWS::StackName,
@@ -1986,7 +1937,11 @@ Resources:
           - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}"
         SelectionName: !Sub
           - "${AWS::StackName}-backupSelection-${UID}"
-          - UID: !Select [5, !Split ["-", !Sub "${AWS::StackId}"]]
+          - UID:
+              !Select [
+                3,
+                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+              ]
 
   backupRestoreRole:
     Type: AWS::IAM::Role
@@ -1998,7 +1953,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: backup.amazonaws.com
-            Action: "sts:AssumeRole"
+            Action: sts:AssumeRole
       Policies:
         - PolicyName: restore-EC2-instance-profile
           PolicyDocument: # https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-ec2.html
@@ -2009,8 +1964,8 @@ Resources:
                   - iam:PassRole
                 Resource: !GetAtt instanceIamRole.Arn
       ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores"
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
