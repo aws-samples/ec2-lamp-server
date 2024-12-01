@@ -1676,17 +1676,20 @@ Resources:
                     echo "sudo /opt/certbot/bin/pip install --upgrade certbot-apache" >> /home/ec2-user/update-certbot
                     yum install -q -y httpd mod_ssl mod_fcgid
                     systemctl enable httpd
-                           cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
+                    cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
+
                     # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
                     sed -i "s/^LoadModule mpm_prefork_module/#&/" /etc/httpd/conf.modules.d/00-mpm.conf
                     sed -i "/^#LoadModule mpm_event_module/a LoadModule mpm_event_module modules/mod_mpm_event.so" /etc/httpd/conf.modules.d/00-mpm.conf
-                           cp /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf."`date +"%Y-%m-%d"`"
+                    cp /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf."`date +"%Y-%m-%d"`"
+
                     # Harden TLS
                     sed -i "s/^SSLProtocol/#&/" /etc/httpd/conf.d/ssl.conf
                     sed -i "/^#SSLProtocol/a SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.d/ssl.conf
                     sed -i "s/^SSLCipherSuite/#&/" /etc/httpd/conf.d/ssl.conf
-                     ed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
-                           # virtual host: for Certbot
+                    sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
+
+                    # virtual host: for Certbot
                     cat << EoF > /etc/httpd/conf.d/www.conf
                 <VirtualHost *:80>
                   ServerAdmin webmaster@localhost
