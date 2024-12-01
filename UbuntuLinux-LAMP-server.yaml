@@ -1401,7 +1401,7 @@ Resources:
         00_dcv_install:
           files:
             "/root/install-dcv.sh":
-              content: |
+              content: !Sub |
                 #!/bin/bash
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
@@ -1486,7 +1486,6 @@ Resources:
                     # PHP from Ondrej repo: https://deb.sury.org/
                     apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
                     add-apt-repository -y ppa:ondrej/php
-                    esac
 
                     # PHP install
                     apt-get install -q -y ${phpVersion}
@@ -1574,6 +1573,37 @@ Resources:
                     fi
                     cd /tmp/cfn
 
+                    apt-get install -q -y ${phpVersion}-odbc unixodbc-dev
+                    # ODBC driver for SQL Server: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
+                    case $(lsb_release -rs) in
+                      22*)
+                        curl https://packages.microsoft.com/keys/microsoft.asc | tee /etc/apt/trusted.gpg.d/microsoft.asc
+                        ;;
+                      *)
+                        curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+                        ;;
+                    esac
+                    curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | tee /etc/apt/sources.list.d/mssql-release.list
+                    apt-get update
+                    ACCEPT_EULA=Y apt-get install -y msodbcsql18
+                    ACCEPT_EULA=Y apt-get install -y mssql-tools18
+                    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /root/.bashrc
+                    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /home/ubuntu/.bashrc
+
+                    # Microsoft Drivers for PHP for SQL Server: https://learn.microsoft.com/en-us/sql/connect/php/installation-tutorial-linux-mac
+                    yes 'no' | pecl install sqlsrv
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=sqlsrv.so' > /etc/php/$PHP_VERSION/mods-available/sqlsrv.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/sqlsrv.ini /etc/php/$PHP_VERSION/fpm/conf.d/20-sqlsrv.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/sqlsrv.ini /etc/php/$PHP_VERSION/cli/conf.d/20-sqlsrv.ini
+                    fi
+                    yes 'no' | pecl install pdo_sqlsrv
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=pdo_sqlsrv.so' > /etc/php/$PHP_VERSION/mods-available/pdo_sqlsrv.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/pdo_sqlsrv.ini /etc/php/$PHP_VERSION/fpm/conf.d/30-pdo_sqlsrv.ini
+                      ln -s /etc/php/$PHP_VERSION/mods-available/pdo_sqlsrv.ini /etc/php/$PHP_VERSION/cli/conf.d/30-pdo_sqlsrv.ini
+                    fi
+                    
                     # Composer: https://getcomposer.org/download/
                     apt-get install -q -y composer
 

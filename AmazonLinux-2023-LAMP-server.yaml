@@ -1453,7 +1453,26 @@ Resources:
                         echo 'extension=ssh2.so' > /etc/php.d/25-ssh2.ini
                       fi
                     fi
-                    
+
+                    dnf install -q -y php-odbc unixODBC-devel
+                    # Microsoft ODBC driver for SQL Server : https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
+                    curl https://packages.microsoft.com/config/rhel/9/prod.repo | tee /etc/yum.repos.d/mssql-release.repo
+                    dnf remove -q -y unixODBC-utf16 unixODBC-utf16-devel #to avoid conflicts
+                    ACCEPT_EULA=Y dnf install -q -y msodbcsql18
+                    ACCEPT_EULA=Y dnf install -q -y mssql-tools18
+                    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /root/.bashrc
+                    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /home/ec2-user/.bashrc
+
+                    # Microsoft Drivers for PHP for SQL Server: https://learn.microsoft.com/en-us/sql/connect/php/microsoft-php-driver-for-sql-server
+                    yes 'no' | pecl install sqlsrv
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=sqlsrv.so' > /etc/php.d/20-sqlsrv.ini
+                    fi
+                    yes 'no' | pecl install pdo_sqlsrv
+                    if [ $? -eq 0 ]; then
+                      echo 'extension=pdo_sqlsrv.so' > /etc/php.d/30-pdo_sqlsrv.ini
+                    fi
+
                     cd /tmp/cfn
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/371
