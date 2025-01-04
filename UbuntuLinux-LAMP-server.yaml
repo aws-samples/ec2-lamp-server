@@ -244,7 +244,7 @@ Parameters:
       - "php8.3"
       - "php8.4"
       - "none"
-    Default: "php8.3"
+    Default: "php8.4"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
@@ -1645,20 +1645,19 @@ Resources:
 
                 # Redis & Memcached
                 apt-get install -q -y redis-server memcached
-                systemctl enable --now redis-server memcached
+                systemctl enable redis-server memcached
 
+                # Certbot: https://eff-certbot.readthedocs.io/en/stable/install.html#snap-recommended
+                snap install --classic certbot
+                ln -s /snap/bin/certbot /usr/bin/certbot
 
-                # Certbot
-                apt-get install -q -y certbot
-                apt-get install -q -y python3-certbot-dns-route53 python-certbot-dns-route53-doc 
-                systemctl daemon-reload
-                systemctl enable certbot.timer
+                snap set certbot trust-plugin-with-root=ok
+                snap install certbot-dns-route53
 
                 # Web server
                 export WEB="${webOption}"
                 case $WEB in
                   Apache)
-                    apt-get install -q -y python3-certbot-apache
                     apt-get install -q -y apache2 libapache2-mod-fcgid
                     systemctl enable apache2
 
@@ -1693,8 +1692,7 @@ Resources:
                   Nginx)
                     apt-get remove -q -y apache2
                     apt-get purge -q -y apache2
-                    apt-get install -q -y python3-certbot-nginx
-                    apt-get install -q -y nginx-full
+                    apt-get install -q -y nginx
                     systemctl enable nginx
 
                     cp /etc/nginx/sites-available/default  /etc/nginx/sites-available/default."`date +"%Y-%m-%d"`"
