@@ -98,6 +98,15 @@ The following are available on **Outputs** section
 #Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Web browser client can be disabled by removing `nice-dcv-web-viewer` package.
 
 
+### Troubleshooting
+To troubleshoot any installation issue, you can view contents of the following log files (if available)
+- `/var/log/cloud-init-output.log`
+- `/var/log/install-cfn-helper.log`
+- `/var/log/install-sw.log`
+- `/var/log/install-php.log`
+- `/var/log/install-lamp.log`
+- `/var/log/install-dcv.log`
+
 ## PHP performance configuration
 Based on public articles about PHP performance (many thanks to the authors), the following enhancements were made:
 
