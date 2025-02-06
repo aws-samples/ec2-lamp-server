@@ -21,14 +21,14 @@ The template provides the following features:
     - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) from [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
   - [Composer](https://getcomposer.org/)
   - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
-  - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
   - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#obtaining-certificate-for-https-using-certbot)
     - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for use with certbot-dns-route53 DNS plugin
+  - [Docker Engine](https://docs.docker.com/engine/) (optional)
   - [MountPoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/) for mounting S3 bucket as local file system
     - [Amazon S3](https://aws.amazon.com/s3/) bucket access for use with Mountpoint with S3
-  - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
+  - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
   - [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) agent
-  - [Docker Engine](https://docs.docker.com/engine/) (optional)
+  - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
 - Remote Administration
   - [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote display protocol server for GUI access (optional: Amazon Linux 2/Ubuntu Linux)
   - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) for secure shell access 
@@ -36,7 +36,7 @@ The template provides the following features:
   - [Webmin](https://webmin.com/) web-based system administration (optional)
 - AWS Services
   - [AWS Backup](https://aws.amazon.com/backup/) to protect EC2 instance data (optional)
-  - [Amazon CloudFront](https://aws.amazon.com/cloudfront/) CDN (optional)
+  - [Amazon CloudFront](https://aws.amazon.com/cloudfront/) CDN with support for [VPC Origin](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/) (optional)
 
 ## Notice
 Although this repository is released under the [MIT-0](LICENSE) license, its CloudFormation template uses features from 
@@ -105,7 +105,7 @@ The following are available on **Outputs** section
 - `DCVwebConsole`  (where applicable): DCV web browser client URL#. Login as the user specified in *Description* field 
 - `WebminUrl` (where applicable): Webmin URL link. Set the root password by running `sudo passwd root` using `EC2instanceConnect`, `SSMsessionManager` or SSH session first
 - `CloudFrontConsole` (where applicable): CloudFront console URL link
-- `CloudFrontURL` (where applicable): CloudFront distribution URL
+- `CloudFrontURL` (where applicable): CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
 
 
 #Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/).
@@ -132,11 +132,13 @@ Based on public articles about PHP performance (many thanks to the authors), the
 - PHP [OPcache file cache](https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache) configured as per [PHP Opcache file cache](https://patrickkerrigan.uk/blog/php-opcache-file-cache/) but not enabled. To enable, edit `/etc/php.d/10-opcache.ini` (Amazon Linux) or `/etc/php/`*`phpVersion`*`/fpm/php.ini` (Ubuntu) file to uncomment the line beginning with `opcache.file_cache=/var/www/.opcache` and restart php-fpm.
 
 
-## Obtaining certificate for HTTPS using Certbot 
-The EC2 instance uses a self-signed certificate for HTTPS. You can use [Certbot](https://certbot.eff.org/pages/about) to automatically obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server.
+## Obtaining certificate for HTTPS
+Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS. You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a public certificate for your own domain and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution. 
+
+The EC2 instance uses a self-signed certificate for HTTPS, and you can use [Certbot](https://certbot.eff.org/pages/about) to obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server.
 
 
-### Prerequisites
+### Certbot prerequisites
 Ensure you have a domain name whose DNS entry resolves to your EC2 instance IP address. If you do not have a domain, you can [register a new domain](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html#domain-register-procedure-section) using [Amazon Route 53](https://aws.amazon.com/route53/) and [create a DNS A record](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html).
 
 ### Using apache plugin
@@ -211,7 +213,8 @@ To futher secure your EC2 instance, you may want to
 - Restrict remote administration access to your IP address only (`ingressIPv4` and `ingressIPv6`)
 - Disable SSH access from public internet (`allowSSHport`). Use [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#ec2-instance-connect-connecting-console) or [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#start-ec2-console) for in-browser terminal access. If you have [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [Session Manager plugin for the AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) installed, you can start a session using [AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-cli) or [SSH](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-ssh)
 - Enable AWS Backup (`enableBackup`) and [AWS Backup Vault Lock](https://aws.amazon.com/blogs/storage/enhance-the-security-posture-of-your-backups-with-aws-backup-vault-lock/) to prevent your backups from accidental or malicious deletion, and for [protection from ransomware](https://aws.amazon.com/blogs/security/updated-ebook-protecting-your-aws-environment-from-ransomware/)
-- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) (`enableCloudFront`) with [AWS WAF](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-awswaf.html) to protect your instance from DDoS attacks and common web threats. The CloudFormation template creates additional inbound HTTP and HTTPS security groups with [AWS-managed prefix list for Amazon CloudFront](https://aws.amazon.com/blogs/networking-and-content-delivery/limit-access-to-your-origins-using-the-aws-managed-prefix-list-for-amazon-cloudfront/) as source where possible. You can remove inbound HTTP and HTTPS from public internet (`0.0.0.0/0`) from your security group. 
+- Use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) (`enableCloudFront`) with [VPC Origin](https://aws.amazon.com/blogs/aws/introducing-amazon-cloudfront-vpc-origins-enhanced-security-and-streamlined-operations-for-your-applications/). The CloudFormation template creates additional inbound HTTP and HTTPS security groups with [AWS-managed prefix list for Amazon CloudFront](https://aws.amazon.com/blogs/networking-and-content-delivery/limit-access-to-your-origins-using-the-aws-managed-prefix-list-for-amazon-cloudfront/) as source where possible. You can remove inbound HTTP and HTTPS from public internet (`0.0.0.0/0`) from your security group.
+- Associate [AWS WAF](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-awswaf.html) with CloudFront distribution to protect from DDoS attacks and common web threats. 
 - Enable [Amazon Inspector](https://aws.amazon.com/inspector/) to scan EC2 instance for software vulnerabilities and unintended network exposure
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) security monitoring service with [Malware Protection](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html) to detect the potential presence of malware in EBS volumes
 
