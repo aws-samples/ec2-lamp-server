@@ -53,6 +53,12 @@ Metadata:
           - databaseOption
           - s3BucketName
           - r53ZoneID
+          - installDocker
+      - Label:
+          default: Amazon CloudFront
+        Parameters:
+          - enableCloudFront
+          - originType
       - Label:
           default: EBS
         Parameters:
@@ -65,6 +71,7 @@ Metadata:
           - scheduleExpression
           - scheduleExpressionTimezone
           - deleteAfterDays
+
     ParameterLabels:
       processorArchitecture:
         default: "Processor architecture"
@@ -111,6 +118,8 @@ Metadata:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
         default: "(optional) Route 53 hosted zone ID to grant access to"
+      installDocker:
+        default: "Install Docker"
 
       enableBackup:
         default: "Backup EC2 instance"
@@ -120,6 +129,11 @@ Metadata:
         default: "Timezone to set backup schedule"
       deleteAfterDays:
         default: "Number of days after creation that a recovery point (backup) is deleted"
+
+      enableCloudFront:
+        default: "Create Amazon CloudFront distribution"
+      originType:
+        default: "Orign type"
 
 Parameters:
   processorArchitecture:
@@ -624,6 +638,29 @@ Parameters:
     Type: Number
     Default: 35
 
+  installDocker:
+    Type: String
+    # Description: Install Docker
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "No"
+
+  enableCloudFront:
+    Type: String
+    Description: https://aws.amazon.com/cloudfront/
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "No"
+  originType:
+    Type: String
+    Description: VPC Origin (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html)
+    AllowedValues:
+      - "EC2"
+      - "VPC Origin"
+    Default: "EC2"
+
 Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
   useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
@@ -655,7 +692,7 @@ Conditions:
         pl-none,
       ],
     ]
-  createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
+
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
 
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
@@ -667,6 +704,10 @@ Conditions:
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
   createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  createCloudFront: !Equals [!Ref enableCloudFront, "Yes"]
+  cfVPCOrigin:
+    !And [!Condition createCloudFront, !Equals [!Ref originType, "VPC Origin"]]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -1083,7 +1124,7 @@ Resources:
 
   securityGroupForCloudFrontHTTP:
     Type: AWS::EC2::SecurityGroup
-    Condition: createCFsg
+    Condition: hasCFprefix
     Properties:
       GroupDescription: Allow inbound HTTP from CloudFront
       VpcId: !Ref vpcID
@@ -1119,7 +1160,7 @@ Resources:
 
   securityGroupForCloudFrontHTTPS:
     Type: AWS::EC2::SecurityGroup
-    Condition: createCFsg
+    Condition: hasCFprefix
     Properties:
       GroupDescription: Allow inbound HTTPS from CloudFront
       VpcId: !Ref vpcID
@@ -1406,6 +1447,13 @@ Resources:
                 yum install -q -y kernel-devel
                 yum install -q -y usbutils
 
+                # Docker:
+                if [ "${installDocker}" = "Yes" ]; then
+                  amazon-linux-extras install -y docker
+                  systemctl enable docker
+                  usermod -aG docker ec2-user
+                fi
+
                 rm -f ${!0}
               mode: "000740"
               owner: "root"
@@ -1658,13 +1706,14 @@ Resources:
                 amazon-linux-extras install -y python3.8        
                 /usr/bin/python3.8 -m venv /opt/certbot/
                 /opt/certbot/bin/pip install --upgrade pip
-                /opt/certbot/bin/pip install certbot==3.0.1
-                /opt/certbot/bin/pip install certbot-dns-route53==3.0.1
+                /opt/certbot/bin/pip install certbot
+                /opt/certbot/bin/pip install certbot-dns-route53
                 ln -s /opt/certbot/bin/certbot /usr/bin/certbot
 
                 # Certbot update script
                 # https://certbot.org/renewal-setup: use systemd timer
                 touch /etc/sysconfig/certbot
+                chmod og-rwx /etc/sysconfig/certbot
                 systemctl daemon-reload
                 systemctl enable certbot-renew.timer
 
@@ -1672,7 +1721,7 @@ Resources:
                 export WEB="${webOption}"
                 case $WEB in
                   Apache)
-                    /opt/certbot/bin/pip install certbot-apache==3.0.1
+                    /opt/certbot/bin/pip install certbot-apache
                     yum install -q -y httpd mod_ssl mod_fcgid
                     systemctl enable httpd
                     cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
@@ -1708,12 +1757,11 @@ Resources:
                     systemctl restart httpd
                     ;;
                   Nginx)
-                    /opt/certbot/bin/pip install certbot-nginx==3.0.1
+                    /opt/certbot/bin/pip install certbot-nginx
                     amazon-linux-extras install -y nginx1
                     systemctl enable nginx
 
                     cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
-
                     # enable sites-enabled and sites-available folders
                     mkdir -p /etc/nginx/sites-enabled
                     mkdir -p /etc/nginx/sites-available
@@ -1843,12 +1891,12 @@ Resources:
       SecurityGroupIds:
         - !Ref securityGroup
         - !If [
-            createCFsg,
+            hasCFprefix,
             !Ref securityGroupForCloudFrontHTTP,
             !Ref AWS::NoValue,
           ]
         - !If [
-            createCFsg,
+            hasCFprefix,
             !Ref securityGroupForCloudFrontHTTPS,
             !Ref AWS::NoValue,
           ]
@@ -1878,12 +1926,9 @@ Resources:
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
           # Install desktop environment and DCV?
-          export installDCV="${installDCV}"
-          case $installDCV in
-            Yes)
-              $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
-              ;;
-          esac 
+          if [ "${installDCV}" = "Yes" ]; then
+            $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
+          fi
 
           # Install PHP
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
@@ -2033,6 +2078,67 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
+  cfVpcOrigin:
+    Type: AWS::CloudFront::VpcOrigin
+    Condition: cfVPCOrigin
+    Properties:
+      VpcOriginEndpointConfig:
+        Arn: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}
+        Name: !Sub ${AWS::StackName}-${ec2Instance}
+        OriginProtocolPolicy: http-only
+        OriginSSLProtocols:
+          - TLSv1.2
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  cfDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: createCloudFront
+    Properties:
+      DistributionConfig:
+        Origins:
+          - !If
+            - cfVPCOrigin
+            - DomainName: !GetAtt ec2Instance.PrivateDnsName
+              Id: !Ref ec2Instance
+              VpcOriginConfig:
+                VpcOriginId: !GetAtt cfVpcOrigin.Id
+            - DomainName: !GetAtt ec2Instance.PublicDnsName
+              Id: !Ref ec2Instance
+              CustomOriginConfig:
+                OriginProtocolPolicy: http-only
+                OriginSSLProtocols:
+                  - TLSv1.2
+        Enabled: true
+        Comment: !Sub "${AWS::StackName}-CloudFront"
+        HttpVersion: http2and3
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+          MinimumProtocolVersion: TLSv1.2_2021
+        DefaultCacheBehavior:
+          AllowedMethods: !Split [",", "GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE"]
+          CachedMethods:
+            - "HEAD"
+            - "GET"
+          Compress: true
+          CachePolicyId: "83da9c7e-98b4-4e11-a168-04f0df8e2c65"
+          OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
+          TargetOriginId: !Ref ec2Instance
+          ViewerProtocolPolicy: "redirect-to-https"
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
 Outputs:
   EC2console:
     Description: EC2 console
@@ -2086,3 +2192,13 @@ Outputs:
         !Sub "https://${ec2Instance.PublicIp}:10000",
         !Sub "https://${ec2Instance.PrivateIp}:10000",
       ]
+
+  CloudFrontURL:
+    Condition: createCloudFront
+    Description: CloudFront distribution URL
+    Value: !Sub "https://${cfDistribution.DomainName}"
+
+  CloudFrontConsole:
+    Condition: createCloudFront
+    Description: CloudFront console
+    Value: !Sub "https://console.aws.amazon.com/cloudfront/home#/distributions/${cfDistribution.Id}"

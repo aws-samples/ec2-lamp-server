@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Ubuntu Linux  ( https://github.com/aws-samples/ec2-lamp-server ) (uksb-014citd1s9) (tag:Ubuntu)
+Description: Ubuntu Linux ( https://github.com/aws-samples/ec2-lamp-server ) (uksb-014citd1s9) (tag:Ubuntu)
 Transform: "AWS::LanguageExtensions"
 
 Metadata:
@@ -53,6 +53,12 @@ Metadata:
           - databaseOption
           - s3BucketName
           - r53ZoneID
+          - installDocker
+      - Label:
+          default: Amazon CloudFront
+        Parameters:
+          - enableCloudFront
+          - originType
       - Label:
           default: EBS
         Parameters:
@@ -65,6 +71,7 @@ Metadata:
           - scheduleExpression
           - scheduleExpressionTimezone
           - deleteAfterDays
+
     ParameterLabels:
       osVersion:
         default: "OS version and architecture"
@@ -111,6 +118,8 @@ Metadata:
         default: "(optional) S3 bucket name to grant access to"
       r53ZoneID:
         default: "(optional) Route 53 hosted zone ID to grant access to"
+      installDocker:
+        default: "Install Docker Engine aka Docker CE"
 
       enableBackup:
         default: "Backup EC2 instance"
@@ -120,6 +129,11 @@ Metadata:
         default: "Timezone to set backup schedule"
       deleteAfterDays:
         default: "Number of days after creation that a recovery point (backup) is deleted"
+
+      enableCloudFront:
+        default: "Create Amazon CloudFront distribution"
+      originType:
+        default: "Orign type"
 
 Parameters:
   osVersion:
@@ -638,6 +652,29 @@ Parameters:
     Type: Number
     Default: 35
 
+  installDocker:
+    Type: String
+    # Description: Install Docker
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "No"
+
+  enableCloudFront:
+    Type: String
+    Description: https://aws.amazon.com/cloudfront/
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "No"
+  originType:
+    Type: String
+    Description: VPC Origin (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html)
+    AllowedValues:
+      - "EC2"
+      - "VPC Origin"
+    Default: "EC2"
+
 Conditions:
   useUbuntu2404x86: !Equals [!Ref osVersion, "Ubuntu 24.04 (x86_64)"]
   useUbuntu2404arm64: !Equals [!Ref osVersion, "Ubuntu 24.04 (arm64)"]
@@ -676,7 +713,7 @@ Conditions:
         pl-none,
       ],
     ]
-  createCFsg: !And [!Condition hasCFprefix, !Condition displayPublicIP]
+
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
 
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
@@ -688,6 +725,10 @@ Conditions:
   installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
   createBackup: !Equals [!Ref enableBackup, "Yes"]
+
+  createCloudFront: !Equals [!Ref enableCloudFront, "Yes"]
+  cfVPCOrigin:
+    !And [!Condition createCloudFront, !Equals [!Ref originType, "VPC Origin"]]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -1104,7 +1145,7 @@ Resources:
 
   securityGroupForCloudFrontHTTP:
     Type: AWS::EC2::SecurityGroup
-    Condition: createCFsg
+    Condition: hasCFprefix
     Properties:
       GroupDescription: Allow inbound HTTP from CloudFront
       VpcId: !Ref vpcID
@@ -1140,7 +1181,7 @@ Resources:
 
   securityGroupForCloudFrontHTTPS:
     Type: AWS::EC2::SecurityGroup
-    Condition: createCFsg
+    Condition: hasCFprefix
     Properties:
       GroupDescription: Allow inbound HTTPS from CloudFront
       VpcId: !Ref vpcID
@@ -1296,6 +1337,9 @@ Resources:
                   ufw allow 8443/udp
                   ufw allow https
                   ufw allow http
+                  if [ "${installWebmin}" = "Yes" ]; then
+                    ufw allow 10000/tcp
+                  fi
                 fi
 
                 # DCV?
@@ -1389,6 +1433,22 @@ Resources:
                 apt-get install -q -y linux-headers-aws
                 apt-get install -q -y linux-modules-extra-aws
                 apt-get install -q -y usbutils
+
+                # Docker: https://docs.docker.com/engine/install/ubuntu/
+                if [ "${installDocker}" = "Yes" ]; then
+                  # Add Docker's official GPG key
+                  apt-get install -q -y ca-certificates curl
+                  install -m 0755 -d /etc/apt/keyrings
+                  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+                  chmod a+r /etc/apt/keyrings/docker.asc
+                  # Add the repository to Apt sources
+                  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+                    tee /etc/apt/sources.list.d/docker.list > /dev/null
+                  apt-get update
+                  apt-get install -q -y docker-ce
+                  systemctl enable docker
+                  usermod -aG docker ubuntu
+                fi
 
                 rm -f ${!0}
               mode: "000740"
@@ -1801,12 +1861,12 @@ Resources:
       SecurityGroupIds:
         - !Ref securityGroup
         - !If [
-            createCFsg,
+            hasCFprefix,
             !Ref securityGroupForCloudFrontHTTP,
             !Ref AWS::NoValue,
           ]
         - !If [
-            createCFsg,
+            hasCFprefix,
             !Ref securityGroupForCloudFrontHTTPS,
             !Ref AWS::NoValue,
           ]
@@ -1830,8 +1890,11 @@ Resources:
           # https://stackoverflow.com/questions/33370297/apt-get-update-non-interactive
           export DEBIAN_FRONTEND=noninteractive
 
+          systemctl stop apt-daily.timer apt-daily-upgrade.timer
           apt-get clean all
           apt-get update -q
+          apt-get install -q -y procps
+          pkill apt
           apt-get install -q -y wget tmux unzip tar curl sed
 
           # CfN scripts: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
@@ -1847,12 +1910,9 @@ Resources:
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
           # Install desktop environment and DCV?
-          export installDCV="${installDCV}"
-          case $installDCV in
-            Yes)
-              $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
-              ;;
-          esac 
+          if [ "${installDCV}" = "Yes" ]; then
+            $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
+          fi
 
           # Install PHP
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
@@ -2002,6 +2062,67 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
+  cfVpcOrigin:
+    Type: AWS::CloudFront::VpcOrigin
+    Condition: cfVPCOrigin
+    Properties:
+      VpcOriginEndpointConfig:
+        Arn: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}
+        Name: !Sub ${AWS::StackName}-${ec2Instance}
+        OriginProtocolPolicy: http-only
+        OriginSSLProtocols:
+          - TLSv1.2
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  cfDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: createCloudFront
+    Properties:
+      DistributionConfig:
+        Origins:
+          - !If
+            - cfVPCOrigin
+            - DomainName: !GetAtt ec2Instance.PrivateDnsName
+              Id: !Ref ec2Instance
+              VpcOriginConfig:
+                VpcOriginId: !GetAtt cfVpcOrigin.Id
+            - DomainName: !GetAtt ec2Instance.PublicDnsName
+              Id: !Ref ec2Instance
+              CustomOriginConfig:
+                OriginProtocolPolicy: http-only
+                OriginSSLProtocols:
+                  - TLSv1.2
+        Enabled: true
+        Comment: !Sub "${AWS::StackName}-CloudFront"
+        HttpVersion: http2and3
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+          MinimumProtocolVersion: TLSv1.2_2021
+        DefaultCacheBehavior:
+          AllowedMethods: !Split [",", "GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE"]
+          CachedMethods:
+            - "HEAD"
+            - "GET"
+          Compress: true
+          CachePolicyId: "83da9c7e-98b4-4e11-a168-04f0df8e2c65"
+          OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
+          TargetOriginId: !Ref ec2Instance
+          ViewerProtocolPolicy: "redirect-to-https"
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
 Outputs:
   EC2console:
     Description: EC2 console
@@ -2055,3 +2176,13 @@ Outputs:
         !Sub "https://${ec2Instance.PublicIp}:10000",
         !Sub "https://${ec2Instance.PrivateIp}:10000",
       ]
+
+  CloudFrontURL:
+    Condition: createCloudFront
+    Description: CloudFront distribution URL
+    Value: !Sub "https://${cfDistribution.DomainName}"
+
+  CloudFrontConsole:
+    Condition: createCloudFront
+    Description: CloudFront console
+    Value: !Sub "https://console.aws.amazon.com/cloudfront/home#/distributions/${cfDistribution.Id}"
