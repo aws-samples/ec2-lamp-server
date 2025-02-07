@@ -2,9 +2,9 @@
 [AWS CloudFormation](https://aws.amazon.com/cloudformation/) template to provision [Amazon EC2](https://aws.amazon.com/ec2/) instance with PHP, Apache/Nginx, MySQL/MariaDB/PostgreSQL, i.e. LAMP, LEMP, LAPP or LEPP stack. 
 
 ## Description
-[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), PHP is used by more than [70%](https://w3techs.com/technologies/overview/programming_language), and either Nginx or Apache is used by more than [60%](https://w3techs.com/technologies/overview/web_server) of websites as of 2023.
+[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/) more than [70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP.
 
-This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine (Apache or Nginx) and database engine (MySQL, MariaDB or PostgreSQL). The instances can be used for software development or deployment of PHP based web applications such as [WordPress](https://wordpress.org/) and [Moodle](https://moodle.org/). 
+This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine and database engine. The instances can be used for software development or deployment of PHP based web applications such as [WordPress](https://wordpress.org/) and [Moodle](https://moodle.org/). 
 
 
 ## Architecture Diagram
@@ -22,7 +22,7 @@ The template provides the following features:
   - [Composer](https://getcomposer.org/)
   - [Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
   - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#obtaining-certificate-for-https)
-    - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for use with certbot-dns-route53 DNS plugin
+    - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for use with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) DNS plugin
   - [Docker Engine](https://docs.docker.com/engine/) (optional)
   - [MountPoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/) for mounting S3 bucket as local file system
     - [Amazon S3](https://aws.amazon.com/s3/) bucket access for use with Mountpoint with S3
