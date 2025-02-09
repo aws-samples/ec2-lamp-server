@@ -143,10 +143,6 @@ Parameters:
       - Intel/AMD (x86_64)
       - Graviton (arm64)
     Default: Graviton (arm64)
-  instanceType:
-    Type: String
-    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
-    Default: t4g.xlarge
 
   ec2Name:
     Type: String
@@ -157,6 +153,10 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
+  instanceType:
+    Type: String
+    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
+    Default: t4g.xlarge
   ec2TerminationProtection:
     Type: String
     Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
@@ -264,9 +264,9 @@ Parameters:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
     AllowedValues:
-      - "gp3"
-      - "gp2"
-    Default: "gp3"
+      - gp3
+      - gp2
+    Default: gp3
 
   enableBackup:
     Type: String
@@ -1254,33 +1254,6 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
-            "/usr/lib/systemd/system/certbot-renew.timer":
-              content: |
-                [Unit]
-                Description=This is the timer to set the schedule for automated renewals
-
-                [Timer]
-                OnCalendar=*-*-* 00/12:00:00
-                RandomizedDelaySec=12hours
-                Persistent=true
-
-                [Install]
-                WantedBy=timers.target
-              mode: "000644"
-              owner: "root"
-              group: "root"
-            "/usr/lib/systemd/system/certbot-renew.service":
-              content: |
-                [Unit]
-                Description=This service automatically renews any certbot certificates found
-
-                [Service]
-                EnvironmentFile=/etc/sysconfig/certbot
-                Type=oneshot
-                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
-              mode: "000644"
-              owner: "root"
-              group: "root"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
@@ -1304,20 +1277,14 @@ Resources:
                   for dcvUser in "${dcvUsers[@]}"
                   do
                     if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                      case $dcvUser in
-                        root)
-                          /usr/bin/dcv create-session $dcvUser --owner root --storage-root /root
-                          ;;
-                        *)
-                          /usr/bin/dcv create-session $dcvUser --owner $dcvUser --user $dcvUser --storage-root /home/$dcvUser
-                          ;;
-                      esac
+                      /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root %home% --type virtual
                     fi
                   done
+                  date
                   /usr/bin/dcv list-sessions
                   sleep 5
                 done
-              mode: "000755"
+              mode: "000744"
               owner: "root"
               group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
@@ -1404,15 +1371,6 @@ Resources:
                 yum clean all
                 yum update -q -y
 
-                # remove AWSCLI version 1
-                yum remove -q -y awscli
-                cd /tmp/cfn
-                # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-                curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
-                unzip -q -o awscliv2.zip
-                ./aws/install -b /usr/bin
-                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
-
                 # yum-cron
                 yum install -q -y yum-cron
                 sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/yum/yum-cron.conf
@@ -1454,8 +1412,61 @@ Resources:
                   usermod -aG docker ec2-user
                 fi
 
+                # AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+                yum remove -q -y awscli
+                cd /tmp/cfn
+                # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+                curl -s https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
+                unzip -q -o awscliv2.zip
+                ./aws/install -b /usr/bin
+                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
+
+                # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
+                yum install -q -y augeas-libs
+                amazon-linux-extras install -q -y python3.8 
+
+                /usr/bin/python3.8 -m venv /opt/certbot/
+                /opt/certbot/bin/pip install --upgrade pip
+                /opt/certbot/bin/pip install certbot
+                /opt/certbot/bin/pip install certbot-dns-route53
+                /opt/certbot/bin/pip install certbot-apache
+                /opt/certbot/bin/pip install certbot-nginx
+                ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+
+                touch /etc/sysconfig/certbot
+                chmod og-rwx /etc/sysconfig/certbot
+                systemctl daemon-reload
+                systemctl enable --now certbot-renew.timer
+
                 rm -f ${!0}
               mode: "000740"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.timer":
+              content: |
+                [Unit]
+                Description=This is the timer to set the schedule for automated renewals
+
+                [Timer]
+                OnCalendar=*-*-* 00/12:00:00
+                RandomizedDelaySec=12hours
+                Persistent=true
+
+                [Install]
+                WantedBy=timers.target
+              mode: "000640"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.service":
+              content: |
+                [Unit]
+                Description=This service automatically renews any certbot certificates found
+
+                [Service]
+                EnvironmentFile=/etc/sysconfig/certbot
+                Type=oneshot
+                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+              mode: "000640"
               owner: "root"
               group: "root"
           commands:
@@ -1469,6 +1480,9 @@ Resources:
                 #!/bin/bash
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
+
+                # Update OS
+                yum update -q -y
 
                 # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 yum install -q -y gdm gnome-session gnome-classic-session gnome-session-xsession
@@ -1701,27 +1715,10 @@ Resources:
                 amazon-linux-extras install -y redis6 memcached1.5
                 systemctl enable --now redis memcached
 
-                # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
-                yum install -q -y augeas-libs
-                amazon-linux-extras install -y python3.8        
-                /usr/bin/python3.8 -m venv /opt/certbot/
-                /opt/certbot/bin/pip install --upgrade pip
-                /opt/certbot/bin/pip install certbot
-                /opt/certbot/bin/pip install certbot-dns-route53
-                ln -s /opt/certbot/bin/certbot /usr/bin/certbot
-
-                # Certbot update script
-                # https://certbot.org/renewal-setup: use systemd timer
-                touch /etc/sysconfig/certbot
-                chmod og-rwx /etc/sysconfig/certbot
-                systemctl daemon-reload
-                systemctl enable certbot-renew.timer
-
                 # Web server
                 export WEB="${webOption}"
                 case $WEB in
                   Apache)
-                    /opt/certbot/bin/pip install certbot-apache
                     yum install -q -y httpd mod_ssl mod_fcgid
                     systemctl enable httpd
                     cp /etc/httpd/conf.modules.d/00-mpm.conf /etc/httpd/conf.modules.d/00-mpm.conf."`date +"%Y-%m-%d"`"
@@ -1757,7 +1754,6 @@ Resources:
                     systemctl restart httpd
                     ;;
                   Nginx)
-                    /opt/certbot/bin/pip install certbot-nginx
                     amazon-linux-extras install -y nginx1
                     systemctl enable nginx
 

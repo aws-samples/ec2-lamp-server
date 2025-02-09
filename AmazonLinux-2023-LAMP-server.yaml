@@ -140,10 +140,6 @@ Parameters:
       - Intel/AMD (x86_64)
       - Graviton (arm64)
     Default: Graviton (arm64)
-  instanceType:
-    Type: String
-    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
-    Default: t4g.xlarge
 
   ec2Name:
     Type: String
@@ -154,6 +150,10 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
+  instanceType:
+    Type: String
+    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
+    Default: t4g.xlarge
   ec2TerminationProtection:
     Type: String
     Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
@@ -1304,6 +1304,13 @@ Resources:
                   usermod -aG docker ec2-user
                 fi
 
+                # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
+                dnf install -q -y certbot python3-certbot-dns-route53
+                dnf install -q -y python3-certbot-apache
+                dnf install -q -y python3-certbot-nginx
+                systemctl daemon-reload
+                systemctl enable --now certbot-renew.timer
+
                 rm -f ${!0}
               mode: "000740"
               owner: "root"
@@ -1583,16 +1590,10 @@ Resources:
                 dnf install -q -y redis6 memcached
                 systemctl enable --now redis6 memcached
 
-                # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
-                dnf install -q -y certbot python3-certbot-dns-route53
-                systemctl daemon-reload
-                systemctl enable certbot-renew.timer
-
                 # Web server
                 export WEB="${webOption}"
                 case $WEB in
                   Apache)
-                    dnf install -q -y python3-certbot-apache
                     dnf install -q -y httpd mod_ssl mod_fcgid
                     systemctl enable httpd
 
@@ -1617,7 +1618,6 @@ Resources:
                     ;;
                   Nginx)
                     dnf remove -q -y httpd
-                    dnf install -q -y python3-certbot-nginx
                     dnf install -q -y nginx
                     systemctl enable nginx
 

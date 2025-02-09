@@ -149,10 +149,6 @@ Parameters:
       - Ubuntu Pro 22.04 (arm64)
       - Ubuntu Pro 22.04 (x86_64)
     Default: Ubuntu 24.04 (arm64)
-  instanceType:
-    Type: String
-    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
-    Default: t4g.xlarge
 
   ec2Name:
     Type: String
@@ -163,6 +159,10 @@ Parameters:
     Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
+  instanceType:
+    Type: String
+    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
+    Default: t4g.xlarge
   ec2TerminationProtection:
     Type: String
     Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
@@ -278,9 +278,9 @@ Parameters:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
     AllowedValues:
-      - "gp3"
-      - "gp2"
-    Default: "gp3"
+      - gp3
+      - gp2
+    Default: gp3
 
   enableBackup:
     Type: String
@@ -1249,6 +1249,19 @@ Resources:
               mode: "000755"
               owner: "ubuntu"
               group: "ubuntu"
+            "/home/ubuntu/update-awscli":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                sudo rm -f /tmp/awscliv2.zip
+                curl https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip -o awscliv2.zip
+                unzip -q -o awscliv2.zip
+                /usr/bin/aws --version
+                sudo ./aws/install --update -b /usr/bin
+                /usr/bin/aws --version
+              mode: "000755"
+              owner: "ubuntu"
+              group: "ubuntu"
             "/home/ubuntu/update-mountpoint-s3":
               content: |
                 #!/bin/bash
@@ -1286,20 +1299,14 @@ Resources:
                   for dcvUser in "${dcvUsers[@]}"
                   do
                     if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                      case $dcvUser in
-                        root)
-                          /usr/bin/dcv create-session $dcvUser --owner root --storage-root /root
-                          ;;
-                        *)
-                          /usr/bin/dcv create-session $dcvUser --owner $dcvUser --user $dcvUser --storage-root /home/$dcvUser
-                          ;;
-                      esac
+                      /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root %home% --type virtual
                     fi
                   done
+                  date
                   /usr/bin/dcv list-sessions
                   sleep 5
                 done
-              mode: "000755"
+              mode: "000744"
               owner: "root"
               group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
@@ -1393,16 +1400,9 @@ Resources:
                 cd /tmp/cfn
 
                 # Update OS
-                apt-get update
+                apt-get update -q
                 apt-get upgrade -q -y
                 apt-get autoremove -q -y
-
-                # remove AWSCLI version 1
-                apt-get remove -q -y awscli
-                cd /tmp/cfn
-                # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-                snap install aws-cli --classic
-                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
 
                 # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-commandline-fleet.html#download-CloudWatch-Agent-on-EC2-Instance-commandline-fleet
                 if (arch | grep -q x86); then
@@ -1426,7 +1426,7 @@ Resources:
                 esac
 
                 # USB and GPU driver DKMS
-                apt-get update
+                apt-get update -q
                 apt-get install -q -y dkms
 
                 # Kernel headers for GPU and USB remotization
@@ -1444,11 +1444,28 @@ Resources:
                   # Add the repository to Apt sources
                   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
                     tee /etc/apt/sources.list.d/docker.list > /dev/null
-                  apt-get update
+                  apt-get update -q
                   apt-get install -q -y docker-ce
                   systemctl enable docker
                   usermod -aG docker ubuntu
                 fi
+
+                # AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+                apt-get remove -q -y awscli
+                sudo snap install aws-cli --classic
+                if [ -e /snap/bin/aws ]; then
+                  rm -f /home/ubuntu/update-awscli
+                else
+                  /home/ubuntu/update-awscli
+                fi
+                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
+
+                # Certbot: https://eff-certbot.readthedocs.io/en/stable/install.html#snap-recommended
+                snap install --classic certbot
+                ln -s /snap/bin/certbot /usr/bin/certbot
+
+                snap set certbot trust-plugin-with-root=ok
+                snap install certbot-dns-route53
 
                 rm -f ${!0}
               mode: "000740"
@@ -1465,6 +1482,10 @@ Resources:
                 #!/bin/bash
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
+
+                # Update OS
+                apt-get update -q
+                apt-get upgrade -q -y
 
                 # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 apt-get install -q -y ubuntu-desktop-minimal
@@ -1663,7 +1684,7 @@ Resources:
                       ln -s /etc/php/$PHP_VERSION/mods-available/pdo_sqlsrv.ini /etc/php/$PHP_VERSION/fpm/conf.d/30-pdo_sqlsrv.ini
                       ln -s /etc/php/$PHP_VERSION/mods-available/pdo_sqlsrv.ini /etc/php/$PHP_VERSION/cli/conf.d/30-pdo_sqlsrv.ini
                     fi
-                    
+
                     # Composer: https://getcomposer.org/download/
                     apt-get install -q -y composer
 
@@ -1706,13 +1727,6 @@ Resources:
                 # Redis & Memcached
                 apt-get install -q -y redis-server memcached
                 systemctl enable redis-server memcached
-
-                # Certbot: https://eff-certbot.readthedocs.io/en/stable/install.html#snap-recommended
-                snap install --classic certbot
-                ln -s /snap/bin/certbot /usr/bin/certbot
-
-                snap set certbot trust-plugin-with-root=ok
-                snap install certbot-dns-route53
 
                 # Web server
                 export WEB="${webOption}"
