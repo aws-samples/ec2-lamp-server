@@ -4,7 +4,7 @@
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), more than [70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP.
 
-This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine and database engine. The instances can be used for software development or deployment of PHP based web applications such as [WordPress](https://wordpress.org/) and [Moodle](https://moodle.org/). 
+This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine and database engine. The instances can be used for software development or deployment of PHP based web applications such as [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#detailed-instructions) and [Moodle](https://docs.moodle.org/405/en/Installation_quick_guide). 
 
 
 ## Architecture Diagram
@@ -48,7 +48,7 @@ Usage indicates acceptance of [DCV EULA](https://www.amazondcv.com/eula.html) an
 
 ### Requirements
 - EC2 instances must be provisioned in a subnet with IPv4 internet connectivity. 
-- Ensure that the instance type you specify matches the selected processor architecture (x86_64/arm64).
+- Ensure that the specified [EC2 instance type](https://aws.amazon.com/ec2/instance-types/) matches the selected processor architecture (x86_64/arm64).
 
 ## Deploying from CloudFormation console
 Download .yaml file for the desired operating system ([Amazon Linux 2](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2-LAMP-server.yaml), [Amazon Linux 2023](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](https://github.com/aws-samples/ec2-lamp-server/blob/main/UbuntuLinux-2204-LAMP-server.yaml)) 
@@ -75,7 +75,7 @@ Remote Administration
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
 - `installWebmin`: install [Webmin](https://webmin.com/) web-based system administration tool. Default is `No`
 
-   *SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
+ *SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
 
 LAMP
 - `webOption`: `Apache`, `Nginx` web server or `none`.
@@ -88,7 +88,7 @@ LAMP
 
 Amazon CloudFront
 - `enableCloudFront`: [create](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-creating-console.html) a [Amazon CloudFront](https://aws.amazon.com/cloudfront/) distribution to your EC2 instance. Associated charges are listed on [Amazon CloudFront pricing](https://aws.amazon.com/cloudfront/pricing/) page. Default is `No`
-- `originType`: either `EC2` custom origin or `VPC origin`. [VPC Origin](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/) allows CloudFront to deliver content even if your EC2 instance is in a VPC private subnet. Refer to [documentation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html#vpc-origins-supported-regions) for supported AWS Regions. Default is `EC2`
+- `originType`: either `EC2` [custom origin](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/DownloadDistS3AndCustomOrigins.html#concept_CustomOrigin) or `VPC origin`. Most [AWS Regions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html#vpc-origins-supported-regions) support [VPC Origin](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/), which allows CloudFront to deliver content even if your EC2 instance is in a VPC private subnet. Default is `EC2`
  
 EBS
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
@@ -107,13 +107,10 @@ The following are available on **Outputs** section
 - `EC2serialConsole`: [EC2 Serial Console](https://aws.amazon.com/blogs/aws/troubleshoot-boot-and-networking-issues-with-new-ec2-serial-console/) URL. Functionality is available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html).
 - `SSMsessionManager` or `SSMsessionManagerDCV`: [SSM Session Manager](https://aws.amazon.com/blogs/aws/new-session-manager/) URL 
 - `WebUrl`: EC2 web server URL
-- `DCVwebConsole`  (where applicable): DCV web browser client URL#. Login as the user specified in *Description* field 
+- `DCVwebConsole`  (where applicable): DCV web browser client URL. Login as the user specified in *Description* field. Native DCV [clients](https://docs.aws.amazon.com/dcv/latest/userguide/client-features.html) can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/).
 - `WebminUrl` (where applicable): Webmin URL link. Set the root password by running `sudo passwd root` using `EC2instanceConnect`, `SSMsessionManager` or SSH session first
 - `CloudFrontConsole` (where applicable): CloudFront console URL link
 - `CloudFrontURL` (where applicable): CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
-
-
-#Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/).
 
 
 ### Troubleshooting
