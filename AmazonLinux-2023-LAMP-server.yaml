@@ -255,9 +255,9 @@ Parameters:
     Type: String
     Description: https://aws.amazon.com/ebs/general-purpose/
     AllowedValues:
-      - "gp3"
-      - "gp2"
-    Default: "gp3"
+      - gp3
+      - gp2
+    Default: gp3
 
   enableBackup:
     Type: String
@@ -646,7 +646,7 @@ Parameters:
     Default: "No"
   originType:
     Type: String
-    Description: VPC Origin (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html)
+    Description: Enable Elastic IP if using EC2 custom origin
     AllowedValues:
       - "EC2"
       - "VPC Origin"
@@ -1253,7 +1253,7 @@ Resources:
 
                 # Update OS
                 dnf update -q -y
-                sleep 30
+                sleep 15
 
                 # AWS CLI
                 echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc

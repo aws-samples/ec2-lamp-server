@@ -669,7 +669,7 @@ Parameters:
     Default: "No"
   originType:
     Type: String
-    Description: VPC Origin (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html)
+    Description: Enable Elastic IP if using EC2 custom origin
     AllowedValues:
       - "EC2"
       - "VPC Origin"
@@ -1533,6 +1533,8 @@ Resources:
                 sed -i "s/enabled=1/enable=0/g" /etc/default/apport
                 apt-get remove -q -y ubuntu-report whoopsie apport
                 apt-get autoremove -q -y
+                # Disable upgrade prompt: https://help.ubuntu.com/community/Upgrades#Upgrade_policy
+                sed -i "s/Prompt=lts/Prompt=never/g" /etc/update-manager/release-upgrades
 
                 rm -f ${!0}
               mode: "000740"
@@ -1544,6 +1546,12 @@ Resources:
                 export GNOME_SHELL_SESSION_MODE=ubuntu
                 export XDG_DATA_DIRS=/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop
               mode: "000644"
+              owner: "ubuntu"
+              group: "ubuntu"
+            "/home/ubuntu/.config/gnome-initial-setup-done":
+              content: |
+                yes
+              mode: "000664"
               owner: "ubuntu"
               group: "ubuntu"
           commands:
@@ -1907,8 +1915,10 @@ Resources:
           systemctl stop apt-daily.timer apt-daily-upgrade.timer
           apt-get clean all
           apt-get update -q
+          sleep 10
           apt-get install -q -y procps
           pkill apt
+          pkill dpkg
           apt-get install -q -y wget tmux unzip tar curl sed
 
           # CfN scripts: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html

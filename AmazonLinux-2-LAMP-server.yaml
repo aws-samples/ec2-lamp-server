@@ -655,7 +655,7 @@ Parameters:
     Default: "No"
   originType:
     Type: String
-    Description: VPC Origin (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html)
+    Description: Enable Elastic IP if using EC2 custom origin
     AllowedValues:
       - "EC2"
       - "VPC Origin"
