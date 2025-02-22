@@ -130,7 +130,7 @@ Metadata:
       enableCloudFront:
         default: "Create Amazon CloudFront distribution"
       originType:
-        default: "Orign type"
+        default: "CloudFront origin type"
 
 Parameters:
   processorArchitecture:
@@ -147,16 +147,18 @@ Parameters:
     Default: Amazon Linux 2023
   ec2KeyPair:
     Type: AWS::EC2::KeyPair::KeyName
-    Description: "https://console.aws.amazon.com/ec2/#KeyPairs"
+    Description: https://console.aws.amazon.com/ec2/#KeyPairs
     ConstraintDescription: Specify a key pair
     AllowedPattern: ".+"
   instanceType:
     Type: String
-    Description: "https://console.aws.amazon.com/ec2/#InstanceTypes"
+    Description: https://console.aws.amazon.com/ec2/#InstanceTypes
+    AllowedPattern: "^[a-z\\-\\d\\.]+$"
+    ConstraintDescription: Specify valid EC2 instance type
     Default: t4g.xlarge
   ec2TerminationProtection:
     Type: String
-    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html"
+    Description: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html
     Default: "Yes"
     AllowedValues:
       - "Yes"
@@ -165,13 +167,13 @@ Parameters:
   vpcID:
     Type: AWS::EC2::VPC::Id
     Description: "https://console.aws.amazon.com/vpcconsole/home#vpcs:"
-    ConstraintDescription: Specify a valid value
-    AllowedPattern: ".+"
+    AllowedPattern: .+
+    ConstraintDescription: Select a VPC
   subnetID:
     Type: AWS::EC2::Subnet::Id
     Description: "https://console.aws.amazon.com/vpcconsole/home#subnets:"
-    ConstraintDescription: Specify a valid value
-    AllowedPattern: ".+"
+    AllowedPattern: .+
+    ConstraintDescription: Select a Subnet
   assignStaticIP:
     Type: String
     Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html"
@@ -181,7 +183,7 @@ Parameters:
     Default: "Yes"
   displayPublicIP:
     Type: String
-    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses"
+    Description: Select No if EC2 has no public IP
     AllowedValues:
       - "Yes"
       - "No"
@@ -189,15 +191,19 @@ Parameters:
 
   ingressIPv4:
     Type: String
-    Description: "e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com "
+    Description: e.g. 1.2.3.4/32, get your source IP from https://checkip.amazonaws.com
+    AllowedPattern: "^\\d+\\.\\d+\\.\\d+\\.\\d+\\/\\d+$"
+    ConstraintDescription: Specify valid IPv4 prefix
     Default: 0.0.0.0/0
   ingressIPv6:
     Type: String
-    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#ipv6-addressing"
+    Description: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/working-with-ipv6-addresses.html
+    AllowedPattern: .+
+    ConstraintDescription: Specify valid IPv6 prefix
     Default: ::/0
   allowSSHport:
     Type: String
-    # Description: Allow SSH from internet
+    Description: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-ssh.html
     AllowedValues:
       - "Yes"
       - "No"
@@ -242,7 +248,7 @@ Parameters:
     Default: ""
   r53ZoneID:
     Type: String
-    Description: "https://console.aws.amazon.com/route53/v2/hostedzones"
+    Description: https://console.aws.amazon.com/route53/hostedzones https://certbot-dns-route53.readthedocs.io/
     Default: ""
 
   volumeSize:
@@ -261,17 +267,19 @@ Parameters:
 
   enableBackup:
     Type: String
+    Description: https://docs.aws.amazon.com/aws-backup/
     AllowedValues:
       - "Yes"
       - "No"
     Default: "Yes"
   scheduleExpression:
     Type: String
-    Description: https://en.wikipedia.org/wiki/Cron#CRON_expression
-    AllowedPattern: ".+"
+    Description: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html
+    AllowedPattern: .+
     Default: "cron(0 1 ? * * *)"
   scheduleExpressionTimezone: # https://nodatime.org/TimeZones?version=2024a&format=json
     Type: String
+    Description: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#time-zones
     AllowedValues:
       - Africa/Abidjan
       - Africa/Algiers
@@ -631,7 +639,7 @@ Parameters:
 
   installDocker:
     Type: String
-    # Description: Install Docker
+    Description: https://docs.docker.com/engine/
     AllowedValues:
       - "Yes"
       - "No"
@@ -1187,16 +1195,22 @@ Resources:
             "/opt/dcv-post-reboot.sh":
               content: !Sub |
                 #!/bin/bash
-                sysctl -w net.ipv6.conf.all.disable_ipv6=1
-                sysctl -w net.ipv6.conf.default.disable_ipv6=1
+                #sysctl -w net.ipv6.conf.all.disable_ipv6=1
+                #sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
                 dnf update -q -y
 
-                sysctl -w net.ipv6.conf.all.disable_ipv6=0
-                sysctl -w net.ipv6.conf.default.disable_ipv6=0
+                # https://docs.aws.amazon.com/linux/al2023/ug/managing-repos-os-updates.html#automatic-restart-services
+                dnf install -q -y smart-restart
+                touch /etc/smart-restart-conf.d/0-pre-restart
+                chmod +x /etc/smart-restart-conf.d/0-pre-restart
+                touch /etc/smart-restart-conf.d/0-post-restart
+                chmod +x /etc/smart-restart-conf.d/0-post-restart
 
+                #sysctl -w net.ipv6.conf.all.disable_ipv6=0
+                #sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1253,7 +1267,7 @@ Resources:
 
                 # Update OS
                 dnf update -q -y
-                sleep 15
+                sleep 10
 
                 # AWS CLI
                 echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
@@ -1266,8 +1280,6 @@ Resources:
 
                 # https://docs.aws.amazon.com/linux/al2023/ug/deterministic-upgrades-usage.html#deterministic-upgrade-override-persist
                 echo latest | sudo tee /etc/dnf/vars/releasever
-                # https://docs.aws.amazon.com/linux/al2023/ug/managing-repos-os-updates.html#automatic-restart-services
-                dnf install -q -y smart-restart
 
                 # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
                 dnf install -q -y amazon-cloudwatch-agent
@@ -1769,8 +1781,8 @@ Resources:
           cd /tmp/cfn
 
           # disable IPv6 during setup
-          sysctl -w net.ipv6.conf.all.disable_ipv6=1
-          sysctl -w net.ipv6.conf.default.disable_ipv6=1
+          #sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          #sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
           dnf clean all
           dnf install -q -y wget tmux unzip tar curl-minimal sed
@@ -1793,8 +1805,8 @@ Resources:
           systemctl enable dcv-post-reboot
 
           # enable back IPv6
-          sysctl -w net.ipv6.conf.all.disable_ipv6=0
-          sysctl -w net.ipv6.conf.default.disable_ipv6=0
+          #sysctl -w net.ipv6.conf.all.disable_ipv6=0
+          #sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
           sleep 1 && reboot
       Tags:
@@ -2003,6 +2015,12 @@ Outputs:
   EC2serialConsole:
     Description: EC2 Serial Console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2-instance-connect/ssh?&connType=serial&instanceId=${ec2Instance}&serialPort=0#/"
+
+  EC2iamRole:
+    Description: EC2 IAM role
+    Value: !Sub
+      - "https://console.aws.amazon.com/iam/home#/roles/details/${role}"
+      - role: !Select [1, !Split ["/", !GetAtt instanceIamRole.Arn]]
 
   SSMsessionManager:
     Description: SSM Session Manager
