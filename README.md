@@ -70,7 +70,7 @@ Remote Administration
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
 - `installWebmin`: install [Webmin](https://webmin.com/) web-based system administration tool. Default is `No`
 
-   *SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
+*SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
 
 LAMP
 - `webOption`: `Apache`, `Nginx` web server or `none`.
