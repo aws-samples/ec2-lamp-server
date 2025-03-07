@@ -844,6 +844,8 @@ Mappings:
       PrefixList: pl-0fb7e7cfe038ae0e9
     ap-southeast-5:
       PrefixList: pl-09076f83e90b139d0
+    ap-southeast-7:
+      PrefixList: pl-0857de2e2b1c7f2a2
     ca-central-1:
       PrefixList: pl-38a64351
     ca-west-1:
@@ -1219,6 +1221,8 @@ Resources:
             - 01_php_install
           lamp_install:
             - 02_lamp_install
+          dcv_configure:
+            - 10_dcv_configure
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ec2-user/update-dcv":
@@ -1321,20 +1325,6 @@ Resources:
 
                 #sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 #sysctl -w net.ipv6.conf.default.disable_ipv6=0
-
-                # DCV?
-                export installDCV="${installDCV}"
-                case $installDCV in
-                  Yes)
-                    systemctl enable dcv-virtual-session && systemctl restart dcv-virtual-session
-                    systemctl enable dcvserver && systemctl restart dcvserver
-                    ;;
-                  No)
-                    rm -f /etc/systemd/system/dcv-virtual-session.service
-                    rm -f /opt/dcv-virtual-session.sh
-                    rm -f /home/ubuntu/update-dcv
-                    ;;
-                esac
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1878,6 +1868,38 @@ Resources:
             install:
               command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
+        10_dcv_configure:
+          files:
+            "/opt/dcv-configure.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                # DCV?
+                export installDCV="${installDCV}"
+                case $installDCV in
+                  Yes)
+                    systemctl set-default graphical.target
+                    systemctl enable dcv-virtual-session
+                    systemctl enable dcvserver
+                    ;;
+                  No)
+                    systemctl set-default multi-user.target
+                    rm -f /etc/systemd/system/dcv-virtual-session.service
+                    rm -f /opt/dcv-virtual-session.sh
+                    rm -f /home/ubuntu/update-dcv
+                    ;;
+                esac
+
+                rm -f ${!0}
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/opt/dcv-configure.sh >> /var/log/install-sw.log 2>&1"
+              ignoreErrors: "true"
     Properties:
       ImageId: # https://aws.amazon.com/about-aws/whats-new/2021/11/amazon-linux-2-ami-kernel-5-10/
         !If [
@@ -1940,8 +1962,10 @@ Resources:
           # Install rest of LAMP stack components
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c lamp_install
 
+          # DCV configuration
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_configure
+
           #
-          systemctl set-default multi-user.target
           systemctl daemon-reload
           systemctl enable dcv-post-reboot
 
@@ -2130,7 +2154,7 @@ Resources:
             - "HEAD"
             - "GET"
           Compress: true
-          CachePolicyId: "83da9c7e-98b4-4e11-a168-04f0df8e2c65"
+          CachePolicyId: "4cc15a8a-d715-48a4-82b8-cc0b614638fe"
           OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
           ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
           TargetOriginId: !Ref ec2Instance
