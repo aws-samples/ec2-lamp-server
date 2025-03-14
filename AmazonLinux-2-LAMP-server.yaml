@@ -23,7 +23,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: EC2
+          default: EC2 Instance
         Parameters:
           - ec2Name
           - ec2KeyPair
@@ -31,14 +31,33 @@ Metadata:
           - instanceType
           - ec2TerminationProtection
       - Label:
-          default: Network
+          default: EC2 Network
         Parameters:
           - vpcID
           - subnetID
           - displayPublicIP
           - assignStaticIP
       - Label:
-          default: Remote administration
+          default: Application Load Balancer (ALB)
+        Parameters:
+          - enableALB
+          - albScheme
+          - albIpAddressType
+          - albSubnets
+      - Label:
+          default: ALB HTTPS listener
+        Parameters:
+          - albCertificateArn
+          - albSecurityPolicy
+          - albRedirectHTTPtoHTTPS
+          - albHstsHeaderValue
+      - Label:
+          default: Amazon CloudFront
+        Parameters:
+          - enableCloudFront
+          - originType
+      - Label:
+          default: EC2 remote administration
         Parameters:
           - ingressIPv4
           - ingressIPv6
@@ -55,17 +74,12 @@ Metadata:
           - r53ZoneID
           - installDocker
       - Label:
-          default: Amazon CloudFront
-        Parameters:
-          - enableCloudFront
-          - originType
-      - Label:
           default: EBS
         Parameters:
           - volumeSize
           - volumeType
       - Label:
-          default: Backup
+          default: AWS Backup
         Parameters:
           - enableBackup
           - scheduleExpression
@@ -90,13 +104,31 @@ Metadata:
         default: "Volume type"
 
       vpcID:
-        default: "VPC with internet connectivity"
+        default: "VPC with outbound internet connectivity"
       subnetID:
-        default: "Subnet with internet connectivity"
+        default: "Subnet with outbound internet connectivity"
       displayPublicIP:
         default: "EC2 in public subnet with public IP assigned?"
       assignStaticIP:
-        default: "[Elastic IP] Assign static public internet IPv4 address"
+        default: "Elastic IP: assign static public internet IPv4 address"
+
+      enableALB:
+        default: "Deploy Application Load Balancer (ALB)"
+      albScheme:
+        default: "Load balancer scheme (internal or internet facing)"
+      albIpAddressType:
+        default: "IPv4 only, IPv6 only or dual stack (IPv4-and-IPv6)"
+      albSubnets:
+        default: "Subnets for ALB. Select at least 2 in EC2 VPC"
+
+      albCertificateArn:
+        default: "Certificate ARN"
+      albSecurityPolicy:
+        default: "HTTPS listener security policy"
+      albRedirectHTTPtoHTTPS:
+        default: "Redirect HTTP requests to HTTPS"
+      albHstsHeaderValue:
+        default: "HSTS (HTTP Strict Transport Security) header value. Leave blank not to send"
 
       ingressIPv4:
         default: "Allowed IPv4 prefix"
@@ -186,11 +218,83 @@ Parameters:
     Default: "Yes"
   displayPublicIP:
     Type: String
-    Description: Select No if EC2 has no public IP
+    Description: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses"
     AllowedValues:
       - "Yes"
       - "No"
     Default: "Yes"
+
+  enableALB:
+    Type: String
+    Description: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/index.html
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "No"
+  albScheme:
+    Type: String
+    Description: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-application-load-balancer.html#configure-load-balancer
+    AllowedValues:
+      - internet-facing
+      - internal
+    Default: internet-facing
+  albIpAddressType:
+    Type: String
+    AllowedValues:
+      - IPv4
+      - IPv4-and-IPv6
+      - IPv6
+    Default: IPv4
+  albSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: "https://console.aws.amazon.com/vpcconsole/home#subnets:"
+    ConstraintDescription: Select a subnet
+    AllowedPattern: ".+"
+
+  albCertificateArn:
+    Type: String
+    Description: "https://console.aws.amazon.com/acm/home?#/certificates/list ( aws acm list-certificates )"
+    Default: ""
+  albSecurityPolicy:
+    Type: String
+    Description: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html"
+    AllowedValues:
+      - ELBSecurityPolicy-TLS13-1-3-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-3-2021-06
+      - ELBSecurityPolicy-TLS13-1-2-Res-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-2-Res-2021-06
+      - ELBSecurityPolicy-TLS13-1-2-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-2-Ext2-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-2-Ext2-2021-06
+      - ELBSecurityPolicy-TLS13-1-2-Ext1-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-2-Ext1-2021-06
+      - ELBSecurityPolicy-TLS13-1-2-Ext0-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-2-2021-06
+      - ELBSecurityPolicy-TLS13-1-1-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-1-2021-06
+      - ELBSecurityPolicy-TLS13-1-0-FIPS-2023-04
+      - ELBSecurityPolicy-TLS13-1-0-2021-06
+      - ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+      - ELBSecurityPolicy-TLS-1-2-2017-01
+      - ELBSecurityPolicy-TLS-1-1-2017-01
+      - ELBSecurityPolicy-TLS-1-0-2015-04
+      - ELBSecurityPolicy-FS-2018-06
+      - ELBSecurityPolicy-FS-1-2-Res-2020-10
+      - ELBSecurityPolicy-FS-1-2-Res-2019-08
+      - ELBSecurityPolicy-FS-1-2-2019-08
+      - ELBSecurityPolicy-FS-1-1-2019-08
+      - ELBSecurityPolicy-2016-08
+    Default: ELBSecurityPolicy-TLS13-1-2-2021-06
+  albRedirectHTTPtoHTTPS:
+    Type: String
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+  albHstsHeaderValue:
+    Type: String
+    Description: "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Strict_Transport_Security_Cheat_Sheet.html"
+    Default: "max-age=31536000; includeSubDomains"
 
   ingressIPv4:
     Type: String
@@ -665,14 +769,16 @@ Parameters:
     Type: String
     Description: Enable Elastic IP if using EC2 custom origin
     AllowedValues:
-      - "EC2"
+      - "Custom Origin"
       - "VPC Origin"
-    Default: "EC2"
+    Default: "Custom Origin"
 
 Conditions:
   useARM64: !Equals [!Ref processorArchitecture, "Graviton (arm64)"]
-  useElasticIP: !Equals [!Ref assignStaticIP, "Yes"]
+
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
+  useElasticIP:
+    !And [!Condition displayPublicIP, !Equals [!Ref assignStaticIP, "Yes"]]
   enableProtection: !Equals [!Ref ec2TerminationProtection, "Yes"]
 
   hasEIC:
@@ -716,6 +822,29 @@ Conditions:
   createCloudFront: !Equals [!Ref enableCloudFront, "Yes"]
   cfVPCOrigin:
     !And [!Condition createCloudFront, !Equals [!Ref originType, "VPC Origin"]]
+
+  createALB: !Equals [!Ref enableALB, "Yes"]
+  albAllowIPv4:
+    !Or [
+      !Equals [!Ref albIpAddressType, "IPv4"],
+      !Equals [!Ref albIpAddressType, "IPv4-and-IPv6"],
+    ]
+  albAllowIPv6:
+    !Or [
+      !Equals [!Ref albIpAddressType, "IPv6"],
+      !Equals [!Ref albIpAddressType, "IPv4-and-IPv6"],
+    ]
+
+  createHttpsListener:
+    !And [!Condition createALB, !Not [!Equals [!Ref albCertificateArn, ""]]]
+  createHttpRedirectListener:
+    !And [
+      !Condition createHttpsListener,
+      !Equals [!Ref albRedirectHTTPtoHTTPS, "Yes"],
+    ]
+  createHttpListener:
+    !And [!Condition createALB, !Not [!Condition createHttpRedirectListener]]
+  sendHSTS: !Not [!Equals [!Ref albHstsHeaderValue, ""]]
 
 Mappings:
   EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
@@ -882,6 +1011,14 @@ Mappings:
       PrefixList: pl-4ea04527
     us-west-2:
       PrefixList: pl-82a045eb
+
+  albIpTypeMapping:
+    IPv4:
+      Value: ipv4
+    IPv4-and-IPv6:
+      Value: dualstack
+    IPv6:
+      Value: dualstack-without-public-ipv4
 
 Resources:
   instanceIamRole:
@@ -1108,6 +1245,12 @@ Resources:
             FromPort: 22
             ToPort: 22
             CidrIpv6: !FindInMap [EICprefixMap, !Ref AWS::Region, Ipv6Prefix]
+          - !Ref AWS::NoValue
+        - !If
+          - createALB
+          - Description: Allow ALB inbound
+            IpProtocol: "-1"
+            SourceSecurityGroupId: !Ref albSecurityGroup
           - !Ref AWS::NoValue
       SecurityGroupEgress:
         - Description: Allow all outbound traffic (IPv4)
@@ -1880,12 +2023,10 @@ Resources:
                 export installDCV="${installDCV}"
                 case $installDCV in
                   Yes)
-                    systemctl set-default graphical.target
                     systemctl enable dcv-virtual-session
                     systemctl enable dcvserver
                     ;;
                   No)
-                    systemctl set-default multi-user.target
                     rm -f /etc/systemd/system/dcv-virtual-session.service
                     rm -f /opt/dcv-virtual-session.sh
                     rm -f /home/ubuntu/update-dcv
@@ -1966,6 +2107,7 @@ Resources:
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_configure
 
           #
+          systemctl set-default multi-user.target
           systemctl daemon-reload
           systemctl enable dcv-post-reboot
 
@@ -1999,6 +2141,186 @@ Resources:
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-elasticIP-${UID}"
+            - UID:
+                !Select [
+                  3,
+                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+                ]
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  alb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: createALB
+    Properties:
+      IpAddressType: !FindInMap [albIpTypeMapping, !Ref albIpAddressType, Value]
+      Scheme: !Ref albScheme
+      SecurityGroups:
+        - !Ref albSecurityGroup
+        - !If [
+            hasCFprefix,
+            !Ref securityGroupForCloudFrontHTTP,
+            !Ref AWS::NoValue,
+          ]
+        - !If [
+            hasCFprefix,
+            !Ref securityGroupForCloudFrontHTTPS,
+            !Ref AWS::NoValue,
+          ]
+      Subnets: !Ref albSubnets
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+
+  albHttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: createHttpListener
+    Properties:
+      LoadBalancerArn: !Ref alb
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref albTargetGroup
+      Port: 80
+      Protocol: HTTP
+
+  albHttpRedirectListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: createHttpRedirectListener
+    Properties:
+      LoadBalancerArn: !Ref alb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: "redirect"
+          RedirectConfig:
+            Protocol: "HTTPS"
+            Port: 443
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: "HTTP_301"
+
+  albHttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: createHttpsListener
+    Properties:
+      LoadBalancerArn: !Ref alb
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref albCertificateArn
+      SslPolicy: !Ref albSecurityPolicy
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref albTargetGroup
+      ListenerAttributes:
+        - !If
+          - sendHSTS
+          - Key: routing.http.response.server.enabled
+            Value: true
+          - !Ref AWS::NoValue
+        - !If
+          - sendHSTS
+          - Key: routing.http.response.strict_transport_security.header_value
+            Value: !Ref albHstsHeaderValue
+          - !Ref AWS::NoValue
+
+  albTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: createALB
+    Properties:
+      HealthCheckEnabled: true
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200-302"
+      IpAddressType: ipv4
+      Port: 443
+      Protocol: HTTPS
+      ProtocolVersion: HTTP1
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: true
+        - Key: stickiness.type
+          Value: app_cookie
+        - Key: stickiness.app_cookie.cookie_name
+          Value: Nextcloud
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: GitHub
+          Value: https://github.com/aws-samples/ec2-lamp-server
+      TargetType: instance
+      Targets:
+        - Id: !Ref ec2Instance
+          Port: 443
+      VpcId: !Ref vpcID
+
+  albSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: createALB
+    Properties:
+      GroupDescription: ALB allow HTTP and HTTPS
+      VpcId: !Ref vpcID
+      SecurityGroupIngress:
+        - !If
+          - albAllowIPv4
+          - Description: HTTP (IPv4)
+            IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: 0.0.0.0/0
+          - !Ref AWS::NoValue
+        - !If
+          - albAllowIPv4
+          - Description: HTTPS (IPv4)
+            IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+          - !Ref AWS::NoValue
+        - !If
+          - albAllowIPv6
+          - Description: HTTP (IPv6)
+            IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIpv6: ::/0
+          - !Ref AWS::NoValue
+        - !If
+          - albAllowIPv6
+          - Description: HTTPS (IPv6)
+            IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIpv6: ::/0
+          - !Ref AWS::NoValue
+      SecurityGroupEgress:
+        - !If
+          - albAllowIPv4
+          - Description: Allow all outbound traffic (IPv4)
+            IpProtocol: "-1"
+            CidrIp: 0.0.0.0/0
+          - !Ref AWS::NoValue
+        - !If
+          - albAllowIPv6
+          - Description: Allow all outbound traffic (IPv6)
+            IpProtocol: "-1"
+            CidrIpv6: ::/0
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+        - Key: StackId
+          Value: !Ref AWS::StackId
+        - Key: Name
+          Value: !Sub
+            - "${AWS::StackName}-albSecurityGroup-${UID}"
             - UID:
                 !Select [
                   3,
@@ -2111,8 +2433,14 @@ Resources:
     Condition: cfVPCOrigin
     Properties:
       VpcOriginEndpointConfig:
-        Arn: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}
-        Name: !Sub ${AWS::StackName}-${ec2Instance}
+        Arn: !If
+          - createALB
+          - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/${alb.LoadBalancerFullName}
+          - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}
+        Name: !If
+          - createALB
+          - !Sub ${AWS::StackName}-${alb.LoadBalancerName}
+          - !Sub ${AWS::StackName}-${ec2Instance}
         OriginProtocolPolicy: http-only
         OriginSSLProtocols:
           - TLSv1.2
@@ -2132,18 +2460,36 @@ Resources:
         Origins:
           - !If
             - cfVPCOrigin
-            - DomainName: !GetAtt ec2Instance.PrivateDnsName
-              Id: !Ref ec2Instance
+            - DomainName:
+                !If [
+                  createALB,
+                  !GetAtt alb.DNSName,
+                  !GetAtt ec2Instance.PrivateDnsName,
+                ]
+              Id:
+                !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               VpcOriginConfig:
                 VpcOriginId: !GetAtt cfVpcOrigin.Id
-            - DomainName: !GetAtt ec2Instance.PublicDnsName
-              Id: !Ref ec2Instance
+            - DomainName:
+                !If [
+                  createALB,
+                  !GetAtt alb.DNSName,
+                  !GetAtt ec2Instance.PrivateDnsName,
+                ]
+              Id:
+                !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               CustomOriginConfig:
                 OriginProtocolPolicy: http-only
                 OriginSSLProtocols:
                   - TLSv1.2
         Enabled: true
-        Comment: !Sub "${AWS::StackName}-CloudFront"
+        Comment: !Sub
+          - "${AWS::StackName}-${UID}"
+          - UID:
+              !Select [
+                3,
+                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+              ]
         HttpVersion: http2and3
         ViewerCertificate:
           CloudFrontDefaultCertificate: true
@@ -2157,7 +2503,8 @@ Resources:
           CachePolicyId: "4cc15a8a-d715-48a4-82b8-cc0b614638fe"
           OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
           ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
-          TargetOriginId: !Ref ec2Instance
+          TargetOriginId:
+            !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
           ViewerProtocolPolicy: "redirect-to-https"
       Tags:
         - Key: StackName
@@ -2236,3 +2583,13 @@ Outputs:
     Condition: createCloudFront
     Description: CloudFront console
     Value: !Sub "https://console.aws.amazon.com/cloudfront/home#/distributions/${cfDistribution.Id}"
+
+  AlbConsole:
+    Condition: createALB
+    Description: ALB Console
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#LoadBalancers:search=${alb}"
+
+  AlbDnsName:
+    Condition: createALB
+    Description: ALB URL
+    Value: !GetAtt alb.DNSName
