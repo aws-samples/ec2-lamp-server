@@ -335,7 +335,6 @@ Parameters:
     AllowedValues:
       - "Apache"
       - "Nginx"
-      - "none"
     Default: "Apache"
   databaseOption:
     Type: String
