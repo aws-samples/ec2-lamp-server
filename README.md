@@ -40,14 +40,14 @@ The template provides the following features:
 
 ## Notice
 Although this repository is released under the [MIT-0](LICENSE) license, its CloudFormation template uses features from 
-[MySQL Community Edition](https://www.mysql.com/products/community/) and [Webmin](https://webmin.com/) which are licensed under [GPL](https://www.mysql.com/products/community/) and [BSD-3-Clause](https://webmin.com/about/) license respectively. 
+[MySQL Community Edition](https://www.mysql.com/products/community/) and [Webmin](https://webmin.com/) which are licensed under [GPL](https://www.mysql.com/products/community/) and [BSD-3-Clause](https://webmin.com/about/) license respectively. Usage of Amaonz DCV indicates acceptance of [DCV EULA](https://www.amazondcv.com/eula.html).
 
-Usage indicates acceptance of [DCV EULA](https://www.amazondcv.com/eula.html) and license agreements of all software that is installed in the EC2 instance. 
+By using the template, you accept license agreements of all software that is installed in the EC2 instance. 
 
 
 ### Requirements
 - EC2 instance must be provisioned in a subnet with IPv4 internet connectivity. 
-- To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/)
+- To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
 
 
 ## Deploying using CloudFormation console
@@ -98,7 +98,7 @@ EC2 Remote Administration
 *SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
 
 LAMP
-- `webOption`: `Apache`, `Nginx` web server or `none`.
+- `webOption`: `Apache` or `Nginx` web server.
 - `phpVersion`: PHP version to install or `none`.
 - `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux will attempt to use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance access using [IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/).  Leave text field empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account and is usually not recommended. Default is empty.
@@ -130,7 +130,7 @@ The following are available on **Outputs** section
 - `WebUrl`: EC2 web server URL
 
 If `installDCV` is `Yes`
-- `DCVwebConsole` : DCV web browser client URL#. Login as the user specified in *Description* field 
+- `DCVwebConsole` : DCV web browser client URL. Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Login as the user specified in *Description* field.
 
 If `installWebmin` is `Yes`
 - `WebminUrl` : Webmin URL link. Set the root password by running `sudo passwd root` using `EC2instanceConnect`, `SSMsessionManager` or SSH session first
@@ -142,8 +142,6 @@ If `enableALB` is `Yes`
 If `enableCloudFront` is `Yes`
 - `CloudFrontConsole` : CloudFront console URL link
 - `CloudFrontURL` : CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
-
-#Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/).
 
 
 ### Troubleshooting
