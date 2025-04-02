@@ -62,6 +62,7 @@ Metadata:
           - ingressIPv4
           - ingressIPv6
           - allowSSHport
+          - installDCV
           - installWebmin
       - Label:
           default: LAMP
@@ -135,6 +136,8 @@ Metadata:
         default: "Allowed IPv6 prefix"
       allowSSHport:
         default: "Allow SSH from network"
+      installDCV:
+        default: "Install graphical desktop environment and DCV server"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -308,6 +311,13 @@ Parameters:
   allowSSHport:
     Type: String
     Description: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-ssh.html
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+  installDCV:
+    Type: String
+    Description: https://aws.amazon.com/hpc/dcv/
     AllowedValues:
       - "Yes"
       - "No"
@@ -801,8 +811,10 @@ Conditions:
 
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
   hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+
+  installDCV: !Equals [!Ref installDCV, "Yes"]
+  noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
-  installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
   createBackup: !Equals [!Ref enableBackup, "Yes"]
 
@@ -1020,6 +1032,17 @@ Resources:
       Path: /
       Policies:
         - !If
+          - installDCV
+          - PolicyName: dcvLicensing
+            PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource: !Sub "arn:*:s3:::dcv-license.${AWS::Region}/*"
+          - !Ref AWS::NoValue
+        - !If
           - hasS3Bucket
           - PolicyName: MountPointS3Access
             PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
@@ -1152,6 +1175,38 @@ Resources:
             IpProtocol: tcp
             FromPort: 22
             ToPort: 22
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: DCV (IPv4)
+            IpProtocol: tcp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: DCV (IPv6)
+            IpProtocol: tcp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIpv6: !Ref ingressIPv6
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: DCV QUIC (IPv4)
+            IpProtocol: udp
+            FromPort: 8443
+            ToPort: 8443
+            CidrIp: !Ref ingressIPv4
+          - !Ref AWS::NoValue
+        - !If
+          - installDCV
+          - Description: DCV QUIC (IPv6)
+            IpProtocol: udp
+            FromPort: 8443
+            ToPort: 8443
             CidrIpv6: !Ref ingressIPv6
           - !Ref AWS::NoValue
         - Description: HTTP (IPv4)
@@ -1302,12 +1357,30 @@ Resources:
         configSets:
           setup:
             - 00_setup
+          dcv_install:
+            - 00_dcv_install
           php_install:
             - 01_php_install
           lamp_install:
             - 02_lamp_install
+          dcv_configure:
+            - 10_dcv_configure
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
+            "/home/ec2-user/update-dcv":
+              content: |
+                #!/bin/bash
+                cd /tmp
+                sudo rm -f /tmp/nice-dcv-amzn2023-$(arch).tgz
+                wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-$(arch).tgz
+                tar -xvzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
+                sudo yum install -y ./nice-dcv-server-*.rpm
+                sudo yum install -y ./nice-dcv-web-viewer-*.rpm
+                sudo yum install -y ./nice-xdcv-*.rpm
+                sudo systemctl daemon-reload
+              mode: "000755"
+              owner: "ec2-user"
+              group: "ec2-user"
             "/home/ec2-user/update-mountpoint-s3":
               content: |
                 #!/bin/bash
@@ -1322,6 +1395,39 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
+            "/etc/systemd/system/dcv-virtual-session.service":
+              content: |
+                [Unit]
+                Description=Create DCV virtual session
+                After=default.target network.target
+
+                [Service]
+                ExecStart=/opt/dcv-virtual-session.sh
+
+                [Install]
+                WantedBy=default.target
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/opt/dcv-virtual-session.sh":
+              content: |
+                #!/bin/bash
+                dcvUsers=( "ec2-user" )
+                while true;
+                do
+                  for dcvUser in "${dcvUsers[@]}"
+                  do
+                    if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
+                      /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root %home% --type virtual
+                    fi
+                  done
+                  date
+                  /usr/bin/dcv list-sessions
+                  sleep 5
+                done
+              mode: "000744"
+              owner: "root"
+              group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
               content: |
                 [Unit]
@@ -1450,8 +1556,12 @@ Resources:
                 systemctl enable dkms
 
                 # Kernel headers for GPU and USB remotization
-                dnf install -q -y kernel-devel
-                dnf install -q -y kernel-modules-extra
+                dnf install -q -y kernel-devel-$(uname -r)
+                if (uname -r | grep -q ^6.12.); then
+                  dnf install -q -y kernel6.12-modules-extra
+                else
+                  dnf install -q -y kernel-modules-extra
+                fi                
 
                 # Docker:
                 if [ "${installDocker}" = "Yes" ]; then
@@ -1474,6 +1584,50 @@ Resources:
           commands:
             install:
               command: "/root/install-sw.sh >> /var/log/install-sw.log 2>&1"
+              ignoreErrors: "true"
+        00_dcv_install:
+          files:
+            "/root/install-dcv.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                # Update OS
+                yum update -q -y
+
+                # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
+                dnf groupinstall "Desktop" -y
+
+                # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
+                sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
+
+                # DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+                curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-$(arch).tgz
+                tar -xvzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
+                yum install -q -y ./nice-dcv-server-*.rpm
+                yum install -q -y ./nice-dcv-web-viewer-*.rpm
+                yum install -q -y ./nice-xdcv-*.rpm
+
+                # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
+                yum install -q -y cups
+                GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
+                usermod -a -G $GROUP dcv
+                systemctl enable cups
+
+                # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
+                sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
+                # Console session support
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
+
+                rm -f ${!0}
+              mode: "000740"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/root/install-dcv.sh > /var/log/install-dcv.log 2>&1"
               ignoreErrors: "true"
         01_php_install:
           files:
@@ -1678,6 +1832,8 @@ Resources:
                     ACCEPT_EULA=Y dnf install -q -y mssql-tools18
                     echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /root/.bashrc
                     echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /home/ec2-user/.bashrc
+                    cd /opt/microsoft/msodbc*/
+                    touch ACCEPT_EULA
 
                     # Microsoft Drivers for PHP for SQL Server: https://learn.microsoft.com/en-us/sql/connect/php/microsoft-php-driver-for-sql-server
                     yes 'no' | pecl install sqlsrv
@@ -1885,12 +2041,42 @@ Resources:
             install:
               command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
+        10_dcv_configure:
+          files:
+            "/opt/dcv-configure.sh":
+              content: !Sub |
+                #!/bin/bash
+                mkdir -p /tmp/cfn
+                cd /tmp/cfn
+
+                # DCV?
+                export installDCV="${installDCV}"
+                case $installDCV in
+                  Yes)
+                    systemctl enable dcv-virtual-session
+                    systemctl enable dcvserver
+                    ;;
+                  No)
+                    rm -f /etc/systemd/system/dcv-virtual-session.service
+                    rm -f /opt/dcv-virtual-session.sh
+                    rm -f /home/ubuntu/update-dcv
+                    ;;
+                esac
+
+                rm -f ${!0}
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            install:
+              command: "/opt/dcv-configure.sh >> /var/log/install-sw.log 2>&1"
+              ignoreErrors: "true"
     Properties:
       ImageId: # https://github.com/amazonlinux/amazon-linux-2023
         !If [
           useARM64,
-          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-arm64}}",
-          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64}}",
+          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.12-arm64}}",
+          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.12-x86_64}}",
         ]
       InstanceType: !Ref instanceType
       IamInstanceProfile: !Ref instanceProfile
@@ -1935,13 +2121,19 @@ Resources:
 
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c setup
 
-          # No graphical desktop: https://github.com/amazonlinux/amazon-linux-2023/issues/47
+          # Install desktop environment and DCV?
+          if [ "${installDCV}" = "Yes" ]; then
+            $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_install
+          fi
 
           # Install PHP
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c php_install
 
           # Install rest of LAMP stack components
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c lamp_install
+
+          # DCV configuration
+          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_configure
 
           #
           systemctl set-default multi-user.target
@@ -2372,11 +2564,26 @@ Outputs:
       - role: !Select [1, !Split ["/", !GetAtt instanceIamRole.Arn]]
 
   SSMsessionManager:
+    Condition: noDCV
     Description: SSM Session Manager
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
+  SSMsessionManagerDCV:
+    Condition: installDCV
+    Description: SSM Session Manager ("sudo passwd ec2-user" to set password for DCV login)
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
+
+  DCVwebConsole:
+    Condition: installDCV
+    Description: DCV web browser client (login as ec2-user)
+    Value:
+      !If [
+        displayPublicIP,
+        !Sub "https://${ec2Instance.PublicIp}:8443",
+        !Sub "https://${ec2Instance.PrivateIp}:8443",
+      ]
+
   WebUrl:
-    Condition: installWebServer
     Description: Website
     Value:
       !If [
