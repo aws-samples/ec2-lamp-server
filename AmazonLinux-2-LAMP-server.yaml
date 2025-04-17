@@ -119,7 +119,7 @@ Metadata:
       albIpAddressType:
         default: "IPv4 only, IPv6 only or dual stack (IPv4-and-IPv6)"
       albSubnets:
-        default: "Subnets for ALB. Select at least 2 in EC2 VPC"
+        default: "Subnets for ALB. Select at least 2 in EC2 VPC. **Select a subnet even if not deploying ALB**"
 
       albCertificateArn:
         default: "Certificate ARN"
@@ -383,7 +383,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "Yes"
+    Default: "No"
   scheduleExpression:
     Type: String
     Description: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html
@@ -814,7 +814,6 @@ Conditions:
   installDCV: !Equals [!Ref installDCV, "Yes"]
   noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
-  installWebServer: !Not [!Equals [!Ref webOption, "none"]]
 
   createBackup: !Equals [!Ref enableBackup, "Yes"]
 
@@ -846,7 +845,10 @@ Conditions:
   sendHSTS: !Not [!Equals [!Ref albHstsHeaderValue, ""]]
 
 Mappings:
-  EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+  # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+  # curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | jq -r '.prefixes[] | select (.service=="EC2_INSTANCE_CONNECT")'
+  # curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | jq -r '.ipv6_prefixes[] | select (.service=="EC2_INSTANCE_CONNECT")'
+  EICprefixMap:
     af-south-1:
       IpPrefix: 13.244.121.196/30
       Ipv6Prefix: 2406:da11:700:3b00::/56
@@ -880,6 +882,9 @@ Mappings:
     ap-southeast-4:
       IpPrefix: 16.50.248.80/29
       Ipv6Prefix: 2406:da1f:b4f:4600::/56
+    ap-southeast-5:
+      IpPrefix: 43.216.87.48/29
+      Ipv6Prefix: 2406:da10:84f9:9e00::/56
     ca-central-1:
       IpPrefix: 35.183.92.176/29
       Ipv6Prefix: 2600:1f11:ae3:700::/56
@@ -1363,8 +1368,6 @@ Resources:
             - 01_php_install
           lamp_install:
             - 02_lamp_install
-          dcv_configure:
-            - 10_dcv_configure
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ec2-user/update-dcv":
@@ -1467,6 +1470,20 @@ Resources:
 
                 #sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 #sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+                # DCV?
+                export installDCV="${installDCV}"
+                case $installDCV in
+                  Yes)
+                    systemctl enable --now dcv-virtual-session
+                    systemctl enable --now dcvserver
+                    ;;
+                  No)
+                    rm -f /etc/systemd/system/dcv-virtual-session.service
+                    rm -f /opt/dcv-virtual-session.sh
+                    rm -f /home/ec2-user/update-dcv
+                    ;;
+                esac
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1658,6 +1675,11 @@ Resources:
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
                 # Console session support
                 sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
+
+                #
+                systemctl daemon-reload
+                systemctl enable dcv-virtual-session
+                systemctl enable dcvserver
 
                 rm -f ${!0}
               mode: "000740"
@@ -1937,6 +1959,10 @@ Resources:
                     sed -i "/^#/d" /etc/nginx/sites-available/default
                     sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
 
+                    # fix config errors
+                    sed -i "20,20s/root/#root/g" /etc/nginx/sites-available/default
+                    sed -i "31,31s/}/#}/g" /etc/nginx/sites-available/default
+
                     # Change permissions and ownership
                     usermod -a -G nginx ec2-user
                     usermod -a -G nginx apache
@@ -2010,36 +2036,6 @@ Resources:
             install:
               command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
-        10_dcv_configure:
-          files:
-            "/opt/dcv-configure.sh":
-              content: !Sub |
-                #!/bin/bash
-                mkdir -p /tmp/cfn
-                cd /tmp/cfn
-
-                # DCV?
-                export installDCV="${installDCV}"
-                case $installDCV in
-                  Yes)
-                    systemctl enable dcv-virtual-session
-                    systemctl enable dcvserver
-                    ;;
-                  No)
-                    rm -f /etc/systemd/system/dcv-virtual-session.service
-                    rm -f /opt/dcv-virtual-session.sh
-                    rm -f /home/ubuntu/update-dcv
-                    ;;
-                esac
-
-                rm -f ${!0}
-              mode: "000755"
-              owner: "root"
-              group: "root"
-          commands:
-            install:
-              command: "/opt/dcv-configure.sh >> /var/log/install-sw.log 2>&1"
-              ignoreErrors: "true"
     Properties:
       ImageId: # https://aws.amazon.com/about-aws/whats-new/2021/11/amazon-linux-2-ami-kernel-5-10/
         !If [
@@ -2101,9 +2097,6 @@ Resources:
 
           # Install rest of LAMP stack components
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c lamp_install
-
-          # DCV configuration
-          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_configure
 
           #
           systemctl set-default multi-user.target
@@ -2554,7 +2547,6 @@ Outputs:
       ]
 
   WebUrl:
-    Condition: installWebServer
     Description: Website
     Value:
       !If [

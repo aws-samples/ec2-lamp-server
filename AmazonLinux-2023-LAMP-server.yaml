@@ -57,7 +57,7 @@ Metadata:
           - enableCloudFront
           - originType
       - Label:
-          default: EC2 remote administration
+          default: EC2 Remote administration
         Parameters:
           - ingressIPv4
           - ingressIPv6
@@ -119,7 +119,7 @@ Metadata:
       albIpAddressType:
         default: "IPv4 only, IPv6 only or dual stack (IPv4-and-IPv6)"
       albSubnets:
-        default: "Subnets for ALB. Select at least 2 in EC2 VPC"
+        default: "Subnets for ALB. Select at least 2 in EC2 VPC. **Select a subnet even if not deploying ALB**"
 
       albCertificateArn:
         default: "Certificate ARN"
@@ -385,7 +385,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "Yes"
+    Default: "No"
   scheduleExpression:
     Type: String
     Description: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html
@@ -847,7 +847,10 @@ Conditions:
   sendHSTS: !Not [!Equals [!Ref albHstsHeaderValue, ""]]
 
 Mappings:
-  EICprefixMap: # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+  # EC2 instance connect: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-prerequisites.html#ec2-instance-connect-setup-security-group
+  # curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | jq -r '.prefixes[] | select (.service=="EC2_INSTANCE_CONNECT")'
+  # curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | jq -r '.ipv6_prefixes[] | select (.service=="EC2_INSTANCE_CONNECT")'
+  EICprefixMap:
     af-south-1:
       IpPrefix: 13.244.121.196/30
       Ipv6Prefix: 2406:da11:700:3b00::/56
@@ -881,6 +884,9 @@ Mappings:
     ap-southeast-4:
       IpPrefix: 16.50.248.80/29
       Ipv6Prefix: 2406:da1f:b4f:4600::/56
+    ap-southeast-5:
+      IpPrefix: 43.216.87.48/29
+      Ipv6Prefix: 2406:da10:84f9:9e00::/56
     ca-central-1:
       IpPrefix: 35.183.92.176/29
       Ipv6Prefix: 2600:1f11:ae3:700::/56
@@ -1364,8 +1370,6 @@ Resources:
             - 01_php_install
           lamp_install:
             - 02_lamp_install
-          dcv_configure:
-            - 10_dcv_configure
         00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ec2-user/update-dcv":
@@ -1375,9 +1379,9 @@ Resources:
                 sudo rm -f /tmp/nice-dcv-amzn2023-$(arch).tgz
                 wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-$(arch).tgz
                 tar -xvzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
-                sudo yum install -y ./nice-dcv-server-*.rpm
-                sudo yum install -y ./nice-dcv-web-viewer-*.rpm
-                sudo yum install -y ./nice-xdcv-*.rpm
+                sudo dnf install -y ./nice-dcv-server-*.rpm
+                sudo dnf install -y ./nice-dcv-web-viewer-*.rpm
+                sudo dnf install -y ./nice-xdcv-*.rpm
                 sudo systemctl daemon-reload
               mode: "000755"
               owner: "ec2-user"
@@ -1463,6 +1467,20 @@ Resources:
                 #sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 #sysctl -w net.ipv6.conf.default.disable_ipv6=0
 
+                # DCV?
+                export installDCV="${installDCV}"
+                case $installDCV in
+                  Yes)
+                    systemctl enable --now dcv-virtual-session
+                    systemctl enable --now dcvserver
+                    ;;
+                  No)
+                    rm -f /etc/systemd/system/dcv-virtual-session.service
+                    rm -f /opt/dcv-virtual-session.sh
+                    rm -f /home/ec2-user/update-dcv
+                    ;;
+                esac
+
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
                 systemctl daemon-reload
@@ -1517,8 +1535,10 @@ Resources:
                 cd /tmp/cfn
 
                 # Update OS
+                dnf clean all
                 dnf update -q -y
                 sleep 10
+                pkill "^dnf$"
 
                 # AWS CLI
                 echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
@@ -1562,7 +1582,7 @@ Resources:
                   dnf install -q -y kernel6.12-modules-extra
                 else
                   dnf install -q -y kernel-modules-extra
-                fi                
+                fi
 
                 # Docker:
                 if [ "${installDocker}" = "Yes" ]; then
@@ -1595,10 +1615,10 @@ Resources:
                 cd /tmp/cfn
 
                 # Update OS
-                yum update -q -y
+                dnf update -q -y
 
                 # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
-                dnf groupinstall "Desktop" -y
+                dnf groupinstall "Desktop" -y -q
 
                 # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
                 sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
@@ -1607,20 +1627,29 @@ Resources:
                 rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-$(arch).tgz
                 tar -xvzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
-                yum install -q -y ./nice-dcv-server-*.rpm
-                yum install -q -y ./nice-dcv-web-viewer-*.rpm
-                yum install -q -y ./nice-xdcv-*.rpm
+                dnf install -q -y ./nice-dcv-server-*.rpm
+                dnf install -q -y ./nice-dcv-web-viewer-*.rpm
+                dnf install -q -y ./nice-xdcv-*.rpm
 
                 # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
-                yum install -q -y cups
+                dnf install -q -y cups
                 GROUP=$(cat /etc/cups/cups-files.conf | grep -oP "SystemGroup\s\K\w+")
                 usermod -a -G $GROUP dcv
                 systemctl enable cups
+
+                # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
+                cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
+                sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
 
                 # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
                 # Console session support
                 sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
+
+                #
+                systemctl daemon-reload
+                systemctl enable dcv-virtual-session
+                systemctl enable dcvserver
 
                 rm -f ${!0}
               mode: "000740"
@@ -1734,7 +1763,7 @@ Resources:
                       tar -xf imagick*.tgz && rm -f imagick*.tgz && cd imagick*
                       phpize
                       ./configure
-                      if (php --version | grep -q 8.4.) # https://github.com/Imagick/imagick/issues/698
+                      if (php --version | grep -q 8.4.); then # https://github.com/Imagick/imagick/issues/698
                         sed -i "s/php_strtolower/zend_str_tolower/g" imagick.c
                       fi
                       make
@@ -1826,6 +1855,7 @@ Resources:
 
                     dnf install -q -y php-odbc unixODBC-devel
                     # Microsoft ODBC driver for SQL Server : https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/858
                     curl https://packages.microsoft.com/config/rhel/9/prod.repo | tee /etc/yum.repos.d/mssql-release.repo
                     dnf remove -q -y unixODBC-utf16 unixODBC-utf16-devel #to avoid conflicts
                     ACCEPT_EULA=Y dnf install -q -y msodbcsql18
@@ -1836,6 +1866,7 @@ Resources:
                     touch ACCEPT_EULA
 
                     # Microsoft Drivers for PHP for SQL Server: https://learn.microsoft.com/en-us/sql/connect/php/microsoft-php-driver-for-sql-server
+                    # https://github.com/amazonlinux/amazon-linux-2023/issues/859
                     yes 'no' | pecl install sqlsrv
                     if [ $? -eq 0 ]; then
                       echo 'extension=sqlsrv.so' > /etc/php.d/20-sqlsrv.ini
@@ -2041,38 +2072,8 @@ Resources:
             install:
               command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
-        10_dcv_configure:
-          files:
-            "/opt/dcv-configure.sh":
-              content: !Sub |
-                #!/bin/bash
-                mkdir -p /tmp/cfn
-                cd /tmp/cfn
-
-                # DCV?
-                export installDCV="${installDCV}"
-                case $installDCV in
-                  Yes)
-                    systemctl enable dcv-virtual-session
-                    systemctl enable dcvserver
-                    ;;
-                  No)
-                    rm -f /etc/systemd/system/dcv-virtual-session.service
-                    rm -f /opt/dcv-virtual-session.sh
-                    rm -f /home/ubuntu/update-dcv
-                    ;;
-                esac
-
-                rm -f ${!0}
-              mode: "000755"
-              owner: "root"
-              group: "root"
-          commands:
-            install:
-              command: "/opt/dcv-configure.sh >> /var/log/install-sw.log 2>&1"
-              ignoreErrors: "true"
     Properties:
-      ImageId: # https://github.com/amazonlinux/amazon-linux-2023
+      ImageId:
         !If [
           useARM64,
           "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.12-arm64}}",
@@ -2131,9 +2132,6 @@ Resources:
 
           # Install rest of LAMP stack components
           $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c lamp_install
-
-          # DCV configuration
-          $CFN_INIT -v --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region} -c dcv_configure
 
           #
           systemctl set-default multi-user.target
