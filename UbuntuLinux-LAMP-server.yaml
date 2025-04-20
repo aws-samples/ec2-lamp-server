@@ -1921,9 +1921,16 @@ Resources:
                 fi
                 apt-get install -q -y ./mount-s3.deb
 
-                # Redis & Memcached
-                apt-get install -q -y redis-server memcached
+                # Valkey/Redis & Memcached
+                apt-get install -q -y memcached
                 systemctl enable redis-server memcached
+                if (lsb_release -r -s | grep -q 22); then
+                  apt-get install -q -y redis-server
+                  systemctl enable redis-server
+                else
+                  apt-get install -q -y valkey-server
+                  systemctl enable valkey-server
+                fi
 
                 # Web server
                 export WEB="${webOption}"

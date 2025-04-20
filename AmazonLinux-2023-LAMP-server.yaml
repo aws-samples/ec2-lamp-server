@@ -1929,9 +1929,9 @@ Resources:
                   dnf install -q -y ./mount-s3.rpm
                 fi
 
-                # Redis & Memcached
-                dnf install -q -y redis6 memcached
-                systemctl enable --now redis6 memcached
+                # Valkey (replace redis6) & Memcached
+                dnf install -q -y valkey memcached
+                systemctl enable --now valkey memcached
 
                 # Web server
                 export WEB="${webOption}"
