@@ -38,26 +38,7 @@ Metadata:
           - displayPublicIP
           - assignStaticIP
       - Label:
-          default: Application Load Balancer (ALB)
-        Parameters:
-          - enableALB
-          - albScheme
-          - albIpAddressType
-          - albSubnets
-      - Label:
-          default: ALB HTTPS listener
-        Parameters:
-          - albCertificateArn
-          - albSecurityPolicy
-          - albRedirectHTTPtoHTTPS
-          - albHstsHeaderValue
-      - Label:
-          default: Amazon CloudFront
-        Parameters:
-          - enableCloudFront
-          - originType
-      - Label:
-          default: EC2 remote administration
+          default: EC2 Remote Administration
         Parameters:
           - ingressIPv4
           - ingressIPv6
@@ -70,14 +51,36 @@ Metadata:
           - webOption
           - phpVersion
           - databaseOption
-          - s3BucketName
-          - r53ZoneID
+      - Label:
+          default: Others
+        Parameters:
           - installDocker
+          - r53ZoneID
+          - s3BucketName
       - Label:
           default: EBS
         Parameters:
           - volumeSize
           - volumeType
+      - Label:
+          default: Application Load Balancer (ALB)
+        Parameters:
+          - enableALB
+          - albSubnets
+          - albScheme
+          - albIpAddressType
+      - Label:
+          default: ALB HTTPS Listener
+        Parameters:
+          - albCertificateArn
+          - albSecurityPolicy
+          - albRedirectHTTPtoHTTPS
+          - albHstsHeaderValue
+      - Label:
+          default: Amazon CloudFront
+        Parameters:
+          - enableCloudFront
+          - originType
       - Label:
           default: AWS Backup
         Parameters:
@@ -131,9 +134,9 @@ Metadata:
         default: "HSTS (HTTP Strict Transport Security) header value. Leave blank not to send"
 
       ingressIPv4:
-        default: "Allowed IPv4 prefix"
+        default: "Allowed source prefix (IPv4)"
       ingressIPv6:
-        default: "Allowed IPv6 prefix"
+        default: "Allowed source prefix (IPv6)"
       allowSSHport:
         default: "Allow SSH from network"
       installDCV:
@@ -147,9 +150,9 @@ Metadata:
       phpVersion:
         default: "PHP version to install"
       s3BucketName:
-        default: "(optional) S3 bucket name to grant access to"
+        default: "S3 bucket name to grant access to"
       r53ZoneID:
-        default: "(optional) Route 53 hosted zone ID to grant access to"
+        default: "Route 53 hosted zone ID to grant access to"
       installDocker:
         default: "Install Docker"
 
@@ -361,7 +364,7 @@ Parameters:
   r53ZoneID:
     Type: String
     Description: https://console.aws.amazon.com/route53/hostedzones https://certbot-dns-route53.readthedocs.io/
-    Default: ""
+    Default: "*"
 
   volumeSize:
     Type: Number
@@ -1508,6 +1511,14 @@ Resources:
                                 "measurement": [
                                     "used_percent"
                                 ]
+                            },
+                            "disk": {
+                                "measurement": [
+                                    "used_percent"
+                                ],
+                                "resources": [
+                                    "/"
+                                ]
                             }
                         }
                     }
@@ -1580,7 +1591,8 @@ Resources:
 
                 # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
                 yum install -q -y augeas-libs
-                amazon-linux-extras install -q -y python3.8 
+                amazon-linux-extras install -q -y python3.8
+                yum install -q -y python-augeas
 
                 /usr/bin/python3.8 -m venv /opt/certbot/
                 /opt/certbot/bin/pip install --upgrade pip
@@ -1588,7 +1600,7 @@ Resources:
                 /opt/certbot/bin/pip install certbot-dns-route53
                 /opt/certbot/bin/pip install certbot-apache
                 /opt/certbot/bin/pip install certbot-nginx
-                ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+                ln -sf /opt/certbot/bin/certbot /usr/bin/certbot
 
                 touch /etc/sysconfig/certbot
                 chmod og-rwx /etc/sysconfig/certbot
@@ -1904,14 +1916,14 @@ Resources:
                 </VirtualHost>
                 EoF
 
+                    cp /root/index.php /var/www/html/
+
                     # Change permissions and ownership
                     usermod -a -G apache ec2-user
                     chown -R ec2-user:apache /var/www/html
                     chmod -R 2775 /var/www/html
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
-
-                    cp /root/index.php /var/www/html/
 
                     systemctl restart httpd
                     ;;
@@ -1963,6 +1975,8 @@ Resources:
                     sed -i "20,20s/root/#root/g" /etc/nginx/sites-available/default
                     sed -i "31,31s/}/#}/g" /etc/nginx/sites-available/default
 
+                    cp /root/index.php /usr/share/nginx/html/
+
                     # Change permissions and ownership
                     usermod -a -G nginx ec2-user
                     usermod -a -G nginx apache
@@ -1970,8 +1984,6 @@ Resources:
                     chmod -R 2775 /usr/share/nginx/html
                     find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
                     find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
-
-                    cp /root/index.php /usr/share/nginx/html/
 
                     systemctl restart nginx
                     ;;
