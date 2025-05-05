@@ -2057,7 +2057,7 @@ Resources:
                     systemctl enable mysqld
                     ;;
                   MariaDB)
-                    dnf install -q -y mariadb10*-server
+                    dnf install -q -y mariadb1011-server
                     systemctl enable mariadb
                     ;;
                   PostgreSQL)
