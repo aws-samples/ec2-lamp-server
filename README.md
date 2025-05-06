@@ -1,10 +1,10 @@
 ## EC2-LAMP-Server
-[AWS CloudFormation](https://aws.amazon.com/cloudformation/) template to provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP and MySQL/MariaDB/PostgreSQL.
+Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and WordPress/Moodle. 
 
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/) more than [70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP.
 
-This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine and database engine. The instances can be used for software development or deployment of PHP based web applications, and include options to install [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/). 
+This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server and database engine, and include [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used for software development or deployment of PHP based web applications,
 
 
 ## Architecture Diagram
