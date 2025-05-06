@@ -51,6 +51,7 @@ Metadata:
           - webOption
           - phpVersion
           - databaseOption
+          - installApp
       - Label:
           default: Others
         Parameters:
@@ -149,12 +150,15 @@ Metadata:
         default: "Database server to install"
       phpVersion:
         default: "PHP version to install"
-      s3BucketName:
-        default: "S3 bucket name to grant access to"
-      r53ZoneID:
-        default: "Route 53 hosted zone ID to grant access to"
+      installApp:
+        default: "Application stack to install"
+
       installDocker:
         default: "Install Docker Engine aka Docker CE"
+      r53ZoneID:
+        default: "Route 53 hosted zone ID to grant access to"
+      s3BucketName:
+        default: "S3 bucket name to grant access to"
 
       enableBackup:
         default: "Backup EC2 instance"
@@ -370,7 +374,7 @@ Parameters:
       - "php8.3"
       - "php8.4"
       - "none"
-    Default: "php8.4"
+    Default: "php8.3"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
@@ -773,6 +777,15 @@ Parameters:
       - "Yes"
       - "No"
     Default: "No"
+  installApp:
+    Type: String
+    Description: Refer to application website for system requirements
+    AllowedValues:
+      - "WordPress"
+      - "Moodle 5.0"
+      - "Moodle 4.5"
+      - "None"
+    Default: "None"
 
   enableCloudFront:
     Type: String
@@ -1487,6 +1500,7 @@ Resources:
                 #!/bin/bash
                 #sysctl -w net.ipv6.conf.all.disable_ipv6=1
                 #sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
                 export DEBIAN_FRONTEND=noninteractive
 
                 python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
@@ -2029,10 +2043,12 @@ Resources:
                   MariaDB)
                     apt-get install -q -y mariadb-server
                     systemctl enable mariadb
+
                     ;;
                   PostgreSQL)
                     apt-get install -q -y postgresql
                     systemctl enable postgresql
+
                     ;;
                 esac
 
@@ -2044,6 +2060,87 @@ Resources:
                 curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
                 chmod +x ./install
                 ./install auto
+
+                # install Application Stack?
+                if (! echo '${installApp}' | grep -i -q "none"); then
+                  # create database and user
+                  if (which mysql); then
+                    systemctl start mysqld
+
+                    case '${installApp}' in
+                      WordPress)
+                          export DB=wordpress
+                          export DB_USER=wordpress
+                          ;;
+                      Moodle*)
+                          export DB=moodle
+                          export DB_USER=moodle
+                          ;;
+                    esac
+
+                    # database credentials in user home directory
+                    export DB_CREDS_FILE="/home/ubuntu/database-credentials"
+                    echo "Application Stack: ${installApp}" >> $DB_CREDS_FILE
+                    echo "Database: $DB" >> $DB_CREDS_FILE
+                    echo "User: $DB_USER" >>$DB_CREDS_FILE
+                      
+                    # generate strong password
+                    apt-get install -q -y pwgen
+                    DB_USER_PW=$(pwgen -c -n -y -r "\/\'\"\`" 16)
+                    echo "User password = $DB_USER_PW" >> $DB_CREDS_FILE
+                    chown ubuntu:ubuntu $DB_CREDS_FILE
+                    chmod og-rwx $DB_CREDS_FILE
+
+                    # create database and user
+                    sudo mysql -u root -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_USER_PW';
+                    CREATE DATABASE $DB CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+                    GRANT ALL PRIVILEGES ON $DB.* TO '$DB_USER'@'localhost';
+                    FLUSH PRIVILEGES;"
+
+                  fi
+
+                  # Download application files
+                  mkdir -p /tmp/cfn
+                  cd /tmp/cfn
+                  case '${installApp}' in
+                    WordPress)
+                      curl -s -L -O https://wordpress.org/latest.tar.gz
+                      tar -xf latest.tar.gz
+                      case ${webOption} in
+                        Apache)
+                          rsync -r /tmp/cfn/wordpress/ /var/www/html/
+                          ;;
+                        Nginx)
+                          rsync -r /tmp/cfn/wordpress/ /var/www/html/
+                          ;;
+                      esac
+                      chown www-data:www-data -R /var/www/html
+                      chmod g+rw -R /var/www/html
+                      ;;
+                    Moodle*)
+                      if (echo '${installApp}' | grep -q "Moodle 5"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
+                      else
+                        curl -s -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz -o moodle.tgz
+                      fi
+                      tar -xf moodle.tgz
+                      case ${webOption} in
+                        Apache)
+                          rsync -r /tmp/cfn/moodle/ /var/www/html/
+                          ;;
+                        Nginx)
+                          rsync -r /tmp/cfn/moodle/ /var/www/html/
+                          ;;
+                      esac
+                      chown www-data:www-data -R /var/www/html
+                      chmod g+rw -R /var/www/html
+                      # Moodle data
+                      mkdir -p /var/www/moodledata
+                      chown www-data:www-data -R /var/www/moodledata
+                      chmod g+rw -R /var/www/moodledata
+                      ;;
+                  esac
+                fi
 
                 rm -f ${!0}
               mode: "000740"

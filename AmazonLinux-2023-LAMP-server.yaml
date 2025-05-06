@@ -51,6 +51,7 @@ Metadata:
           - webOption
           - phpVersion
           - databaseOption
+          - installApp
       - Label:
           default: Others
         Parameters:
@@ -149,12 +150,15 @@ Metadata:
         default: "Database server to install"
       phpVersion:
         default: "PHP version to install"
-      s3BucketName:
-        default: "S3 bucket name to grant access to"
-      r53ZoneID:
-        default: "Route 53 hosted zone ID to grant access to"
+      installApp:
+        default: "Application stack to install"
+
       installDocker:
         default: "Install Docker"
+      r53ZoneID:
+        default: "Route 53 hosted zone ID to grant access to"
+      s3BucketName:
+        default: "S3 bucket name to grant access to"
 
       enableBackup:
         default: "Backup EC2 instance"
@@ -358,7 +362,7 @@ Parameters:
       - "php8.3"
       - "php8.4"
       - "none"
-    Default: "php8.4"
+    Default: "php8.3"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
@@ -761,6 +765,15 @@ Parameters:
       - "Yes"
       - "No"
     Default: "No"
+  installApp:
+    Type: String
+    Description: Refer to application website for system requirements
+    AllowedValues:
+      - "WordPress"
+      - "Moodle 5.0"
+      - "Moodle 4.5"
+      - "None"
+    Default: "None"
 
   enableCloudFront:
     Type: String
@@ -1724,7 +1737,7 @@ Resources:
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/206
                     # php-apcu: https://github.com/krakjoe/apcu/blob/master/package.xml
-                    dnf install -q -y php-apcu
+                    dnf install -q -y ${phpVersion}-apcu
                     if (! php -m | grep -q apcu); then
                       yes 'no' | pecl install --configureoptions 'enable-apcu-debug="no"' apcu
                       if [ $? -eq 0 ]; then
@@ -1733,7 +1746,7 @@ Resources:
                     fi
 
                     # php-igbinary: https://pecl.php.net/package/igbinary
-                    dnf install -q -y php-igbinary
+                    dnf install -q -y ${phpVersion}-igbinary
                     if (! php -m | grep -q igbinary); then
                       yes 'no' | pecl install igbinary
                       if [ $? -eq 0 ]; then
@@ -1742,7 +1755,7 @@ Resources:
                     fi
 
                     # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
-                    dnf install -q -y php-msgpack
+                    dnf install -q -y ${phpVersion}-msgpack
                     if (! php -m | grep -q msgpack); then
                       yes 'no' | pecl install msgpack
                       if [ $? -eq 0 ]; then
@@ -1751,7 +1764,7 @@ Resources:
                     fi
 
                     # php-lzf: https://github.com/php/pecl-file_formats-lzf/blob/master/package.xml
-                    dnf install -q -y php-lzf
+                    dnf install -q -y ${phpVersion}-lzf
                     if (! php -m | grep -q lzf); then
                       yes 'no' | pecl install --configureoptions 'enable-lzf-better-compression="no"' lzf
                       if [ $? -eq 0 ]; then
@@ -1760,7 +1773,7 @@ Resources:
                     fi
 
                     # php-zstd: https://github.com/kjdev/php-ext-zstd/blob/master/package.xml
-                    dnf install -q -y php-zstd
+                    dnf install -q -y ${phpVersion}-zstd
                     if (! php -m | grep -q zstd); then
                       dnf install -q -y libzstd-devel
                       yes 'no' | pecl install zstd
@@ -1772,7 +1785,7 @@ Resources:
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/207
                     # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
                     # https://gist.github.com/Wirone/d5c794b4fef0203146a27687e80588a6#file-workaround-dockerfile
-                    dnf install -q -y php-imagick
+                    dnf install -q -y ${phpVersion}-imagick
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
                       pecl download Imagick
@@ -1792,7 +1805,7 @@ Resources:
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/328
                     # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
-                    dnf install -q -y php-redis
+                    dnf install -q -y ${phpVersion}-redis
                     if (! php -m | grep -q redis); then
                       dnf install -q -y redis6-devel lz4-devel
                       yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
@@ -1803,7 +1816,7 @@ Resources:
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/208
                     # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
-                    dnf install -q -y php-memcached
+                    dnf install -q -y ${phpVersion}-memcached
                     if (! php -m | grep -q memcached); then
                       dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel libzstd-devel
                       yes 'no' | pecl install --configureoptions 'with-libmemcached-dir="yes" with-zlib-dir="yes" with-system-fastlz="no" enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
@@ -1814,7 +1827,7 @@ Resources:
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/195
                     # php-zip: https://github.com/pierrejoye/php_zip/blob/master/package.xml
-                    dnf install -q -y php-zip
+                    dnf install -q -y ${phpVersion}-zip
                     if (! php -m | grep -q zip); then
                       dnf install -q -y libzip-devel
                       yes 'no' | pecl install zip
@@ -1825,7 +1838,7 @@ Resources:
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/204
                     # libsodium: https://github.com/jedisct1/libsodium-php/blob/master/package.xml
-                    dnf install -q -y php-sodium
+                    dnf install -q -y ${phpVersion}-sodium
                     if (! php -m | grep -q sodium); then
                       dnf install -q -y libsodium-devel
                       yes 'no' | pecl install -f libsodium
@@ -1835,7 +1848,7 @@ Resources:
                     fi
 
                     # php-lz4: https://github.com/kjdev/php-ext-lz4
-                    dnf install -q -y php-lz4
+                    dnf install -q -y ${phpVersion}-lz4
                     if (! php -m | grep -q lz4); then
                       cd /tmp/cfn
                       dnf install -q -y git lz4-devel
@@ -1851,7 +1864,7 @@ Resources:
                     fi
 
                     # php-timezonedb: https://github.com/php/pecl-datetime-timezonedb/blob/master/package.xml
-                    dnf install -q -y php-timezonedb
+                    dnf install -q -y ${phpVersion}-timezonedb
                     if (! php -m | grep -q timezonedb); then
                       yes 'no' | pecl install -f timezonedb
                       if [ $? -eq 0 ]; then
@@ -1860,7 +1873,7 @@ Resources:
                     fi
 
                     # php-ssh2: https://github.com/php/pecl-networking-ssh2/blob/master/package.xml
-                    dnf install -q -y php-ssh2
+                    dnf install -q -y ${phpVersion}-ssh2
                     if (! php -m | grep -q ssh2); then
                       sudo dnf install -y libssh2-devel
                       yes 'no' | pecl install --configureoptions 'with-ssh2="yes"' ssh2
@@ -1869,7 +1882,7 @@ Resources:
                       fi
                     fi
 
-                    dnf install -q -y php-odbc unixODBC-devel
+                    dnf install -q -y ${phpVersion}-odbc unixODBC-devel
                     # Microsoft ODBC driver for SQL Server : https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/858
                     curl https://packages.microsoft.com/config/rhel/9/prod.repo | tee /etc/yum.repos.d/mssql-release.repo
@@ -2044,7 +2057,7 @@ Resources:
                     dnf install -q -y https://repo.mysql.com/mysql80-community-release-el9-5.noarch.rpm
                     dnf install -q -y mysql-community-server
 
-                    systemctl enable mysqld
+                    systemctl enable --now mysqld
                     ;;
                   MySQL8.4) # https://dev.mysql.com/downloads/repo/yum/
                     # https://dev.mysql.com/doc/refman/8.4/en/checking-rpm-signature.html
@@ -2054,16 +2067,20 @@ Resources:
                     dnf install -q -y https://repo.mysql.com/mysql84-community-release-el9-1.noarch.rpm
                     dnf install -q -y mysql-community-server
 
-                    systemctl enable mysqld
+                    systemctl enable --now mysqld
+
                     ;;
-                  MariaDB)
+                  MariaDB) # https://github.com/amazonlinux/amazon-linux-2023/issues/571
                     dnf install -q -y mariadb1011-server
-                    systemctl enable mariadb
+                    systemctl enable --now mariadb
+
                     ;;
                   PostgreSQL)
-                    dnf install -q -y postgresql17*-server
+                    PGSQL-SERVER=$(dnf search postgresql*-server | grep ^postgresql | grep server$ | sort -r | head -n 1 | cut -d. -f1)
+                    dnf install -q -y $PGSQL-SERVER
                     /usr/bin/postgresql-setup --initdb
-                    systemctl enable postgresql
+                    systemctl enable --now postgresql
+
                     ;;
                 esac
 
@@ -2078,6 +2095,102 @@ Resources:
                   curl -s -L -O https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
                   chmod +x ./install
                   ./install auto
+                fi
+
+                # install application stack?
+                if (! echo '${installApp}' | grep -i -q "none"); then
+                  # create database and user
+                  if (which mysql); then
+                    systemctl start mysqld
+
+                    case '${installApp}' in
+                      WordPress)
+                          export DB=wordpress
+                          export DB_USER=wordpress
+                          ;;
+                      Moodle*)
+                          export DB=moodle
+                          export DB_USER=moodle
+                          ;;
+                    esac
+
+                    # database credentials in user home directory
+                    export DB_CREDS_FILE="/home/ec2-user/database-credentials"
+                    echo "Application Stack: ${installApp}" >> $DB_CREDS_FILE
+                    echo "Database: $DB" >> $DB_CREDS_FILE
+                    echo "User: $DB_USER" >>$DB_CREDS_FILE
+                      
+                    # generate strong password
+                    dnf install -q -y pwgen
+                    DB_USER_PW=$(pwgen -c -n -y -r "\/\'\"\`" 16)
+                    echo "User password = $DB_USER_PW" >> $DB_CREDS_FILE
+                    chown ec2-user:ec2-user $DB_CREDS_FILE
+                    chmod og-rwx $DB_CREDS_FILE
+
+                    # create database and user
+                    if (mysql --version | grep -q 8\.); then # MySQL8.x
+                      INITIAL_PW=$(sudo grep 'temporary password' /var/log/mysqld.log | grep -oE '[^ ]+$')                        
+                      mysql -u root -p$INITIAL_PW --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_USER_PW';"
+                      mysql -u root -p$DB_USER_PW -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_USER_PW';
+                      CREATE DATABASE $DB CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+                      GRANT ALL PRIVILEGES ON $DB.* TO '$DB_USER'@'localhost';
+                      FLUSH PRIVILEGES;"
+                      mysql -u root -p$DB_USER_PW -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$INITIAL_PW';"
+
+                      echo "Root password: $INITIAL_PW" >>$DB_CREDS_FILE
+                    else # MariaDB
+                      sudo mysql -u root -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_USER_PW';
+                      CREATE DATABASE $DB CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+                      GRANT ALL PRIVILEGES ON $DB.* TO '$DB_USER'@'localhost';
+                      FLUSH PRIVILEGES;"
+                    fi
+                  fi
+
+                  # Download application files
+                  mkdir -p /tmp/cfn
+                  cd /tmp/cfn
+                  case '${installApp}' in
+                    WordPress)
+                      curl -s -L -O https://wordpress.org/latest.tar.gz
+                      tar -xf latest.tar.gz
+                      case ${webOption} in
+                        Apache)
+                          rsync -r /tmp/cfn/wordpress/ /var/www/html/
+                          chown apache:apache -R /var/www/html
+                          chmod g+rw -R /var/www/html
+                          ;;
+                        Nginx)
+                          rsync -r /tmp/cfn/wordpress/ /usr/share/nginx/html/
+                          chown nginx:nginx -R /usr/share/nginx/html
+                          chmod g+rw -R /usr/share/nginx/html
+                          ;;
+                      esac
+                      ;;
+                    Moodle*)
+                      if (echo '${installApp}' | grep -q "Moodle 5"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
+                      else
+                        curl -s -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz -o moodle.tgz
+                      fi
+                      tar -xf moodle.tgz
+                      case ${webOption} in
+                        Apache)
+                          rsync -r /tmp/cfn/moodle/ /var/www/html/
+                          chown apache:apache -R /var/www/html
+                          chmod g+rw -R /var/www/html
+                          ;;
+                        Nginx)
+                          rsync -r /tmp/cfn/moodle/ /usr/share/nginx/html/
+                          chown nginx:nginx -R /usr/share/nginx/html
+                          chmod g+rw -R /usr/share/nginx/html
+                          ;;
+                      esac
+                      # Moodle data
+                      mkdir -p /var/www/moodledata
+                      chown apache:apache -R /var/www/moodledata
+                      chmod g+rw -R /var/www/moodledata
+                      ;;
+                  esac
                 fi
 
                 rm -f ${!0}

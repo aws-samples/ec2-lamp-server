@@ -149,12 +149,13 @@ Metadata:
         default: "Database server to install"
       phpVersion:
         default: "PHP version to install"
-      s3BucketName:
-        default: "S3 bucket name to grant access to"
-      r53ZoneID:
-        default: "Route 53 hosted zone ID to grant access to"
+
       installDocker:
         default: "Install Docker"
+      r53ZoneID:
+        default: "Route 53 hosted zone ID to grant access to"
+      s3BucketName:
+        default: "S3 bucket name to grant access to"
 
       enableBackup:
         default: "Backup EC2 instance"

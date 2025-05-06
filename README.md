@@ -4,7 +4,7 @@
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/) more than [70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP.
 
-This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine and database engine. The instances can be used for software development or deployment of PHP based web applications such as [WordPress](https://wordpress.org/) and [Moodle](https://moodle.org/). 
+This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server engine and database engine. The instances can be used for software development or deployment of PHP based web applications, and include options to install [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/). 
 
 
 ## Architecture Diagram
@@ -19,6 +19,7 @@ The template provides the following features:
   - PHP
     - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) compiled[*](#compiling-php-extensions-on-amazon-linux-2023-al2023)
     - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) from [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
+  - Web application: [WordPress](https://wordpress.org/download/) or [Moodle](https://download.moodle.org/) (optional)
   - [Composer](https://getcomposer.org/)
   - [Valkey](https://valkey.io/)/[Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
   - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#obtaining-certificate-for-https)
@@ -81,6 +82,10 @@ LAMP
 - `webOption`: `Apache` or `Nginx` web server.
 - `phpVersion`: PHP version to install or `none`.
 - `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux will attempt to use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
+- `installApp`#: option to install WordPress or Moodle. If selected, template will create MySQL/MariaDB database and user, and download installation files. Default is `None`.
+
+
+*#When stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) web based installation. The database name, user and password to use can be located in `/home/ec2-user/database-credentials` (AL2023) or `/home/ubuntu/database-credentials` (Ubuntu)*
 
 Others
 - `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `No`
