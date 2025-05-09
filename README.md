@@ -1,10 +1,10 @@
 ## EC2-LAMP-Server
-Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and WordPress/Moodle. 
+Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and/or WordPress/Moodle. 
 
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/) more than [70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP.
 
-This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision EC2 instances with option to specify PHP version, web server and database engine, and include [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used for software development or deployment of PHP based web applications,
+This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision EC2 instances with option to specify PHP version, web server and database engine, and [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used deployment of PHP based web applications, or for application development.
 
 
 ## Architecture Diagram
@@ -47,7 +47,7 @@ Although this repository is released under the [MIT-0](LICENSE) license, its Clo
 By using the template, you accept license agreement of all software that is installed in the EC2 instance. 
 
 ## Requirements
-- EC2 instance must be provisioned in a subnet with IPv4 internet connectivity. 
+- EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity. 
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
 
 
