@@ -56,6 +56,10 @@ Download .yaml file for the desired operating system ([Amazon Linux 2023](https:
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values.
 
+### CloudFormation Parameters
+In most cases, the default values are sufficient. You will need to specify values for `ec2KeyPair`, `vpcID`, `subnetID` and `albSubnets`. For security reasons, configure `ingressIPv4` and `ingressIPv6` to your IP address. Consider AWS Backup (`enableBackup`) for EC2 instance data protection.
+
+
 EC2 Instance
 - `ec2Name`: EC2 instance name
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
