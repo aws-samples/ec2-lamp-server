@@ -2178,17 +2178,21 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
                           chown apache:apache -R /var/www/html
                           chmod g+rw -R /var/www/html
+                          # Moodle data
+                          mkdir -p /var/www/moodledata
+                          chown apache:apache -R /var/www/moodledata
+                          chmod g+rw -R /var/www/moodledata
                           ;;
                         Nginx)
                           rsync -r /tmp/cfn/moodle/ /usr/share/nginx/html/
                           chown nginx:nginx -R /usr/share/nginx/html
                           chmod g+rw -R /usr/share/nginx/html
+                          # Moodle data
+                          mkdir -p /usr/share/nginx/moodledata
+                          chown nginx:nginx -R /usr/share/nginx/moodledata
+                          chmod g+rw -R /usr/share/nginx/moodledata
                           ;;
                       esac
-                      # Moodle data
-                      mkdir -p /var/www/moodledata
-                      chown apache:apache -R /var/www/moodledata
-                      chmod g+rw -R /var/www/moodledata
                       ;;
                   esac
                 fi
