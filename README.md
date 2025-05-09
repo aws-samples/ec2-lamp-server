@@ -89,7 +89,7 @@ LAMP
 - `installApp`#: option to install WordPress or Moodle. If selected, template will create MySQL/MariaDB database and user, and download installation files. Default is `None`.
 
 
-*#After stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) web based installation. To retrieve database name, user and password, connect to EC2 instance and run `sudo cat /home/ec2-user/database-credentials` (AL2023) or `sudo cat /home/ubuntu/database-credentials` (Ubuntu) *
+*#After stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) installation. To retrieve database name, user and password, connect to EC2 instance and run `sudo cat /home/ec2-user/database-credentials` (AL2023) or `sudo cat /home/ubuntu/database-credentials` (Ubuntu)*
 
 Others
 - `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `No`
