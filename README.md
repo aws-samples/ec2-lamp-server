@@ -4,7 +4,7 @@ Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/) more than [70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP.
 
-This repo provides CloudFormation templates to provision EC2 instances with option to specify PHP version, web server and database engine, and include [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used for software development or deployment of PHP based web applications,
+This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision EC2 instances with option to specify PHP version, web server and database engine, and include [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used for software development or deployment of PHP based web applications,
 
 
 ## Architecture Diagram
@@ -15,24 +15,24 @@ The template provides the following features:
 - [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/), [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04, or [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
 - Applications
   - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
-  - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server
+  - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
   - PHP
     - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) compiled[*](#compiling-php-extensions-on-amazon-linux-2023-al2023)
     - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) from [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
   - Web application: [WordPress](https://wordpress.org/download/) or [Moodle](https://download.moodle.org/) (optional)
   - [Composer](https://getcomposer.org/)
   - [Valkey](https://valkey.io/)/[Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
-  - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#obtaining-certificate-for-https)
-    - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for use with [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) DNS plugin
+  - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#ssltls-certificate-on-ec2-instance)
+    - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for use by [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) DNS plugin (optional)
   - [Docker Engine](https://docs.docker.com/engine/) (optional)
   - [MountPoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/) for mounting S3 bucket as local file system
-    - [Amazon S3](https://aws.amazon.com/s3/) bucket access for use with Mountpoint with S3
+    - [Amazon S3](https://aws.amazon.com/s3/) bucket access for use by Mountpoint with S3 (optional)
   - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
   - [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) agent
   - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
 - Remote Administration
   - [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote display protocol server for graphical desktop access (optional)
-  - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)  secure shell access 
+  - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)  secure terminal access 
   - [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html) in-browser SSH access
   - [Webmin](https://webmin.com/) web-based system administration (optional)
 - AWS Services
@@ -46,13 +46,13 @@ Although this repository is released under the [MIT-0](LICENSE) license, its Clo
 
 By using the template, you accept license agreement of all software that is installed in the EC2 instance. 
 
-### Requirements
+## Requirements
 - EC2 instance must be provisioned in a subnet with IPv4 internet connectivity. 
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
 
 
 ## Deploying using CloudFormation console
-Download .yaml file for the desired operating system ([Amazon Linux 2](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2-LAMP-server.yaml), [Amazon Linux 2023](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](https://github.com/aws-samples/ec2-lamp-server/blob/main/UbuntuLinux-2204-LAMP-server.yaml)) 
+Download .yaml file for the desired operating system ([Amazon Linux 2023](https://github.com/aws-samples/ec2-lamp-server/blob/main/AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](https://github.com/aws-samples/ec2-lamp-server/blob/main/UbuntuLinux-2204-LAMP-server.yaml)) 
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values.
 
@@ -85,7 +85,7 @@ LAMP
 - `installApp`#: option to install WordPress or Moodle. If selected, template will create MySQL/MariaDB database and user, and download installation files. Default is `None`.
 
 
-*#When stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) web based installation. The database name, user and password to use can be located in `/home/ec2-user/database-credentials` (AL2023) or `/home/ubuntu/database-credentials` (Ubuntu)*
+*#After stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) web based installation. To retrieve database name, user and password, connect to EC2 instance and run `sudo cat /home/ec2-user/database-credentials` (AL2023) or `sudo cat /home/ubuntu/database-credentials` (Ubuntu) *
 
 Others
 - `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `No`
@@ -155,24 +155,13 @@ To troubleshoot any installation issue, you can view contents of the following l
 - `/var/log/install-lamp.log`
 - `/var/log/install-dcv.log`
 
-## PHP performance configuration
-Based on public articles about PHP performance (many thanks to the authors), the following enhancements were made:
-
-- Default processor architecture is [Graviton](https://aws.amazon.com/ec2/graviton/) as per [Improving performance of PHP for Arm64 and impact on AWS Graviton2 based EC2 instances](https://aws.amazon.com/blogs/compute/improving-performance-of-php-for-arm64-and-impact-on-amazon-ec2-m6g-instances/) and [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
-- PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [Make your PHP 8 apps twice as fast (OPCache & JIT)](https://medium.com/@edouard.courty/make-your-php-8-apps-twice-as-fast-opcache-jit-8d3542276595)
-- [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/)
-- [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html): from [Apache Performance Tuning: MPM Modules](https://www.liquidweb.com/kb/apache-performance-tuning-apache-mpm-modules/#best)
-- Valkey or Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
-- Serialisation (igbinary,msgpack) and compression (lzf,zstd,lz4) extensions to reduce Valkey/Redis/Memcached network traffic: from [Strategies for Reducing Big Redis Traffic in Laravel](https://world.hey.com/otar/strategies-for-reducing-big-redis-traffic-in-laravel-a168f96a)
-- PHP [OPcache file cache](https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache) configured as per [PHP Opcache file cache](https://patrickkerrigan.uk/blog/php-opcache-file-cache/) but not enabled. To enable, edit `/etc/php.d/10-opcache.ini` (Amazon Linux) or `/etc/php/`*`phpVersion`*`/fpm/php.ini` (Ubuntu) file to uncomment the line beginning with `opcache.file_cache=/var/www/.opcache` and restart php-fpm.
-
-## Obtaining certificate for HTTPS
+## SSL/TLS certificate on EC2 instance
 Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS. You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a public certificate for your own domain and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
 
-The EC2 instance uses a self-signed certificate for HTTPS. You can use [Certbot](https://certbot.eff.org/pages/about) to obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server.
+The EC2 instance uses a self-signed certificate for HTTPS. You can use [Certbot](https://certbot.eff.org/pages/about) to obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server as follows.
 
 ### Certbot prerequisites
-Ensure you have a domain name whose DNS entry resolves to your EC2 instance IP address. If you do not have a domain, you can [register a new domain](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html#domain-register-procedure-section) using [Amazon Route 53](https://aws.amazon.com/route53/) and [create a DNS A record](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html).
+Ensure you have a domain name whose DNS entry resolves to your EC2 instance public internet IP address. If you do not have a domain, you can [register a new domain](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html#domain-register-procedure-section) using [Amazon Route 53](https://aws.amazon.com/route53/) and [create a DNS A and/or AAAA record](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html).
 
 ### Using apache plugin
 
@@ -191,7 +180,7 @@ Ensure you have a domain name whose DNS entry resolves to your EC2 instance IP a
   *Apache and Nginx plugin uses [HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/#http-01-challenge), and require HTTP port 80 to be accessible from public internet*
 
 ### Using Route 53 plugin 
-The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) option requires your DNS to be hosted by Route 53. It supports wildcard certificates and domain names that resolve to private IP addresses.  Ensure that Route 53 zone access is granted by specifying `r53ZoneID` value. From terminal, run the below command based on installed web server type and follow instructions.
+The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) option uses [DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and requires your DNS to be hosted by Route 53. It supports wildcard certificates and domain names that resolve to private IP addresses.  Ensure that Route 53 zone access is granted by specifying `r53ZoneID` value. From terminal, run the below command based on installed web server type and follow instructions.
 
 - Apache
   ```
@@ -203,7 +192,7 @@ The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/)
   ```
   
 
-Refer to Certbot site for [help](https://certbot.eff.org/pages/help) with this tool.  
+Refer to [official site](https://certbot.eff.org/pages/help) for help with Certbot.  
 
 
 ## Using Cloudwatch agent
@@ -225,7 +214,21 @@ sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-c
 
 Refer to [How do I install and configure the unified CloudWatch agent to push metrics and logs from my EC2 instance to CloudWatch?](https://repost.aws/knowledge-center/cloudwatch-push-metrics-unified-agent) for more details.
 
-## Compiling PHP extensions on Amazon Linux 2023 (AL2023)
+
+## PHP 
+
+### Performance
+Based on public articles about PHP performance (many thanks to the authors), the following enhancements were made:
+
+- Default processor architecture is [Graviton](https://aws.amazon.com/ec2/graviton/) as per [Improving performance of PHP for Arm64 and impact on AWS Graviton2 based EC2 instances](https://aws.amazon.com/blogs/compute/improving-performance-of-php-for-arm64-and-impact-on-amazon-ec2-m6g-instances/) and [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
+- PHP [OPcache](https://www.php.net/manual/en/book.opcache.php) and [JIT](https://php.watch/versions/8.0/JIT) enabled: from [Make your PHP 8 apps twice as fast (OPCache & JIT)](https://medium.com/@edouard.courty/make-your-php-8-apps-twice-as-fast-opcache-jit-8d3542276595)
+- [FastCGI Process Manager (FPM)](https://www.php.net/manual/en/install.fpm.php): from [PHP-FPM Cuts Web App Loading Times by 300%](https://www.cloudways.com/blog/php-fpm-on-cloud/)
+- [Apache MPM Event](https://httpd.apache.org/docs/2.4/mod/event.html): from [Apache Performance Tuning: MPM Modules](https://www.liquidweb.com/kb/apache-performance-tuning-apache-mpm-modules/#best)
+- Valkey or Redis session store: from [Highly Performant PHP Sessions with Redis](https://levelup.gitconnected.com/highly-performant-php-sessions-with-redis-b2dc17b4f4e4)
+- Serialisation (igbinary,msgpack) and compression (lzf,zstd,lz4) extensions to reduce Valkey/Redis/Memcached network traffic: from [Strategies for Reducing Big Redis Traffic in Laravel](https://world.hey.com/otar/strategies-for-reducing-big-redis-traffic-in-laravel-a168f96a)
+- PHP [OPcache file cache](https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache) configured as per [PHP Opcache file cache](https://patrickkerrigan.uk/blog/php-opcache-file-cache/) but not enabled. To enable, edit `/etc/php.d/10-opcache.ini` (Amazon Linux) or `/etc/php/`*`phpVersion`*`/fpm/php.ini` (Ubuntu) file to uncomment the line beginning with `opcache.file_cache=/var/www/.opcache` and restart php-fpm.
+
+### Compiling PHP extensions on Amazon Linux 2023 (AL2023)
 If you are looking to compile PHP extensions on AL2023, refer to community article [How do I compile PHP extensions on Amazon Linux 2023?](https://repost.aws/articles/ARM9q-NiODRKC9V7N_jJnNbg/how-do-i-compile-php-extensions-on-amazon-linux-2023)
 
 ## About EC2 instance
