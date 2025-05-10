@@ -133,6 +133,15 @@ AWS Backup
 - `scheduleExpressionTimezone`: timezone in which the schedule expression is set. Default is `Etc/UTC`
 - `deleteAfterDays`:  number of days after backup creation that a recovery point is deleted. Default is `35`
 
+
+Refer to below video if you are new to using CloudFormation console
+
+https://github.com/user-attachments/assets/32a1193a-b19b-4443-a4b8-ec4605fa32f9
+
+
+
+
+
 ### CloudFormation Outputs
 The following are available on **Outputs** section 
 - `EC2console`: EC2 console URL to manage your EC2 instance
