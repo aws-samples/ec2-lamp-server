@@ -11,7 +11,14 @@ This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) temp
 
 https://github.com/user-attachments/assets/47976f82-920d-4ec8-8294-565944cba63a
 
-*Ubuntu with Amazon DCV and WordPress options selected*
+*Ubuntu with Amazon DCV and WordPress including WordPress web installation*
+
+
+
+https://github.com/user-attachments/assets/0b1f7663-1a6d-4476-b21d-623268c7e7c7
+
+*Ubuntu with Moodle option, and initial portion of Moodle web installation*
+
 
 
 ## Architecture Diagram
