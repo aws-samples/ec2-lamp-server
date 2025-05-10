@@ -6,6 +6,13 @@ Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx
 
 This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision EC2 instances with option to specify PHP version, web server and database engine, and [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used deployment of PHP based web applications, or for application development.
 
+## Demo
+
+
+https://github.com/user-attachments/assets/47976f82-920d-4ec8-8294-565944cba63a
+
+*Ubuntu with Amazon DCV and WordPress options selected*
+
 
 ## Architecture Diagram
 <img alt="image" src="ec2-lamp-server.png">
