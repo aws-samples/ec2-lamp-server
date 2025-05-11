@@ -2056,6 +2056,10 @@ Resources:
                     # https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html
                     dnf install -q -y https://repo.mysql.com/mysql80-community-release-el9-5.noarch.rpm
                     dnf install -q -y mysql-community-server
+                    if (ec2-metadata -t | grep -q large$); then
+                      sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf
+                      mysqld --validate-config
+                    fi
 
                     systemctl enable --now mysqld
                     ;;
@@ -2066,18 +2070,24 @@ Resources:
                     # https://dev.mysql.com/doc/refman/8.4/en/linux-installation-yum-repo.html
                     dnf install -q -y https://repo.mysql.com/mysql84-community-release-el9-1.noarch.rpm
                     dnf install -q -y mysql-community-server
-
+                    if (ec2-metadata -t | grep -q large$); then
+                      sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf
+                      mysqld --validate-config
+                    fi
                     systemctl enable --now mysqld
 
                     ;;
                   MariaDB) # https://github.com/amazonlinux/amazon-linux-2023/issues/571
                     dnf install -q -y mariadb1011-server
+                    if (ec2-metadata -t | grep -q large$); then
+                      sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
+                    fi
                     systemctl enable --now mariadb
 
                     ;;
                   PostgreSQL)
-                    PGSQL-SERVER=$(dnf search postgresql*-server | grep ^postgresql | grep server$ | sort -r | head -n 1 | cut -d. -f1)
-                    dnf install -q -y $PGSQL-SERVER
+                    PGSQL=$(dnf search postgresql*-server | grep ^postgresql | grep server$ | sort -r | head -n 1 | cut -d. -f1)
+                    dnf install -q -y $PGSQL
                     /usr/bin/postgresql-setup --initdb
                     systemctl enable --now postgresql
 
@@ -2178,6 +2188,7 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
                           chown apache:apache -R /var/www/html
                           chmod g+rw -R /var/www/html
+
                           # Moodle data
                           mkdir -p /var/www/moodledata
                           chown apache:apache -R /var/www/moodledata
@@ -2187,13 +2198,33 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /usr/share/nginx/html/
                           chown nginx:nginx -R /usr/share/nginx/html
                           chmod g+rw -R /usr/share/nginx/html
+
                           # Moodle data
                           mkdir -p /usr/share/nginx/moodledata
                           chown nginx:nginx -R /usr/share/nginx/moodledata
                           chmod g+rw -R /usr/share/nginx/moodledata
                           ;;
                       esac
+
                       ;;
+
+                    Drupal*)
+                      curl -s -L -O https://ftp.drupal.org/files/projects/drupal-11.1.6.tar.gz
+                      tar -xf drupal-11.1.6.tar.gz
+                      case ${webOption} in
+                        Apache)
+                          rsync -r /tmp/cfn/drupal/ /var/www/html/
+                          chown apache:apache -R /var/www/html
+                          chmod g+rw -R /var/www/html
+                          ;;
+                        Nginx)
+                          rsync -r /tmp/cfn/drupal/ /usr/share/nginx/html/
+                          chown nginx:nginx -R /usr/share/nginx/html
+                          chmod g+rw -R /usr/share/nginx/html
+                          ;;
+                      esac
+                      ;;
+
                   esac
                 fi
 
