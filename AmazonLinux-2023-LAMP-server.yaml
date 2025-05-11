@@ -2207,24 +2207,6 @@ Resources:
                       esac
 
                       ;;
-
-                    Drupal*)
-                      curl -s -L -O https://ftp.drupal.org/files/projects/drupal-11.1.6.tar.gz
-                      tar -xf drupal-11.1.6.tar.gz
-                      case ${webOption} in
-                        Apache)
-                          rsync -r /tmp/cfn/drupal/ /var/www/html/
-                          chown apache:apache -R /var/www/html
-                          chmod g+rw -R /var/www/html
-                          ;;
-                        Nginx)
-                          rsync -r /tmp/cfn/drupal/ /usr/share/nginx/html/
-                          chown nginx:nginx -R /usr/share/nginx/html
-                          chmod g+rw -R /usr/share/nginx/html
-                          ;;
-                      esac
-                      ;;
-
                   esac
                 fi
 
