@@ -1,5 +1,5 @@
 ## EC2-LAMP-Server
-Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and/or WordPress/Moodle. 
+Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and optionally WordPress or Moodle. 
 
 ## Description
 [LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), [more than 70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP, and [more than 40%](https://w3techs.com/technologies/overview/content_management) of websites use WordPress. 
@@ -9,9 +9,11 @@ This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) temp
 ## Demo
 
 
-https://github.com/user-attachments/assets/47976f82-920d-4ec8-8294-565944cba63a
 
-*Ubuntu with Amazon DCV and WordPress including WordPress web installation*
+https://github.com/user-attachments/assets/13f3d1fb-7242-4d68-9f03-1352477e79c7
+
+*Amazon Linux 2023 with Amazon DCV and WordPress installation*
+
 
 
 
