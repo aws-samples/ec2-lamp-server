@@ -1784,23 +1784,13 @@ Resources:
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/207
                     # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
-                    # https://gist.github.com/Wirone/d5c794b4fef0203146a27687e80588a6#file-workaround-dockerfile
                     dnf install -q -y ${phpVersion}-imagick
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
-                      pecl download Imagick
-                      tar -xf imagick*.tgz && rm -f imagick*.tgz && cd imagick*
-                      phpize
-                      ./configure
-                      if (php --version | grep -q 8.4.); then # https://github.com/Imagick/imagick/issues/698
-                        sed -i "s/php_strtolower/zend_str_tolower/g" imagick.c
-                      fi
-                      make
-                      make install
+                      yes 'no' | pecl install imagick
                       if [ $? -eq 0 ]; then
                         echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
                       fi
-                      cd /tmp/cfn
                     fi
 
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/328
