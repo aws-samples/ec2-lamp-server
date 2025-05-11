@@ -12,14 +12,14 @@ This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) temp
 
 https://github.com/user-attachments/assets/13f3d1fb-7242-4d68-9f03-1352477e79c7
 
-*Amazon Linux 2023 with Amazon DCV and WordPress installation*
+*Amazon Linux 2023 with Amazon DCV, and WordPress installation*
 
 
 
 
-https://github.com/user-attachments/assets/0b1f7663-1a6d-4476-b21d-623268c7e7c7
+https://github.com/user-attachments/assets/e6fe07a0-3908-4d6e-9de7-9cda5d4214c2
 
-*Ubuntu with Moodle option, and initial portion of Moodle web installation*
+*Ubuntu with initial portion of Moodle web installation*
 
 
 
