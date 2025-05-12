@@ -357,7 +357,7 @@ Parameters:
       - "MySQL"
       - "PostgreSQL"
       - "none"
-    Default: "MySQL"
+    Default: "MariaDB"
   phpVersion:
     Type: String
     #Description: PHP version to install
@@ -779,7 +779,7 @@ Parameters:
     Default: "No"
   installApp:
     Type: String
-    Description: Refer to application website for system requirements
+    Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
       - "Moodle 5.0"
@@ -1811,16 +1811,19 @@ Resources:
                     sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i "s/^opcache.jit=/;&/" /etc/php/$PHP_VERSION/mods-available/opcache.ini                    
 
+                    # https://docs.moodle.org/405/en/Environment_-_max_input_vars
                     sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i 's/memory_limit =.*/memory_limit = 256M/' /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i 's/upload_max_filesize =.*/upload_max_filesize = 2G/' /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i 's/post_max_size =.*/post_max_size = 2G/' /etc/php/$PHP_VERSION/fpm/php.ini
 
                     # https://www.php.net/manual/en/class.sessionhandler.php
-                    sed -i "s/^session.save_handler/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
-                    sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/$PHP_VERSION/fpm/php.ini
-                    sed -i "s/^session.save_path/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
-                    sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/$PHP_VERSION/fpm/php.ini
+                    if (! echo ${installApp} | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
+                      sed -i "s/^session.save_handler/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
+                      sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/$PHP_VERSION/fpm/php.ini
+                      sed -i "s/^session.save_path/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
+                      sed -i '/^;session.save_path/a session.save_path = "tcp://127.0.0.1:6379"' /etc/php/$PHP_VERSION/fpm/php.ini
+                    fi
 
                     # PHP CLI ini
                     cp /etc/php/$PHP_VERSION/cli/php.ini /etc/php/$PHP_VERSION/cli/php.ini."`date +"%Y-%m-%d"`"

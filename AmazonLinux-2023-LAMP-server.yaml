@@ -767,7 +767,7 @@ Parameters:
     Default: "No"
   installApp:
     Type: String
-    Description: Refer to application website for system requirements
+    Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
       - "Moodle 5.0"
@@ -1710,6 +1710,7 @@ Resources:
 
                     # PHP.INI
                     cp /etc/php.ini /etc/php.ini."`date +"%Y-%m-%d"`"
+                    # https://docs.moodle.org/405/en/Environment_-_max_input_vars
                     sed -i "/^;max_input_vars/a max_input_vars=5000" /etc/php.ini
                     sed -i 's/memory_limit =.*/memory_limit = 256M/' /etc/php.ini
                     sed -i 's/upload_max_filesize =.*/upload_max_filesize = 2G/' /etc/php.ini
@@ -1717,10 +1718,12 @@ Resources:
 
                     cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
                     # https://www.php.net/manual/en/class.sessionhandler.php
-                    sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-                    sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-                    sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-                    sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+                    if (! echo ${installApp} | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
+                      sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+                      sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+                      sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+                      sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
+                    fi
 
                     # https://www.php.net/manual/en/opcache.configuration.php
                     cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
@@ -1782,7 +1785,6 @@ Resources:
                       fi
                     fi
 
-                    # https://github.com/amazonlinux/amazon-linux-2023/issues/207
                     # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
                     dnf install -q -y ${phpVersion}-imagick
                     if (! php -m | grep -q imagick); then
