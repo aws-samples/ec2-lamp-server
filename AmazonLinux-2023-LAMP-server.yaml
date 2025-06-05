@@ -1507,7 +1507,7 @@ Resources:
               content: |
                 {
                     "agent": {
-                        "metrics_collection_interval": 60,
+                        "metrics_collection_interval": 300,
                         "run_as_user": "cwagent"
                     },
                     "metrics": {
@@ -2221,7 +2221,7 @@ Resources:
       IamInstanceProfile: !Ref instanceProfile
       KeyName: !Ref ec2KeyPair
       SubnetId: !Ref subnetID
-      Monitoring: true
+      Monitoring: false
       DisableApiTermination: !If [enableProtection, true, false]
       EbsOptimized: true
       SecurityGroupIds:
