@@ -993,6 +993,8 @@ Mappings:
       PrefixList: pl-c0aa4fa9
     ap-east-1:
       PrefixList: pl-14b2577d
+    ap-east-2:
+      PrefixList: pl-0b51e244975ca1f58
     ap-northeast-1:
       PrefixList: pl-58a04531
     ap-northeast-2:
@@ -1579,6 +1581,11 @@ Resources:
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
 
+                # Change password
+                PWD=$(cat /var/lib/cloud/data/instance-id)
+                USER=ubuntu
+                echo "$USER:$PWD" | chpasswd
+
                 # Update OS
                 apt-get update -q
                 apt-get upgrade -q -y
@@ -1992,7 +1999,7 @@ Resources:
 
                     # Change permissions and ownership
                     usermod -a -G www-data ubuntu
-                    chown -R ubuntu:www-data /var/www/html
+                    chown -R www-data:www-data /var/www/html
                     chmod -R 2775 /var/www/html
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
@@ -2024,7 +2031,7 @@ Resources:
 
                     # Change permissions and ownership
                     usermod -a -G www-data ubuntu
-                    chown -R ubuntu:www-data /var/www/html
+                    chown -R www-data:www-data /var/www/html
                     chmod -R 2775 /var/www/html
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
@@ -2622,7 +2629,7 @@ Resources:
                 !If [
                   createALB,
                   !GetAtt alb.DNSName,
-                  !GetAtt ec2Instance.PrivateDnsName,
+                  !GetAtt ec2Instance.PublicDnsName,
                 ]
               Id:
                 !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
@@ -2666,6 +2673,10 @@ Outputs:
   EC2console:
     Description: EC2 console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
+
+  EC2instanceID:
+    Description: EC2 Instance ID
+    Value: !Ref ec2Instance
 
   EC2instanceConnect:
     Condition: createSgEIC
