@@ -1740,12 +1740,10 @@ Resources:
 
                     cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
                     # https://www.php.net/manual/en/class.sessionhandler.php
-                    if (! echo ${installApp} | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
-                      sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
-                      sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
-                      sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
-                      sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
-                    fi
+                    sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
+                    sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
+                    sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
+                    sed -i '/^;php_value\[session.save_path/a php_value[session.save_path] = tcp://127.0.0.1:6379' /etc/php-fpm.d/www.conf
 
                     # https://www.php.net/manual/en/opcache.configuration.php
                     cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
@@ -2534,7 +2532,7 @@ Outputs:
     Description: EC2 console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
 
-  EC2instanceID:
+  EC2instanceId:
     Description: EC2 Instance ID
     Value: !Ref ec2Instance
 
