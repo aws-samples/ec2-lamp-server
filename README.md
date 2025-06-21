@@ -66,7 +66,6 @@ By using the template, you accept license agreement of all software that is inst
 - EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity. 
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
 
-
 ## Deploying using CloudFormation console
 Download .yaml file for the desired operating system ([Amazon Linux 2023](AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](UbuntuLinux-LAMP-server.yaml))
 
@@ -79,8 +78,8 @@ In most cases, the default values are sufficient. You will need to specify value
 EC2 Instance
 - `ec2Name`: EC2 instance name
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
-- `processorArchitecture` / `osVersion` : Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`.
-- `instanceType`: EC2 [instance types](https://aws.amazon.com/ec2/instance-types/). Do ensure type matches processor architecture. Default is `t4g.xlarge` [burstable instance type](https://aws.amazon.com/ec2/instance-types/t4/). For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance
+- `processorArchitecture` / `osVersion` : Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
+- `instanceType`: EC2 [instance type](https://aws.amazon.com/ec2/instance-types/). Do verify instance type [Region availability](https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-instance-regions.html) and ensure type matches processor architecture. Default is [`m6g.large`](https://aws.amazon.com/ec2/instance-types/m6g/) Graviton2. For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance
 - `ec2TerminationProtection`: enable [EC2 termination protection](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html) to prevent accidental deletion. Default is `Yes`
 
 EC2 Network
@@ -90,7 +89,7 @@ EC2 Network
 - `assignStaticIP`: associates a static public IPv4 address using [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html). Default is `Yes`
 
 EC2 Remote Administration
-- `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`. 
+- `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0` 
 - `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
 - `allowSSHport`: allow inbound SSH. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
@@ -100,9 +99,9 @@ EC2 Remote Administration
 
 LAMP
 - `webOption`: `Apache` or `Nginx` web server.
-- `phpVersion`: PHP version to install or `none`.
+- `phpVersion`: PHP version to install or `none`
 - `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux will attempt to use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
-- `installApp`: option to install WordPress or Moodle#. If selected, template will create MySQL/MariaDB database and user, and download installation files. Default is `None`.
+- `installApp`: option to install WordPress or Moodle#. If selected, template will create MySQL/MariaDB database and user, and download installation files. Default is `None`
 
 
 *#After stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) installation. To retrieve database name, user and password, connect to EC2 instance and run `sudo cat /home/ec2-user/database-credentials` (AL2023) or `sudo cat /home/ubuntu/database-credentials` (Ubuntu)*

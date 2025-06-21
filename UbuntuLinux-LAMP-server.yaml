@@ -203,7 +203,7 @@ Parameters:
     Description: https://console.aws.amazon.com/ec2/#InstanceTypes
     AllowedPattern: "^[a-z\\-\\d\\.]+$"
     ConstraintDescription: Specify valid EC2 instance type
-    Default: t4g.xlarge
+    Default: m6g.large
   ec2TerminationProtection:
     Type: String
     Description: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html
@@ -357,7 +357,7 @@ Parameters:
       - "MySQL"
       - "PostgreSQL"
       - "none"
-    Default: "MySQL"
+    Default: "MariaDB"
   phpVersion:
     Type: String
     #Description: PHP version to install
@@ -2071,7 +2071,7 @@ Resources:
                 chmod +x ./install
                 ./install auto
 
-                # install Application Stack?
+                # install application stack?
                 if (! echo '${installApp}' | grep -i -q "none"); then
                   # create database and user
                   if (which mysql); then
@@ -2148,6 +2148,11 @@ Resources:
                       mkdir -p /var/www/moodledata
                       chown www-data:www-data -R /var/www/moodledata
                       chmod g+rw -R /var/www/moodledata
+                      # Moodle cron : https://docs.moodle.org/405/en/Cron
+                      mkdir -p /home/ubuntu/moodle
+                      echo "* * * * * /usr/bin/php  /var/www/html/admin/cli/cron.php >/dev/null" > /home/ubuntu/moodle/cron
+                      crontab -u www-data /home/ubuntu/moodle/cron
+                      chown -R ubuntu:ubuntu /home/ubuntu/moodle
                       ;;
                   esac
                 fi
@@ -2672,7 +2677,7 @@ Resources:
 Outputs:
   EC2console:
     Description: EC2 console
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#InstanceDetails:instanceId=${ec2Instance}"
 
   EC2instanceID:
     Description: EC2 Instance ID

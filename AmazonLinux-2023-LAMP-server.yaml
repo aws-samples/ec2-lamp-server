@@ -197,7 +197,7 @@ Parameters:
     Description: https://console.aws.amazon.com/ec2/#InstanceTypes
     AllowedPattern: "^[a-z\\-\\d\\.]+$"
     ConstraintDescription: Specify valid EC2 instance type
-    Default: t4g.xlarge
+    Default: m6g.large
   ec2TerminationProtection:
     Type: String
     Description: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html
@@ -2176,6 +2176,7 @@ Resources:
                       esac
                       ;;
                     Moodle*)
+                      mkdir -p /home/ec2-user/moodle
                       if (echo '${installApp}' | grep -q "Moodle 5"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
                       else
@@ -2192,6 +2193,9 @@ Resources:
                           mkdir -p /var/www/moodledata
                           chown apache:apache -R /var/www/moodledata
                           chmod g+rw -R /var/www/moodledata
+
+                          # Moodle cron : https://docs.moodle.org/405/en/Cron
+                          echo "* * * * * /usr/bin/php  /var/www/html/admin/cli/cron.php >/dev/null" > /home/ec2-user/moodle/cron
                           ;;
                         Nginx)
                           rsync -r /tmp/cfn/moodle/ /usr/share/nginx/html/
@@ -2202,9 +2206,13 @@ Resources:
                           mkdir -p /usr/share/nginx/moodledata
                           chown apache:nginx -R /usr/share/nginx/html
                           chmod g+rw -R /usr/share/nginx/moodledata
+
+                          # Moodle cron : https://docs.moodle.org/405/en/Cron
+                          echo "* * * * * /usr/bin/php  /usr/share/nginx/html/admin/cli/cron.php >/dev/null" > /home/ec2-user/moodle/cron
                           ;;
                       esac
-
+                      crontab -u apache /home/ec2-user/moodle/cron
+                      chown -R ec2-user:ec2-user /home/ec2-user/moodle
                       ;;
                   esac
                 fi
@@ -2689,7 +2697,7 @@ Resources:
 Outputs:
   EC2console:
     Description: EC2 console
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#Instances:search=${ec2Instance}"
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#InstanceDetails:instanceId=${ec2Instance}"
 
   EC2instanceID:
     Description: EC2 Instance ID
