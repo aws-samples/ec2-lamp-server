@@ -227,7 +227,7 @@ Refer to [official site](https://certbot.eff.org/pages/help) for help with Certb
 ## Using Cloudwatch agent
 [Amazon CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html) is installed, and enables collection of [EC2 system-level metrics](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/metrics-collected-by-CloudWatch-agent.html) and [AWS X-Ray](https://aws.amazon.com/xray/) traces. 
 
-The template configures agent to collect memory and disk utilization metrics. You can configure Cloudwatch agent to collect other data as follows.
+The template configures agent to collect memory and disk utilization metrics. To collect other metrics, you can configure using [EC2 console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-and-configure-cloudwatch-agent-using-ec2-console.html#install-and-configure-cw-agent-procedure) or manually as follows.
 
 ### Create agent configuration file
 Create agent configuration file. You can use [agent configuration file wizard](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html):
