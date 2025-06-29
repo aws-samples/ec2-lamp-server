@@ -8,20 +8,13 @@ This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) temp
 
 ## Demo
 
-
-
 https://github.com/user-attachments/assets/13f3d1fb-7242-4d68-9f03-1352477e79c7
 
 *Amazon Linux 2023 with Amazon DCV, and WordPress installation*
 
-
-
-
 https://github.com/user-attachments/assets/e6fe07a0-3908-4d6e-9de7-9cda5d4214c2
 
 *Ubuntu with initial portion of Moodle web installation*
-
-
 
 ## Architecture Diagram
 <img alt="image" src="ec2-lamp-server.png">
@@ -57,25 +50,29 @@ The template provides the following features:
   - [Amazon CloudFront](https://aws.amazon.com/cloudfront/) CDN with support for [VPC Origin](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/) (optional)
 
 ## Notice
+
 Although this repository is released under the [MIT-0](LICENSE) license, its CloudFormation template uses features from 
 [MySQL Community Edition](https://www.mysql.com/products/community/) and [Webmin](https://webmin.com/) which are licensed under [GPL](https://www.mysql.com/products/community/) and [BSD-3-Clause](https://webmin.com/about/) license respectively. Usage of [Amazon DCV](https://aws.amazon.com/hpc/dcv/) indicates acceptance of [DCV EULA](https://www.amazondcv.com/eula.html).
 
 By using the template, you accept license agreement of all software that is installed in the EC2 instance. 
 
 ## Requirements
+
 - EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity. 
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
 
 ## Deploying using CloudFormation console
+
 Download .yaml file for the desired operating system ([Amazon Linux 2023](AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](UbuntuLinux-LAMP-server.yaml))
 
 Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values.
 
 ### CloudFormation Parameters
+
 In most cases, the default values are sufficient. You will need to specify values for `ec2KeyPair`, `vpcID`, `subnetID` and `albSubnets`. For security reasons, configure `ingressIPv4` and `ingressIPv6` to your IP address. Consider AWS Backup (`enableBackup`) for EC2 instance data protection.
 
-
 EC2 Instance
+
 - `ec2Name`: EC2 instance name
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `processorArchitecture` / `osVersion` : Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
@@ -83,12 +80,14 @@ EC2 Instance
 - `ec2TerminationProtection`: enable [EC2 termination protection](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html) to prevent accidental deletion. Default is `Yes`
 
 EC2 Network
+
 - `vpcID`: [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) with internet connectivity. Select [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) if unsure
 - `subnetID`: subnet with internet connectivity. Select subnet in default VPC if unsure
 - `displayPublicIP`: set this to `No` if your EC2 instance will not receive [public IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html#concepts-public-addresses). EC2 private IP will be displayed in CloudFormation Outputs section instead. Default is `Yes`
 - `assignStaticIP`: associates a static public IPv4 address using [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html). Default is `Yes`
 
 EC2 Remote Administration
+
 - `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0` 
 - `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
 - `allowSSHport`: allow inbound SSH. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
@@ -98,24 +97,27 @@ EC2 Remote Administration
 *SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
 
 LAMP
+
 - `webOption`: `Apache` or `Nginx` web server.
 - `phpVersion`: PHP version to install or `none`
 - `databaseOption`: `MySQL`, `MariaDB`, `PostgreSQL` database server or `none`. MySQL option for Amazon Linux will attempt to use [MySQL Community Edition](https://www.mysql.com/products/community/) repository, where MySQL root password can be retrieved using the command `sudo grep password /var/log/mysqld.log`. Select `none` if using external database such as [Amazon RDS](https://aws.amazon.com/rds/).
 - `installApp`: option to install WordPress or Moodle#. If selected, template will create MySQL/MariaDB database and user, and download installation files. Default is `None`
 
-
 *#After stack has been provisioned, open a browser to continue [WordPress](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#step-5-run-the-install-script) or [Moodle](https://docs.moodle.org/500/en/Installing_Moodle#Web_based_installer) installation. To retrieve database name, user and password, connect to EC2 instance and run `sudo cat /home/ec2-user/database-credentials` (AL2023) or `sudo cat /home/ubuntu/database-credentials` (Ubuntu)*
 
 Others
+
 - `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `No`
 - `r53ZoneID` (optional):  [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access for use with Certbot [certbot-dns-route53](#option-2-using-certbot-certbot-dns-route53-plugin) DNS plugin. Default is `*` for access to all Route 53 zones in your AWS account. Permission is restricted to **_acme-challenge.\*** TXT DNS records using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html)
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance access using [IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/). Default is empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account
 
 EBS
+
 - `volumeSize`: [Amazon EBS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html) volume size
 - `volumeType`: [EBS General Purpose Volume](https://aws.amazon.com/ebs/general-purpose/) type
 
 Application Load Balancer (ALB)
+
 - `enableALB`: deploy [Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with EC2 instance as target. Associated charges are listed on [Elastic Load Balancing pricing](https://aws.amazon.com/elasticloadbalancing/pricing/) page. Default is `No`
 - `albScheme`: either `internet-facing` or `internal`. An internet-facing load balancer routes requests from clients to targets over the internet. An internal load balancer routes requests to targets using private IP addresses. Default is `internet-facing`
 - `albIpAddressType`: [IP address type](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#ip-address-type), either `IPv4`, `IPv4-and-IPv6` or `IPv6`. Default is `IPv4`
@@ -124,6 +126,7 @@ Application Load Balancer (ALB)
 *Select a subnet even if `enableALB` is `No`*
 
 ALB HTTPS listener
+
 - `albCertificateArn`: [AWS Certificate Manager (ACM)](https://aws.amazon.com/certificate-manager/) [certificate ARN](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-describe.html) for ALB [HTTPS listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html). Leave blank not to create HTTPS listener
 - `albSecurityPolicy`: [Security policy](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html#describe-ssl-policies) for HTTPS listener. Default is `ELBSecurityPolicy-TLS13-1-2-2021-06`
 - `albRedirectHTTPtoHTTPS`: option to redirect HTTP requests to HTTPS. Default is `Yes`
@@ -132,26 +135,27 @@ ALB HTTPS listener
 *The above options only apply if `enableALB` is `Yes`*
 
 Amazon CloudFront
+
 - `enableCloudFront`: [create](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-creating-console.html) a [Amazon CloudFront](https://aws.amazon.com/cloudfront/) distribution to your EC2  instance or ALB. Associated charges are listed on [Amazon CloudFront pricing](https://aws.amazon.com/cloudfront/pricing/) page. Default is `No`
 - `originType`: either `Custom Origin` or `VPC Origin`. Most [AWS Regions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html#vpc-origins-supported-regions) support [VPC Origins](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/), which allow CloudFront to deliver content even if your EC2 instance is in a VPC private subnet. Default is `Custom Origin`
- 
+
+*To use CloudFront with EC2 instance as origin, the [Resource-based name (RBN)](https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html#subnet-settings) attribute `Enable resource name DNS A record on launch` for selected subnet must be enabled*
+
 AWS Backup
+
 - `enableBackup` : EC2 data protection with [AWS Backup](https://aws.amazon.com/backup/). Associated charges are listed on [AWS Backup pricing](https://aws.amazon.com/backup/pricing) page. Default is `No`
 - `scheduleExpression`: start time of backup using [CRON expression](https://en.wikipedia.org/wiki/Cron#CRON_expression). Default is 1 am
 - `scheduleExpressionTimezone`: timezone in which the schedule expression is set. Default is `Etc/UTC`
 - `deleteAfterDays`:  number of days after backup creation that a recovery point is deleted. Default is `35`
 
-
 Refer to below video if you are new to using CloudFormation console
 
 https://github.com/user-attachments/assets/32a1193a-b19b-4443-a4b8-ec4605fa32f9
 
-
-
-
-
 ### CloudFormation Outputs
+
 The following are available on **Outputs** section 
+
 - `EC2console`: EC2 console URL to manage your EC2 instance
 - `EC2instanceID`: EC2 instance ID
 - `EC2instanceConnect`: [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) URL. Functionality is only available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html)
@@ -161,22 +165,27 @@ The following are available on **Outputs** section
 - `WebUrl`: EC2 web server URL
 
 If `installDCV` is `Yes`
+
 - `DCVwebConsole` : DCV web browser client URL. Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Login as the user specified in *Description* field. Default password is `EC2instanceID`
 
 If `installWebmin` is `Yes`
+
 - `WebminUrl` : Webmin URL link. Set the root password by running `sudo passwd root` using `EC2instanceConnect`, `SSMsessionManager` or SSH session first
 
 If `enableALB` is `Yes`
+
 - `AlbConsole`: ALB console URL
 - `AlbDnsName`: ALB domain name. Create a DNS CNAME or [Route 53 alias](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-choosing-alias-non-alias.html) to ALB domain name especially if you are using HTTPS listener
 
 If `enableCloudFront` is `Yes`
+
 - `CloudFrontConsole` : CloudFront console URL link. Some adjustment of your CloudFront distribution settings may be required. 
 - `CloudFrontURL` : CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
 
-
 ### Troubleshooting
+
 To troubleshoot any installation issue, you can view contents of the following log files (if available)
+
 - `/var/log/cloud-init-output.log`
 - `/var/log/install-cfn-helper.log`
 - `/var/log/install-sw.log`
@@ -185,24 +194,28 @@ To troubleshoot any installation issue, you can view contents of the following l
 - `/var/log/install-dcv.log`
 
 ## SSL/TLS certificate on EC2 instance
+
 Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS. You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a public certificate for your own domain and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
 
 The EC2 instance uses a self-signed certificate for HTTPS. You can use [Certbot](https://certbot.eff.org/pages/about) to obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server as follows.
 
 ### Certbot prerequisites
+
 Ensure you have a domain name whose DNS entry resolves to your EC2 instance public internet IP address. If you do not have a domain, you can [register a new domain](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html#domain-register-procedure-section) using [Amazon Route 53](https://aws.amazon.com/route53/) and [create a DNS A and/or AAAA record](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html).
 
 ### Using apache plugin
 
 - From terminal, run the below command and follow instructions.
-  ```
+
+  ```bash
   sudo certbot --apache
   ```
   
 ### Using nginx plugin
 
 - From terminal, run the below command and follow instructions.
-  ```
+
+  ```bash
   sudo certbot --nginx
   ```
 
@@ -212,41 +225,48 @@ Ensure you have a domain name whose DNS entry resolves to your EC2 instance publ
 The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) option uses [DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and requires your DNS to be hosted by Route 53. It supports wildcard certificates and domain names that resolve to private IP addresses.  Ensure that Route 53 zone access is granted by specifying `r53ZoneID` value. From terminal, run the below command based on installed web server type and follow instructions.
 
 - Apache
-  ```
+
+  ```bash
   sudo certbot --dns-route53 --installer apache
   ```
+
 - Nginx
-  ```
+
+  ```bash
   sudo certbot --dns-route53 --installer nginx
   ```
   
-
 Refer to [official site](https://certbot.eff.org/pages/help) for help with Certbot.  
 
-
 ## Using Cloudwatch agent
+
 [Amazon CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html) is installed, and enables collection of [EC2 system-level metrics](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/metrics-collected-by-CloudWatch-agent.html) and [AWS X-Ray](https://aws.amazon.com/xray/) traces. 
 
 The template configures agent to collect memory and disk utilization metrics. To collect other metrics, you can configure using [EC2 console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-and-configure-cloudwatch-agent-using-ec2-console.html#install-and-configure-cw-agent-procedure) or manually as follows.
 
 ### Create agent configuration file
+
 Create agent configuration file. You can use [agent configuration file wizard](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html):
-```
+
+```bash
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard
+
 ```
 ### Start Cloudwatch agent
+
 After `config.json` file is created, [start CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance-fleet.html#start-CloudWatch-Agent-EC2-fleet):
-```
+
+```bash
 sudo systemctl enable amazon-cloudwatch-agent
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
 ```
 
 Refer to [How do I install and configure the unified CloudWatch agent to push metrics and logs from my EC2 instance to CloudWatch?](https://repost.aws/knowledge-center/cloudwatch-push-metrics-unified-agent) for more details.
 
-
-## PHP 
+## PHP
 
 ### Performance
+
 Based on public articles about PHP performance (many thanks to the authors), the following enhancements were made:
 
 - Default processor architecture is [Graviton](https://aws.amazon.com/ec2/graviton/) as per [Improving performance of PHP for Arm64 and impact on AWS Graviton2 based EC2 instances](https://aws.amazon.com/blogs/compute/improving-performance-of-php-for-arm64-and-impact-on-amazon-ec2-m6g-instances/) and [arm64 vs x86_64 for php](https://fraudmarc.com/post/arm64-vs-x86-64-for-php)
@@ -258,12 +278,15 @@ Based on public articles about PHP performance (many thanks to the authors), the
 - PHP [OPcache file cache](https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache) configured as per [PHP Opcache file cache](https://patrickkerrigan.uk/blog/php-opcache-file-cache/) but not enabled. To enable, edit `/etc/php.d/10-opcache.ini` (Amazon Linux) or `/etc/php/`*`phpVersion`*`/fpm/php.ini` (Ubuntu) file to uncomment the line beginning with `opcache.file_cache=/var/www/.opcache` and restart php-fpm.
 
 ### Compiling PHP extensions on Amazon Linux 2023 (AL2023)
+
 If you are looking to compile PHP extensions on AL2023, refer to community article [How do I compile PHP extensions on Amazon Linux 2023?](https://repost.aws/articles/ARM9q-NiODRKC9V7N_jJnNbg/how-do-i-compile-php-extensions-on-amazon-linux-2023)
 
 ## About EC2 instance
 
 ### Well-architected
+
 To improve performance, reliability, scalability, high availability and functionality, EC2 instance can be extended to use other services such as [Amazon RDS](https://aws.amazon.com/rds/), [Amazon S3](https://aws.amazon.com/s3/), [Amazon ElastiCache](https://aws.amazon.com/elasticache/) and [Amazon EFS](https://aws.amazon.com/efs/), and with [AWS SDK for PHP](https://aws.amazon.com/sdk-for-php/). Some useful resources that can help with the integration include:
+
 - [AWS Well-Architected](https://aws.amazon.com/architecture/well-architected/)
 - [AWS Architecture Center](https://aws.amazon.com/architecture) including [Scaling PHP Applications on AWS](https://d1.awsstatic.com/architecture-diagrams/ArchitectureDiagrams/scaling-PHP-applications-on-AWS-ra.pdf)
 - [PHP on AWS](https://aws.amazon.com/developer/language/php/)
@@ -271,11 +294,13 @@ To improve performance, reliability, scalability, high availability and function
 - [Best Practices for WordPress on AWS](https://docs.aws.amazon.com/whitepapers/latest/best-practices-wordpress/reference-architecture.html)
 
 ### Restoring from backup
+
 If you enable AWS Backup, you can restore your [EC2 instance](https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-ec2.html) from recovery points (backups) in your [backup vault](https://docs.aws.amazon.com/aws-backup/latest/devguide/vaults.html). The CloudFormation template creates an IAM role that grants AWS Backup permission to restore your backups. Role name can be located in your CoudFormation stack Resources section as the Physical ID value whose Logical ID value is `backupRestoreRole`
 
-
 ### Securing
+
 To futher secure your EC2 instance, you may want to
+
 - Restrict remote administration access to your IP address only (`ingressIPv4` and `ingressIPv6`)
 - For DCV (`installDCV`)
   - Use [native clients](https://www.amazondcv.com/) for remote access, and disable web browser client by removing `nice-dcv-web-viewer` package
@@ -294,11 +319,10 @@ To futher secure your EC2 instance, you may want to
 - Enable [Amazon Inspector](https://aws.amazon.com/inspector/) to [scan EC2 instance](https://docs.aws.amazon.com/inspector/latest/user/scanning-ec2.html) for software vulnerabilities and unintended network exposure.
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) security monitoring service with [Runtime Monitoring](https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ec2.html) and [Malware Protection for EC2](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html)
 
-
-
-
 ## Clean Up
+
 To remove created resources, you will need to
+
 - [Delete](https://docs.aws.amazon.com/aws-backup/latest/devguide/deleting-backups.html) any recovery points in created backup vault
 - [Disable](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html) EC2 instance termination protection (if enabled)
 - [Delete](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-delete-stack.html) CloudFormation stack
