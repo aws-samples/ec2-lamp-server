@@ -60,6 +60,9 @@ By using the template, you accept license agreement of all software that is inst
 
 - EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity. 
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
+- To use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with EC2 instance as origin, the following must be enabled
+  - [VPC DNS](https://docs.aws.amazon.com/vpc/latest/userguide/AmazonDNS-concepts.html#vpc-dns-support) attribute `enableDnsSupport` and `enableDnsHostnames`
+  - [Resource-based name (RBN)](https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html#subnet-settings) attribute `Enable resource name DNS A record on launch`
 
 ## Deploying using CloudFormation console
 
@@ -139,7 +142,6 @@ Amazon CloudFront
 - `enableCloudFront`: [create](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-creating-console.html) a [Amazon CloudFront](https://aws.amazon.com/cloudfront/) distribution to your EC2  instance or ALB. Associated charges are listed on [Amazon CloudFront pricing](https://aws.amazon.com/cloudfront/pricing/) page. Default is `No`
 - `originType`: either `Custom Origin` or `VPC Origin`. Most [AWS Regions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html#vpc-origins-supported-regions) support [VPC Origins](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/), which allow CloudFront to deliver content even if your EC2 instance is in a VPC private subnet. Default is `Custom Origin`
 
-*To use CloudFront with EC2 instance as origin, the [Resource-based name (RBN)](https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html#subnet-settings) attribute `Enable resource name DNS A record on launch` for selected subnet must be enabled*
 
 AWS Backup
 
@@ -334,3 +336,4 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
+
