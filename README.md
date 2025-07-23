@@ -279,9 +279,14 @@ Based on public articles about PHP performance (many thanks to the authors), the
 - Serialisation (igbinary,msgpack) and compression (lzf,zstd,lz4) extensions to reduce Valkey/Redis/Memcached network traffic: from [Strategies for Reducing Big Redis Traffic in Laravel](https://world.hey.com/otar/strategies-for-reducing-big-redis-traffic-in-laravel-a168f96a)
 - PHP [OPcache file cache](https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache) configured as per [PHP Opcache file cache](https://patrickkerrigan.uk/blog/php-opcache-file-cache/) but not enabled. To enable, edit `/etc/php.d/10-opcache.ini` (Amazon Linux) or `/etc/php/`*`phpVersion`*`/fpm/php.ini` (Ubuntu) file to uncomment the line beginning with `opcache.file_cache=/var/www/.opcache` and restart php-fpm.
 
-### Compiling PHP extensions on Amazon Linux 2023 (AL2023)
+### Compiling PHP extensions on AL2023
 
 If you are looking to compile PHP extensions on AL2023, refer to community article [How do I compile PHP extensions on Amazon Linux 2023?](https://repost.aws/articles/ARM9q-NiODRKC9V7N_jJnNbg/how-do-i-compile-php-extensions-on-amazon-linux-2023)
+
+### Installing WordPress on AL2023
+
+If you are looking to install WordPress on AL2023, refer to community article [Install WordPress on Amazon Linux 2023 (AL2023)](https://repost.aws/articles/ARarysTJYQTh-zCNMftIolwA/install-wordpress-on-amazon-linux-2023-al2023) for options
+
 
 ## About EC2 instance
 
