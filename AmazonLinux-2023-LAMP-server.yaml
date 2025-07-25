@@ -1613,12 +1613,14 @@ Resources:
                 dnf install -q -y dkms
                 systemctl enable dkms
 
+                # prevent kernel 6.1 packages from mixing with kernel 6.12
+                sed -i '$aexclude=kernel-6.1.* kernel-headers-6.1.* kernel-devel-6.1.* kernel-modules-extra-common-6.1.* kernel-modules-extra-6.1.*' /etc/dnf/dnf.conf
+
                 # Kernel headers for GPU and USB remotization
-                dnf install -q -y kernel-devel-$(uname -r)
-                if (uname -r | grep -q ^6.12.); then
-                  dnf install -q -y kernel6.12-modules-extra
+                if ( dnf search kernel6.12-headers | grep -q kernel ); then
+                  dnf install -q -y kernel6.12-headers-$(uname -r) kernel6.12-devel-$(uname -r) kernel6.12-modules-extra-$(uname -r) kernel6.12-modules-extra-common-$(uname -r) --allowerasing
                 else
-                  dnf install -q -y kernel-modules-extra
+                  dnf install -q -y kernel-headers-$(uname -r) kernel-devel-$(uname -r) kernel6.12-modules-extra-$(uname -r) kernel-modules-extra-common-$(uname -r) --allowerasing
                 fi
 
                 # Docker:
