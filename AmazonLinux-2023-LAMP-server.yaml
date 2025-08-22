@@ -1773,7 +1773,7 @@ Resources:
                     fi
 
                     # php-msgpack: https://github.com/msgpack/msgpack-php/blob/master/package.xml
-                    # dnf install -q -y ${phpVersion}-pecl-msgpack
+                    dnf install -q -y ${phpVersion}-pecl-msgpack
                     if (! php -m | grep -q msgpack); then
                       yes 'no' | pecl install msgpack
                       if [ $? -eq 0 ]; then
@@ -1804,7 +1804,7 @@ Resources:
                     dnf install -q -y ${phpVersion}-imagick
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
-                      yes 'no' | pecl install imagick
+                      yes 'no' | sudo pecl install imagick
                       if [ $? -eq 0 ]; then
                         echo 'extension=imagick.so' > /etc/php.d/25-imagick.ini
                       fi
@@ -1824,10 +1824,11 @@ Resources:
                     # https://github.com/amazonlinux/amazon-linux-2023/issues/208
                     # php-memcached: https://github.com/php-memcached-dev/php-memcached/blob/master/package.xml
                     dnf install -q -y ${phpVersion}-pecl-igbinary-devel
-                    # dnf install -q -y ${phpVersion}-memcached
+                    dnf install -q -y ${phpVersion}-pecl-msgpack-devel
+                    dnf install -q -y ${phpVersion}-pecl-memcached
                     if (! php -m | grep -q memcached); then
                       dnf install -q -y memcached-devel libmemcached-awesome-devel zlib-devel cyrus-sasl-devel libevent-devel libzstd-devel
-                      yes 'no' | pecl install --configureoptions 'with-libmemcached-dir="yes" with-zlib-dir="yes" with-system-fastlz="no" enable-memcached-igbinary="yes" enable-memcached-msgpack="yes" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
+                      yes 'no' | pecl install --configureoptions 'with-libmemcached-dir="yes" with-zlib-dir="yes" with-system-fastlz="no" enable-memcached-igbinary="yes" enable-memcached-msgpack="no" enable-memcached-json="yes" enable-memcached-protocol="yes" enable-memcached-sasl="yes" enable-memcached-session="yes"' memcached
                       if [ $? -eq 0 ]; then
                         echo 'extension=memcached.so' > /etc/php.d/40-memcached.ini
                       fi
