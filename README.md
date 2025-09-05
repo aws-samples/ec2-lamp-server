@@ -60,7 +60,8 @@ By using the template, you accept license agreement of all software that is inst
 
 - EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity. 
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
-- To use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with EC2 instance as origin, the following must be enabled
+- To use [Amazon CloudFront](https://aws.amazon.com/cloudfront/) with EC2 custom origin, EC2 instance must have public IPv4 address
+- To use CloudFront with EC2 instance as origin, the following must be enabled
   - [VPC DNS](https://docs.aws.amazon.com/vpc/latest/userguide/AmazonDNS-concepts.html#vpc-dns-support) attribute `enableDnsSupport` and `enableDnsHostnames`
   - [Resource-based name (RBN)](https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html#subnet-settings) attribute `Enable resource name DNS A record on launch`
 
