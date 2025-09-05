@@ -110,7 +110,7 @@ Metadata:
       vpcID:
         default: "VPC with outbound internet connectivity"
       subnetID:
-        default: "Subnet in selected VPC with outbound IPv4 internet connectivity"
+        default: "Subnet in selected VPC with outbound internet connectivity"
       displayPublicIP:
         default: "EC2 in public subnet with public IP assigned?"
       assignStaticIP:
@@ -123,7 +123,7 @@ Metadata:
       albIpAddressType:
         default: "IPv4 only, IPv6 only or dual stack (IPv4-and-IPv6)"
       albSubnets:
-        default: "Subnets for ALB. Select at least 2 in EC2 VPC. **Select a subnet even if not deploying ALB**"
+        default: "At least 2 subnets in EC2 VPC. **Select a subnet even if not deploying ALB**"
 
       albCertificateArn:
         default: "Certificate ARN"
@@ -789,7 +789,7 @@ Parameters:
 
   enableCloudFront:
     Type: String
-    Description: https://aws.amazon.com/cloudfront/
+    Description: Requires IPv4 origin. https://aws.amazon.com/cloudfront/
     AllowedValues:
       - "Yes"
       - "No"
@@ -1401,7 +1401,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Condition: hasCFprefix
     Properties:
-      GroupDescription: Allow inbound HTTPS from CloudFront (IPv6)
+      GroupDescription: Allow inbound HTTP from CloudFront (IPv6)
       VpcId: !Ref vpcID
       SecurityGroupIngress:
         - Description: HTTP (CloudFront origin IP)
@@ -2505,18 +2505,12 @@ Resources:
             CidrIpv6: ::/0
           - !Ref AWS::NoValue
       SecurityGroupEgress:
-        - !If
-          - albAllowIPv4
-          - Description: Allow all outbound traffic (IPv4)
-            IpProtocol: "-1"
-            CidrIp: 0.0.0.0/0
-          - !Ref AWS::NoValue
-        - !If
-          - albAllowIPv6
-          - Description: Allow all outbound traffic (IPv6)
-            IpProtocol: "-1"
-            CidrIpv6: ::/0
-          - !Ref AWS::NoValue
+        - Description: Allow all outbound traffic (IPv4)
+          IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+        - Description: Allow all outbound traffic (IPv6)
+          IpProtocol: -1
+          CidrIpv6: ::/0
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
