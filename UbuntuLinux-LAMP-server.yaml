@@ -1404,10 +1404,10 @@ Resources:
       GroupDescription: Allow inbound HTTPS from CloudFront (IPv6)
       VpcId: !Ref vpcID
       SecurityGroupIngress:
-        - Description: HTTPS (CloudFront origin IP)
+        - Description: HTTP (CloudFront origin IP)
           IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+          FromPort: 80
+          ToPort: 80
           SourcePrefixListId:
             !FindInMap [CFprefixMap, !Ref AWS::Region, Ipv6PrefixList]
       SecurityGroupEgress:
