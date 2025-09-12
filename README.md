@@ -26,7 +26,7 @@ The template provides the following features:
   - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
   - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
   - PHP
-    - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) compiled[*](#compiling-php-extensions-on-amazon-linux-2023-al2023)
+    - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) [compiled](#compiling-php-extensions-on-al2023)
     - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) from [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
   - Web application: [WordPress](https://wordpress.org/download/) or [Moodle](https://download.moodle.org/) (optional)
   - [Composer](https://getcomposer.org/)
