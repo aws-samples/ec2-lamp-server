@@ -344,12 +344,12 @@ Parameters:
     Type: String
     #Description: Database to install
     AllowedValues:
-      - "MariaDB"
+      - "MariaDB 10.5"
       - "MySQL8.0"
       - "MySQL8.4"
       - "PostgreSQL"
       - "none"
-    Default: "MariaDB"
+    Default: "MariaDB 10.5"
   phpVersion:
     Type: String
     #Description: PHP version to install
@@ -2063,12 +2063,12 @@ Resources:
                     rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 
                     # https://dev.mysql.com/doc/refman/8.4/en/linux-installation-yum-repo.html
-                    yum install -q -y https://repo.mysql.com/mysql84-community-release-el7-1.noarch.rpm
+                    yum install -q -y https://repo.mysql.com/mysql84-community-release-el7-2.noarch.rpm
                     yum install -q -y mysql-community-server
 
                     systemctl enable mysqld
                     ;;
-                  MariaDB)
+                  MariaDB*)
                     amazon-linux-extras install -y mariadb10.5
                     systemctl enable mariadb
                     ;;
@@ -2530,7 +2530,8 @@ Resources:
               Id:
                 !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               CustomOriginConfig:
-                OriginProtocolPolicy: http-only
+                OriginProtocolPolicy:
+                  !If [createHttpRedirectListener, https-only, http-only]
                 OriginSSLProtocols:
                   - TLSv1.2
         Enabled: true
@@ -2570,7 +2571,7 @@ Outputs:
     Description: EC2 console
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ec2/home?region=${AWS::Region}#InstanceDetails:instanceId=${ec2Instance}"
 
-  EC2instanceId:
+  EC2instanceID:
     Description: EC2 Instance ID
     Value: !Ref ec2Instance
 
