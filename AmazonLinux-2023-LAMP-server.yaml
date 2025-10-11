@@ -347,12 +347,12 @@ Parameters:
     Type: String
     #Description: Database to install
     AllowedValues:
-      - "MariaDB"
+      - "MariaDB 10.11"
       - "MySQL8.0"
       - "MySQL8.4"
       - "PostgreSQL"
       - "none"
-    Default: "MariaDB"
+    Default: "MariaDB 10.11"
   phpVersion:
     Type: String
     #Description: PHP version to install
@@ -770,8 +770,9 @@ Parameters:
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
+      - "Moodle 4.5 (LTS)"
       - "Moodle 5.0"
-      - "Moodle 4.5"
+      - "Moodle 5.1"
       - "None"
     Default: "None"
 
@@ -1771,7 +1772,7 @@ Resources:
 
                     cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf."`date +"%Y-%m-%d"`"
                     # https://www.php.net/manual/en/class.sessionhandler.php
-                    if (! echo ${installApp} | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
+                    if (! echo '${installApp}' | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
                       sed -i "s/^php_value\[session.save_handler/;&/" /etc/php-fpm.d/www.conf
                       sed -i "/^;php_value\[session.save_handler/a php_value[session.save_handler] = redis" /etc/php-fpm.d/www.conf
                       sed -i "s/^php_value\[session.save_path/;&/" /etc/php-fpm.d/www.conf
@@ -2115,7 +2116,7 @@ Resources:
                     rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 
                     # https://dev.mysql.com/doc/refman/8.4/en/linux-installation-yum-repo.html
-                    dnf install -q -y https://repo.mysql.com/mysql84-community-release-el9-1.noarch.rpm
+                    dnf install -q -y https://repo.mysql.com/mysql84-community-release-el9-2.noarch.rpm
                     dnf install -q -y mysql-community-server
                     if (ec2-metadata -t | grep -q large$); then
                       sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf
@@ -2124,7 +2125,7 @@ Resources:
                     systemctl enable --now mysqld
 
                     ;;
-                  MariaDB) # https://github.com/amazonlinux/amazon-linux-2023/issues/571
+                  MariaDB*) # https://github.com/amazonlinux/amazon-linux-2023/issues/571
                     dnf install -q -y mariadb1011-server
                     if (ec2-metadata -t | grep -q large$); then
                       sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
@@ -2225,7 +2226,9 @@ Resources:
                       ;;
                     Moodle*)
                       mkdir -p /home/ec2-user/moodle
-                      if (echo '${installApp}' | grep -q "Moodle 5"); then
+                      if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-5.1.tgz -o moodle.tgz
+                      elif (echo '${installApp}' | grep -q "Moodle 5.0"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
                       else
                         curl -s -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz -o moodle.tgz
@@ -2701,7 +2704,8 @@ Resources:
               Id:
                 !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               CustomOriginConfig:
-                OriginProtocolPolicy: http-only
+                OriginProtocolPolicy:
+                  !If [createHttpRedirectListener, https-only, http-only]
                 OriginSSLProtocols:
                   - TLSv1.2
         Enabled: true
