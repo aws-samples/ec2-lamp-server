@@ -782,8 +782,9 @@ Parameters:
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
+      - "Moodle 4.5 (LTS)"
       - "Moodle 5.0"
-      - "Moodle 4.5"
+      - "Moodle 5.1"
       - "None"
     Default: "None"
 
@@ -1869,7 +1870,7 @@ Resources:
                     sed -i 's/post_max_size =.*/post_max_size = 2G/' /etc/php/$PHP_VERSION/fpm/php.ini
 
                     # https://www.php.net/manual/en/class.sessionhandler.php
-                    if (! echo ${installApp} | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
+                    if (! echo '${installApp}' | grep -q -i "moodle"); then # https://docs.moodle.org/405/en/PHP#PHP_Settings
                       sed -i "s/^session.save_handler/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
                       sed -i "/^;session.save_handler/a session.save_handler = redis" /etc/php/$PHP_VERSION/fpm/php.ini
                       sed -i "s/^session.save_path/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
@@ -2172,7 +2173,9 @@ Resources:
                       chmod g+rw -R /var/www/html
                       ;;
                     Moodle*)
-                      if (echo '${installApp}' | grep -q "Moodle 5"); then
+                      if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-5.1.tgz -o moodle.tgz
+                      elif (echo '${installApp}' | grep -q "Moodle 5.0"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
                       else
                         curl -s -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz -o moodle.tgz
@@ -2677,7 +2680,8 @@ Resources:
               Id:
                 !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               CustomOriginConfig:
-                OriginProtocolPolicy: http-only
+                OriginProtocolPolicy:
+                  !If [createHttpRedirectListener, https-only, http-only]
                 OriginSSLProtocols:
                   - TLSv1.2
         Enabled: true
