@@ -2780,8 +2780,8 @@ Outputs:
     Value:
       !If [
         displayPublicIP,
-        !Sub "https://${ec2Instance.PublicIp}:8443",
-        !Sub "https://${ec2Instance.PrivateIp}:8443",
+        !Sub "https://${ec2Instance.PublicIp}:8443/?username=ec2-user  ( dcv://ec2-user:@${ec2Instance.PublicIp} )",
+        !Sub "https://${ec2Instance.PrivateIp}:8443/?username=ec2-user ( dcv://ec2-user:@${ec2Instance.PrivateIp} )",
       ]
 
   WebUrl:
