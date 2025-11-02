@@ -2263,7 +2263,7 @@ Resources:
             !Ref AWS::NoValue,
           ]
       BlockDeviceMappings:
-        - DeviceName: /dev/xvda
+        - DeviceName: /dev/sda1
           Ebs:
             VolumeType: !Ref volumeType
             VolumeSize: !Ref volumeSize
