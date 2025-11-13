@@ -1449,20 +1449,6 @@ Resources:
               mode: "000755"
               owner: "ec2-user"
               group: "ec2-user"
-            "/home/ec2-user/update-mountpoint-s3":
-              content: |
-                #!/bin/bash
-                cd /tmp
-                sudo rm -f /tmp/mount-s3.rpm
-                if (uname -a | grep -q x86); then
-                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
-                else
-                  wget -4 https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
-                fi
-                sudo dnf install -y ./mount-s3.rpm
-              mode: "000755"
-              owner: "ec2-user"
-              group: "ec2-user"
             "/etc/systemd/system/dcv-virtual-session.service":
               content: |
                 [Unit]
@@ -1992,19 +1978,9 @@ Resources:
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
 
-                # https://github.com/amazonlinux/amazon-linux-2023/issues/493
-                # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
+                # https://aws.amazon.com/about-aws/whats-new/2025/11/mountpoint-amazon-s3-amazon-linux-2023/
+                # https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.9.20251110.html#amis-2023.9.20251110.Core-New-Packages
                 dnf install -q -y mount-s3
-                if (dnf info mount-s3  | grep -q Installed); then
-                  rm -f /home/ec2-user/update-mountpoint-s3
-                else
-                  if (uname -a | grep -q x86); then
-                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
-                  else
-                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
-                  fi
-                  dnf install -q -y ./mount-s3.rpm
-                fi
 
                 # Valkey (replace redis6) & Memcached
                 dnf install -q -y valkey memcached
@@ -2020,7 +1996,6 @@ Resources:
                     # virtual host: for Certbot
                     cat << EoF > /etc/httpd/conf.d/www.conf
                 <VirtualHost *:80>
-                  ServerAdmin webmaster@localhost
                   DocumentRoot /var/www/html
                 </VirtualHost>
                 EoF
