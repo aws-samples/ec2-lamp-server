@@ -759,7 +759,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "No"
+    Default: "Yes"
 
   enableCloudFront:
     Type: String
@@ -1978,6 +1978,9 @@ Resources:
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
 
+                    # Cloudwatch agent
+                    usermod -a -G apache cwagent
+
                     systemctl restart httpd
                     ;;
                   Nginx)
@@ -2037,6 +2040,9 @@ Resources:
                     chmod -R 2775 /usr/share/nginx/html
                     find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
                     find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
+                    # Cloudwatch agent
+                    usermod -a -G nginx cwagent
 
                     systemctl restart nginx
                     ;;

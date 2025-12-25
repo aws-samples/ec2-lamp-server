@@ -764,7 +764,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "No"
+    Default: "Yes"
   installApp:
     Type: String
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
@@ -1502,8 +1502,6 @@ Resources:
                 #sysctl -w net.ipv6.conf.all.disable_ipv6=1
                 #sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
-                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
-
                 dnf update -q -y
 
                 # https://docs.aws.amazon.com/linux/al2023/ug/managing-repos-os-updates.html#automatic-restart-services
@@ -1529,6 +1527,59 @@ Resources:
                     rm -f /home/ec2-user/update-dcv
                     ;;
                 esac
+
+                # GPU driver for G/P instance : https://repost.aws/articles/ARwfQMxiC-QMOgWykD9mco1w/
+                dnf install -q -y pciutils
+                if ( lspci | grep -q NVIDIA ); then
+                  dnf install -q -y dkms
+                  systemctl enable dkms
+                  dnf install -q -y vulkan-devel libglvnd-devel elfutils-libelf-devel xorg-x11-server-Xorg
+                  dnf install -q -y kernel6.12-headers-$(uname -r) kernel6.12-devel-$(uname -r) kernel6.12-modules-extra-$(uname -r) kernel6.12-modules-extra-common-$(uname -r) --allowerasing
+
+                  if (arch | grep -q x86); then
+                    ARCH=x86_64
+                  else
+                    ARCH=sbsa
+                  fi
+                  dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/amzn2023/$ARCH/cuda-amzn2023.repo
+                  dnf clean expire-cache
+
+                  if ( ec2-metadata -t | grep -q 6f\. ); then
+                    # NVIDIA GRID: https://repost.aws/articles/ARHkpw_xUVR5qVgPQIU6F7AA/
+                    aws s3 cp --recursive s3://ec2-linux-nvidia-drivers/latest/ . --no-sign-request
+                    chmod +x NVIDIA-Linux-x86_64*.run
+                    sudo ./NVIDIA-Linux-x86_64*.run -s
+                    
+                    sudo touch /etc/modprobe.d/nvidia.conf
+                    echo "options nvidia NVreg_EnableGpuFirmware=0" | sudo tee --append /etc/modprobe.d/nvidia.conf                    
+                  else                      
+                    dnf module enable -y nvidia-driver:open-dkms
+                    dnf install -q -y nvidia-open
+                    dnf install -q -y nvidia-xconfig
+
+                    if ( ec2-metadata -t | grep -q " p[0-9]" ); then
+                      dnf install -q -y nvidia-fabricmanager libnvidia-nscq libnvsdm nvidia-imex
+                      if ( ec2-metadata -t | grep -q " p6" ); then
+                        dnf install -q -y nvlsm nvlink5
+                        echo "ib_umad" | tee -a /etc/modules-load.d/modules.conf
+                        modprobe ib_umad
+                      fi
+                      systemctl enable --now nvidia-fabricmanager
+                    fi
+                  fi
+
+                  if [ "${installDocker}" = "Yes" ]; then
+                    if (! dnf search nvidia | grep -q nvidia-container-toolkit); then
+                      sudo dnf config-manager --add-repo https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
+                      sudo dnf clean expire-cache
+                    fi
+                    dnf install -q -y nvidia-container-toolkit
+                    nvidia-ctk runtime configure --runtime=docker
+                    systemctl restart docker
+                  fi
+                fi
+
+                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -2009,6 +2060,9 @@ Resources:
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
 
+                    # Cloudwatch agent
+                    usermod -a -G apache cwagent
+
                     systemctl restart httpd
                     ;;
                   Nginx)
@@ -2061,6 +2115,9 @@ Resources:
                     chmod -R 2775 /usr/share/nginx/html
                     find /usr/share/nginx/html -type d -exec sudo chmod 2775 {} \;
                     find /usr/share/nginx/html -type f -exec sudo chmod 0664 {} \;
+
+                    # Cloudwatch agent
+                    usermod -a -G nginx cwagent
 
                     systemctl restart nginx
                     ;;

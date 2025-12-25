@@ -79,7 +79,7 @@ EC2 Instance
 - `ec2Name`: EC2 instance name
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `processorArchitecture` / `osVersion` : Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
-- `instanceType`: EC2 [instance type](https://aws.amazon.com/ec2/instance-types/). Do verify instance type [Region availability](https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-instance-regions.html) and ensure type matches processor architecture. Default is [`m6g.large`](https://aws.amazon.com/ec2/instance-types/m6g/) Graviton2. For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance
+- `instanceType`: EC2 [instance type](https://aws.amazon.com/ec2/instance-types/). Do verify instance type [Region availability](https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-instance-regions.html) and ensure type matches processor architecture. Default is [`m6g.large`](https://aws.amazon.com/ec2/instance-types/m6g/) Graviton2. For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance. AL2023 and Ubuntu templates will install GPU driver (and NVIDIA container toolkit if `installDocker` is `Yes`) if [NVIDIA GPU EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) instance type is specified
 - `ec2TerminationProtection`: enable [EC2 termination protection](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html) to prevent accidental deletion. Default is `Yes`
 
 EC2 Network
@@ -110,7 +110,7 @@ LAMP
 
 Others
 
-- `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `No`
+- `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `Yes`
 - `r53ZoneID` (optional):  [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access for use with Certbot [certbot-dns-route53](#option-2-using-certbot-certbot-dns-route53-plugin) DNS plugin. Default is `*` for access to all Route 53 zones in your AWS account. Permission is restricted to **_acme-challenge.\*** TXT DNS records using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html)
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance access using [IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/). Default is empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account
 

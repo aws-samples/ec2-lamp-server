@@ -776,7 +776,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "No"
+    Default: "Yes"
   installApp:
     Type: String
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
@@ -1550,8 +1550,6 @@ Resources:
 
                 export DEBIAN_FRONTEND=noninteractive
 
-                python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
-
                 apt-get update
                 apt-get upgrade -q -y
 
@@ -1571,6 +1569,73 @@ Resources:
                     rm -f /home/ubuntu/update-dcv
                     ;;
                 esac
+
+                # GPU driver for G/P instance : https://repost.aws/articles/ARWGxLArMBQ4y1MKoSHTq3gQ/
+                apt-get install -q -y pciutils
+                apt-get install -q -y amazon-ec2-utils
+                if ( lspci | grep -q NVIDIA ); then
+                  dnf install -q -y dkms
+                  systemctl enable dkms             
+                  apt-get install -q -y dkms linux-headers-aws linux-modules-extra-aws unzip gcc make libglvnd-dev pkg-config
+
+                  DISTRO=$(. /etc/os-release;echo $ID$VERSION_ID | sed -e 's/\.//g')
+                  if (arch | grep -q x86); then
+                    ARCH=x86_64
+                  else
+                    ARCH=sbsa
+                  fi
+                  curl -L -O https://developer.download.nvidia.com/compute/cuda/repos/$DISTRO/$ARCH/cuda-keyring_1.1-1_all.deb
+                  apt-get install -q -y ./cuda-keyring_1.1-1_all.deb
+                  apt-get update 
+
+                  if ( ec2-metadata -t | grep -q 6f\. ); then
+                    # NVIDIA GRID: https://repost.aws/articles/ARBXrCH5wuStKWCXfIDdG4Ig/
+                    apt-get install -q -y dkms linux-headers-aws linux-modules-extra-aws unzip gcc make libglvnd-dev pkg-config
+                    aws s3 cp --recursive s3://ec2-linux-nvidia-drivers/latest/ . --no-sign-request
+                    chmod +x NVIDIA-Linux-x86_64*.run
+
+                    if (lsb_release -r -s | grep -q 22); then
+                      if (cat /proc/version | grep -q gcc-12); then
+                        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+                        sudo update-alternatives --config gcc
+                      fi
+                    fi
+
+                    if (! uname -r | grep -q $KERNEL_VERSION ); then
+                      sudo ./NVIDIA-Linux-x86_64*.run -s --kernel-source-path=/lib/modules/$KERNEL_VERSION/build --kernel-name=$KERNEL_VERSION --skip-module-load
+                      sudo dkms autoinstall
+                    else 
+                      sudo ./NVIDIA-Linux-x86_64*.run -s
+                    fi
+                    
+                    touch /etc/modprobe.d/nvidia.conf
+                    echo "options nvidia NVreg_EnableGpuFirmware=0" | tee --append /etc/modprobe.d/nvidia.conf                   
+                  else                      
+                    VERSION=$(apt-cache search "nvidia-driver" | grep "^nvidia-driver-.*-server-open" | cut -d"-" -f3 | sort -r | head -1)
+                    apt-get install -q -y linux-modules-nvidia-$VERSION-server-open-aws nvidia-headless-no-dkms-$VERSION-server-open nvidia-driver-$VERSION-server-open nvidia-utils-$VERSION-server
+                    apt-get install -q -y nvidia-settings
+
+                    if ( ec2-metadata -t | grep -q " p[0-9]" ); then
+                      apt-get install -q -y nvidia-fabricmanager-$VERSION libnvidia-nscq-$VERSION
+                      apt-get install -q -y nvidia-imex-$VERSION
+                      if ( ec2-metadata -t | grep -q " p6" ); then
+                        apt-get install -q -y nvlsm
+                        apt-get install -q -y infiniband-diags
+                        echo "ib_umad" | tee -a /etc/modules-load.d/modules.conf
+                        modprobe ib_umad
+                      fi
+                      systemctl enable --now nvidia-fabricmanager
+                    fi
+                  fi
+
+                  if [ "${installDocker}" = "Yes" ]; then
+                    apt-get install -q -y nvidia-container-toolkit
+                    nvidia-ctk runtime configure --runtime=docker
+                    systemctl restart docker
+                  fi
+                fi
+
+                python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
@@ -1709,6 +1774,21 @@ Resources:
                   rm -f /etc/systemd/system/systemd-networkd-wait-online.service.d/override.conf
                 fi
                 systemctl daemon-reload
+
+                # Disable Nouveau on GPU instance
+                apt-get install -q -y pciutils
+                if ( lspci | grep -q NVIDIA ); then
+                  # Disable Nouveau: https://docs.nvidia.com/ai-enterprise/deployment-guide-vmware/0.1.0/nouveau.html#ubuntu
+                  if (! cat /etc/modprobe.d/blacklist.conf | grep -q nouveau); then
+                    echo "blacklist vga16fb" >> /etc/modprobe.d/blacklist.conf
+                    echo "blacklist nouveau" >> /etc/modprobe.d/blacklist.conf
+                    echo "blacklist rivafb" >> /etc/modprobe.d/blacklist.conf
+                    echo "blacklist nvidiafb" >> /etc/modprobe.d/blacklist.conf
+                    echo "blacklist rivatv" >> /etc/modprobe.d/blacklist.conf
+                  fi
+                  sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="rdblacklist=nouveau /g' /etc/default/grub
+                  update-grub
+                fi
 
                 rm -f ${!0}
               mode: "000740"
@@ -2049,6 +2129,9 @@ Resources:
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
 
+                    # Cloudwatch agent
+                    usermod -a -G www-data cwagent
+
                     systemctl restart apache2
                     ;;
                   Nginx)
@@ -2080,6 +2163,9 @@ Resources:
                     chmod -R 2775 /var/www/html
                     find /var/www/html -type d -exec sudo chmod 2775 {} \;
                     find /var/www/html -type f -exec sudo chmod 0664 {} \;
+
+                    # Cloudwatch agent
+                    usermod -a -G www-data cwagent
 
                     systemctl restart nginx
                     ;;
