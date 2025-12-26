@@ -362,7 +362,7 @@ Parameters:
       - "php8.3"
       - "php8.4"
       - "none"
-    Default: "php8.3"
+    Default: "php8.4"
   s3BucketName:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
@@ -1192,7 +1192,6 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXRayDaemonWriteAccess"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeployLimited"
       Tags:
         - Key: StackName
@@ -1531,6 +1530,8 @@ Resources:
                 # GPU driver for G/P instance : https://repost.aws/articles/ARwfQMxiC-QMOgWykD9mco1w/
                 dnf install -q -y pciutils
                 if ( lspci | grep -q NVIDIA ); then
+                  cd /tmp
+
                   dnf install -q -y dkms
                   systemctl enable dkms
                   dnf install -q -y vulkan-devel libglvnd-devel elfutils-libelf-devel xorg-x11-server-Xorg
