@@ -23,6 +23,8 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: AL2 (Amazon Linux 2) EOL (End of Life) on 2026-06-30
+      - Label:
           default: EC2 Instance
         Parameters:
           - ec2Name
