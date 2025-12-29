@@ -2513,6 +2513,7 @@ Resources:
   cfDistribution:
     Type: AWS::CloudFront::Distribution
     Condition: createCloudFront
+    DependsOn: ec2Instance
     Properties:
       DistributionConfig:
         Origins:
