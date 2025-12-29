@@ -1549,10 +1549,9 @@ Resources:
                     # NVIDIA GRID: https://repost.aws/articles/ARHkpw_xUVR5qVgPQIU6F7AA/
                     aws s3 cp --recursive s3://ec2-linux-nvidia-drivers/latest/ . --no-sign-request
                     chmod +x NVIDIA-Linux-x86_64*.run
-                    sudo ./NVIDIA-Linux-x86_64*.run -s
+                    ./NVIDIA-Linux-x86_64*.run -s
                     
-                    sudo touch /etc/modprobe.d/nvidia.conf
-                    echo "options nvidia NVreg_EnableGpuFirmware=0" | sudo tee --append /etc/modprobe.d/nvidia.conf                    
+                    echo "options nvidia NVreg_EnableGpuFirmware=0" | tee --append /etc/modprobe.d/nvidia.conf                    
                   else                      
                     dnf module enable -y nvidia-driver:open-dkms
                     dnf install -q -y nvidia-open
@@ -1560,7 +1559,7 @@ Resources:
 
                     if ( ec2-metadata -t | grep -q " p[0-9]" ); then
                       dnf install -q -y nvidia-fabricmanager libnvidia-nscq libnvsdm nvidia-imex
-                      if ( ec2-metadata -t | grep -q " p6" ); then
+                      if ( ec2-metadata -t | grep -q " p[6-9]" ); then
                         dnf install -q -y nvlsm nvlink5
                         echo "ib_umad" | tee -a /etc/modules-load.d/modules.conf
                         modprobe ib_umad

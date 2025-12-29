@@ -1593,8 +1593,6 @@ Resources:
                   if ( ec2-metadata -t | grep -q 6f\. ); then
                     # NVIDIA GRID: https://repost.aws/articles/ARBXrCH5wuStKWCXfIDdG4Ig/
                     apt-get install -q -y dkms linux-headers-aws linux-modules-extra-aws unzip gcc make libglvnd-dev pkg-config
-                    aws s3 cp --recursive s3://ec2-linux-nvidia-drivers/latest/ . --no-sign-request
-                    chmod +x NVIDIA-Linux-x86_64*.run
 
                     if (lsb_release -r -s | grep -q 22); then
                       if (cat /proc/version | grep -q gcc-12); then
@@ -1603,14 +1601,17 @@ Resources:
                       fi
                     fi
 
+                    aws s3 cp --recursive s3://ec2-linux-nvidia-drivers/latest/ . --no-sign-request
+                    chmod +x NVIDIA-Linux-x86_64*.run
+
+                    KERNEL_VERSION=$(ls -a /lib/modules | sort -V -r | head -n 1)
                     if (! uname -r | grep -q $KERNEL_VERSION ); then
-                      sudo ./NVIDIA-Linux-x86_64*.run -s --kernel-source-path=/lib/modules/$KERNEL_VERSION/build --kernel-name=$KERNEL_VERSION --skip-module-load
-                      sudo dkms autoinstall
+                      ./NVIDIA-Linux-x86_64*.run -s --kernel-source-path=/lib/modules/$KERNEL_VERSION/build --kernel-name=$KERNEL_VERSION --skip-module-load
+                      dkms autoinstall
                     else 
-                      sudo ./NVIDIA-Linux-x86_64*.run -s
+                      ./NVIDIA-Linux-x86_64*.run -s
                     fi
                     
-                    touch /etc/modprobe.d/nvidia.conf
                     echo "options nvidia NVreg_EnableGpuFirmware=0" | tee --append /etc/modprobe.d/nvidia.conf                   
                   else                      
                     VERSION=$(apt-cache search "nvidia-driver" | grep "^nvidia-driver-.*-server-open" | cut -d"-" -f3 | sort -r | head -1)
@@ -1620,7 +1621,7 @@ Resources:
                     if ( ec2-metadata -t | grep -q " p[0-9]" ); then
                       apt-get install -q -y nvidia-fabricmanager-$VERSION libnvidia-nscq-$VERSION
                       apt-get install -q -y nvidia-imex-$VERSION
-                      if ( ec2-metadata -t | grep -q " p6" ); then
+                      if ( ec2-metadata -t | grep -q " p[6-9]" ); then
                         apt-get install -q -y nvlsm
                         apt-get install -q -y infiniband-diags
                         echo "ib_umad" | tee -a /etc/modules-load.d/modules.conf
