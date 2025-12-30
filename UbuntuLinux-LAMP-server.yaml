@@ -1576,10 +1576,6 @@ Resources:
                 if ( lspci | grep -q NVIDIA ); then
                   cd /tmp
 
-                  dnf install -q -y dkms
-                  systemctl enable dkms             
-                  apt-get install -q -y dkms linux-headers-aws linux-modules-extra-aws unzip gcc make libglvnd-dev pkg-config
-
                   DISTRO=$(. /etc/os-release;echo $ID$VERSION_ID | sed -e 's/\.//g')
                   if (arch | grep -q x86); then
                     ARCH=x86_64
