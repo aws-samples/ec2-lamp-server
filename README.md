@@ -79,8 +79,10 @@ EC2 Instance
 - `ec2Name`: EC2 instance name
 - `ec2KeyPair`: [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) name. [Create key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html) if necessary
 - `processorArchitecture` / `osVersion` : Intel/AMD x86_64 or Graviton arm64. Default is `Graviton (arm64)`
-- `instanceType`: EC2 [instance type](https://aws.amazon.com/ec2/instance-types/). Do verify instance type [Region availability](https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-instance-regions.html) and ensure type matches processor architecture. Default is [`m6g.large`](https://aws.amazon.com/ec2/instance-types/m6g/) Graviton2. For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance. AL2023 and Ubuntu templates will install GPU driver (and NVIDIA container toolkit if `installDocker` is `Yes`) if [NVIDIA GPU EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) instance type is specified
+- `instanceType`: EC2 [instance type](https://aws.amazon.com/ec2/instance-types/). Do verify instance type [Region availability](https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-instance-regions.html) and ensure type matches processor architecture. Default is [`m6g.large`](https://aws.amazon.com/ec2/instance-types/m6g/) Graviton2. For best performance, consider newer [M7g](https://aws.amazon.com/ec2/instance-types/m7g/) and [M8g](https://aws.amazon.com/ec2/instance-types/m8g/) [Graviton](https://aws.amazon.com/ec2/graviton/) instance
 - `ec2TerminationProtection`: enable [EC2 termination protection](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingDisableAPITermination.html) to prevent accidental deletion. Default is `Yes`
+
+*If you specify a [NVIDIA GPU](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) `instanceType`, AL2023 and Ubuntu templates will install GPU driver (and NVIDIA container toolkit if `installDocker` is `Yes`).*
 
 EC2 Network
 
@@ -198,7 +200,7 @@ To troubleshoot any installation issue, you can view contents of the following l
 
 ## SSL/TLS certificate on EC2 instance
 
-Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS. You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a public certificate for your own domain and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
+Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS. You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a non-exportable public certificate at [no additional cost](https://aws.amazon.com/certificate-manager/pricing/) and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
 
 The EC2 instance uses a self-signed certificate for HTTPS. You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public certificate from AWS Certificate Manager and install it on your EC2 instance. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server as follows.
 
