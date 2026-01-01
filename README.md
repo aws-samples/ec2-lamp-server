@@ -1,26 +1,31 @@
 ## EC2-LAMP-Server
-Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and optionally WordPress or Moodle. 
+
+Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx, PHP, MySQL/MariaDB/PostgreSQL, and optionally WordPress or Moodle.
 
 ## Description
-[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), [more than 70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP, and [more than 40%](https://w3techs.com/technologies/overview/content_management) of websites use WordPress. 
+
+[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), [more than 70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP, and [more than 40%](https://w3techs.com/technologies/overview/content_management) of websites use WordPress.
 
 This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision EC2 instances with option to specify PHP version, web server and database engine, and [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used to deploy PHP based web applications, or for application development.
 
 ## Demo
 
-https://github.com/user-attachments/assets/13f3d1fb-7242-4d68-9f03-1352477e79c7
+<https://github.com/user-attachments/assets/13f3d1fb-7242-4d68-9f03-1352477e79c7>
 
 *Amazon Linux 2023 with Amazon DCV, and WordPress installation*
 
-https://github.com/user-attachments/assets/e6fe07a0-3908-4d6e-9de7-9cda5d4214c2
+<https://github.com/user-attachments/assets/e6fe07a0-3908-4d6e-9de7-9cda5d4214c2>
 
 *Ubuntu with initial portion of Moodle web installation*
 
 ## Architecture Diagram
+
 <img alt="image" src="ec2-lamp-server.png">
 
 ## Overview of features
+
 The template provides the following features:
+
 - [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/), [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04, or [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
 - Applications
   - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
@@ -41,7 +46,7 @@ The template provides the following features:
   - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
 - Remote Administration
   - [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote display protocol server for graphical desktop access (optional)
-  - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)  secure terminal access 
+  - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)  secure terminal access
   - [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html) in-browser SSH access
   - [Webmin](https://webmin.com/) web-based system administration (optional)
 - AWS Services
@@ -51,17 +56,16 @@ The template provides the following features:
 
 ## Notice
 
-Although this repository is released under the [MIT-0](LICENSE) license, its CloudFormation template uses features from 
+Although this repository is released under the [MIT-0](LICENSE) license, its CloudFormation template uses features from
 [MySQL Community Edition](https://www.mysql.com/products/community/) and [Webmin](https://webmin.com/) which are licensed under [GPL](https://www.mysql.com/products/community/) and [BSD-3-Clause](https://webmin.com/about/) license respectively. Usage of [Amazon DCV](https://aws.amazon.com/hpc/dcv/) indicates acceptance of [DCV EULA](https://www.amazondcv.com/eula.html).
 
-By using the template, you accept license agreement of all software that is installed in the EC2 instance. 
+By using the template, you accept license agreement of all software that is installed in the EC2 instance.
 
 ## Requirements
 
-- EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity. 
+- EC2 instance must be provisioned in a subnet with outbound IPv4 internet connectivity.
 - To use [Application Load Balancer (ALB)](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) with HTTPS, either [request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) or [import a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) into [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/).
 - To use CloudFront with EC2 instance as origin, the [VPC DNS](https://docs.aws.amazon.com/vpc/latest/userguide/AmazonDNS-concepts.html#vpc-dns-support) attributes `enableDnsSupport` and `enableDnsHostnames` must be enabled.
-
 
 ## Deploying using CloudFormation console
 
@@ -92,13 +96,13 @@ EC2 Network
 
 EC2 Remote Administration
 
-- `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0` 
+- `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`
 - `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
 - `allowSSHport`: allow inbound SSH. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
 - `installWebmin`: install [Webmin](https://webmin.com/) web-based system administration tool. Default is `No`
 
-*SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.* 
+*SSH, DCV and Webmin inbound access are restricted to `ingressIPv4` and `ingressIPv6` IP prefixes.*
 
 LAMP
 
@@ -154,11 +158,11 @@ AWS Backup
 
 Refer to below video if you are new to using CloudFormation console
 
-https://github.com/user-attachments/assets/32a1193a-b19b-4443-a4b8-ec4605fa32f9
+<https://github.com/user-attachments/assets/32a1193a-b19b-4443-a4b8-ec4605fa32f9>
 
 ### CloudFormation Outputs
 
-The following are available on **Outputs** section 
+The following are available on **Outputs** section
 
 - `EC2console`: EC2 console URL to manage your EC2 instance
 - `EC2instanceID`: EC2 instance ID
@@ -225,7 +229,8 @@ Ensure you have a domain name whose DNS entry resolves to your EC2 instance publ
 
   *Apache and Nginx plugin uses [HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/#http-01-challenge), and require HTTP port 80 to be accessible from public internet*
 
-### Using Route 53 plugin 
+### Using Route 53 plugin
+
 The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) option uses [DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and requires your DNS to be hosted by Route 53. It supports wildcard certificates and domain names that resolve to private IP addresses.  Ensure that Route 53 zone access is granted by specifying `r53ZoneID` value. From terminal, run the below command based on installed web server type and follow instructions.
 
 - Apache
@@ -244,7 +249,7 @@ Refer to [official site](https://certbot.eff.org/pages/help) for help with Certb
 
 ## Using Cloudwatch agent
 
-[Amazon CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html) is installed, and enables collection of [EC2 system-level metrics](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/metrics-collected-by-CloudWatch-agent.html) and [AWS X-Ray](https://aws.amazon.com/xray/) traces. 
+[Amazon CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html) is installed, and enables collection of [EC2 system-level metrics](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/metrics-collected-by-CloudWatch-agent.html) and [AWS X-Ray](https://aws.amazon.com/xray/) traces.
 
 The template configures agent to collect memory and disk utilization metrics. To collect other metrics, you can configure using [EC2 console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-and-configure-cloudwatch-agent-using-ec2-console.html#install-and-configure-cw-agent-procedure) or manually as follows.
 
@@ -256,6 +261,7 @@ Create agent configuration file. You can use [agent configuration file wizard](h
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard
 
 ```
+
 ### Start Cloudwatch agent
 
 After `config.json` file is created, [start CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance-fleet.html#start-CloudWatch-Agent-EC2-fleet):
@@ -289,7 +295,6 @@ If you are looking to compile PHP extensions on AL2023, refer to community artic
 
 If you are looking to install WordPress on AL2023, refer to community article [Install WordPress on Amazon Linux 2023 (AL2023)](https://repost.aws/articles/ARarysTJYQTh-zCNMftIolwA/install-wordpress-on-amazon-linux-2023-al2023) for options
 
-
 ## About EC2 instance
 
 ### Well-architected
@@ -314,7 +319,7 @@ To futher secure your EC2 instance, you may want to
 - For DCV (`installDCV`)
   - Use [native clients](https://www.amazondcv.com/) for remote access, and disable web browser client by removing `nice-dcv-web-viewer` package
 - Disable SSH access from public internet (`allowSSHport`)
-  - Use [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#ec2-instance-connect-connecting-console) or [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#start-ec2-console) for in-browser terminal access, or 
+  - Use [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#ec2-instance-connect-connecting-console) or [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#start-ec2-console) for in-browser terminal access, or
   - Start a session using [AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-cli) or [SSH](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-ssh) with [Session Manager plugin for the AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
 - Use AWS Backup (`enableBackup`)
   - Enable [AWS Backup Vault Lock](https://aws.amazon.com/blogs/storage/enhance-the-security-posture-of-your-backups-with-aws-backup-vault-lock/) to prevent your backups from accidental or malicious deletion, and for [protection from ransomware](https://aws.amazon.com/blogs/security/updated-ebook-protecting-your-aws-environment-from-ransomware/)
@@ -343,4 +348,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
-
