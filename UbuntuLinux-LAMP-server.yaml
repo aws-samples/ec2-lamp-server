@@ -1227,7 +1227,7 @@ Resources:
       Roles:
         - !Ref instanceIamRole
 
-  securityGroup:
+  sgEC2Instance:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow inbound HTTP, HTTPS and any remote admin ports
@@ -1362,21 +1362,21 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
-  securityGroupForCloudFrontHTTP:
+  sgCloudFrontIPv4:
     Type: AWS::EC2::SecurityGroup
     Condition: hasCFprefix
     Properties:
       GroupDescription: Allow inbound HTTP from CloudFront (IPv4)
       VpcId: !Ref vpcID
       SecurityGroupIngress:
-        - Description: HTTP (CloudFront origin IP)
+        - Description: HTTP (CloudFront origin IPv4)
           IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourcePrefixListId:
             !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       SecurityGroupEgress:
-        - Description: Ping (CloudFront origin IP)
+        - Description: Ping (CloudFront origin IPv4)
           IpProtocol: icmp
           FromPort: -1
           ToPort: -1
@@ -1398,21 +1398,21 @@ Resources:
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
-  securityGroupForCloudFrontIpv6HTTP:
+  sgCloudFrontIPv6:
     Type: AWS::EC2::SecurityGroup
     Condition: hasCFprefix
     Properties:
       GroupDescription: Allow inbound HTTP from CloudFront (IPv6)
       VpcId: !Ref vpcID
       SecurityGroupIngress:
-        - Description: HTTP (CloudFront origin IP)
+        - Description: HTTP (CloudFront origin IPv6)
           IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourcePrefixListId:
             !FindInMap [CFprefixMap, !Ref AWS::Region, Ipv6PrefixList]
       SecurityGroupEgress:
-        - Description: Ping (CloudFront origin IP)
+        - Description: Ping (CloudFront origin IPv6)
           IpProtocol: icmp
           FromPort: -1
           ToPort: -1
@@ -2336,17 +2336,9 @@ Resources:
       DisableApiTermination: !If [enableProtection, true, false]
       EbsOptimized: true
       SecurityGroupIds:
-        - !Ref securityGroup
-        - !If [
-            hasCFprefix,
-            !Ref securityGroupForCloudFrontHTTP,
-            !Ref AWS::NoValue,
-          ]
-        - !If [
-            hasCFprefix,
-            !Ref securityGroupForCloudFrontIpv6HTTP,
-            !Ref AWS::NoValue,
-          ]
+        - !Ref sgEC2Instance
+        - !If [hasCFprefix, !Ref sgCloudFrontIPv4, !Ref AWS::NoValue]
+        - !If [hasCFprefix, !Ref sgCloudFrontIPv6, !Ref AWS::NoValue]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -2449,16 +2441,8 @@ Resources:
       Scheme: !Ref albScheme
       SecurityGroups:
         - !Ref albSecurityGroup
-        - !If [
-            hasCFprefix,
-            !Ref securityGroupForCloudFrontHTTP,
-            !Ref AWS::NoValue,
-          ]
-        - !If [
-            hasCFprefix,
-            !Ref securityGroupForCloudFrontIpv6HTTP,
-            !Ref AWS::NoValue,
-          ]
+        - !If [hasCFprefix, !Ref sgCloudFrontIPv4, !Ref AWS::NoValue]
+        - !If [hasCFprefix, !Ref sgCloudFrontIPv6, !Ref AWS::NoValue]
       Subnets: !Ref albSubnets
       Tags:
         - Key: StackName
@@ -2495,6 +2479,25 @@ Resources:
             Path: "/#{path}"
             Query: "#{query}"
             StatusCode: "HTTP_301"
+
+  albHttpListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: createHttpRedirectListener
+    Properties:
+      ListenerArn: !Ref albHttpRedirectListener
+      Priority: 10
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref albTargetGroup
+      Conditions:
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: X-Amz-Cf-Id
+            RegexValues: [".+"]
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: Via
+            RegexValues: [".+"]
 
   albHttpsListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -2766,8 +2769,7 @@ Resources:
               Id:
                 !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               CustomOriginConfig:
-                OriginProtocolPolicy:
-                  !If [createHttpRedirectListener, https-only, http-only]
+                OriginProtocolPolicy: http-only
                 OriginSSLProtocols:
                   - TLSv1.2
         Enabled: true
@@ -2781,7 +2783,7 @@ Resources:
         HttpVersion: http2and3
         ViewerCertificate:
           CloudFrontDefaultCertificate: true
-          MinimumProtocolVersion: TLSv1.2_2021
+          MinimumProtocolVersion: TLSv1.2_2025
         DefaultCacheBehavior:
           AllowedMethods: !Split [",", "GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE"]
           CachedMethods:
