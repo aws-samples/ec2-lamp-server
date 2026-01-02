@@ -2542,7 +2542,7 @@ Resources:
         - Key: stickiness.type
           Value: app_cookie
         - Key: stickiness.app_cookie.cookie_name
-          Value: Nextcloud
+          Value: awscloud
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
