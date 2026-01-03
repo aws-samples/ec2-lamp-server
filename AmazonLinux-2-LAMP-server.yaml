@@ -57,7 +57,7 @@ Metadata:
           default: Others
         Parameters:
           - installDocker
-          - r53ZoneID
+          - enableR53acmeSupport
           - s3BucketName
       - Label:
           default: EBS
@@ -154,8 +154,8 @@ Metadata:
 
       installDocker:
         default: "Install Docker"
-      r53ZoneID:
-        default: "Route 53 hosted zone ID to grant access to"
+      enableR53acmeSupport:
+        default: "Enable Route 53 ACME protocol DNS-01 challenge support"
       s3BucketName:
         default: "S3 bucket name to grant access to"
 
@@ -364,10 +364,13 @@ Parameters:
     Type: String
     Description: "https://console.aws.amazon.com/s3/buckets"
     Default: ""
-  r53ZoneID:
+  enableR53acmeSupport:
     Type: String
-    Description: https://console.aws.amazon.com/route53/hostedzones https://certbot-dns-route53.readthedocs.io/
-    Default: "*"
+    Description: https://letsencrypt.org/docs/challenge-types https://certbot-dns-route53.readthedocs.io/
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
 
   volumeSize:
     Type: Number
@@ -815,7 +818,7 @@ Conditions:
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
 
   hasS3Bucket: !Not [!Equals [!Ref s3BucketName, ""]]
-  hasR53Zone: !Not [!Equals [!Ref r53ZoneID, ""]]
+  hasR53Zone: !Equals [!Ref enableR53acmeSupport, "Yes"]
 
   installDCV: !Equals [!Ref installDCV, "Yes"]
   noDCV: !Not [!Condition installDCV]
@@ -1142,7 +1145,7 @@ Resources:
                 - Effect: Allow
                   Action:
                     - route53:ChangeResourceRecordSets
-                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}
+                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/*
                   Condition:
                     IpAddress:
                       aws:SourceIp: 0.0.0.0/0
@@ -1166,7 +1169,7 @@ Resources:
                 - Effect: Allow
                   Action:
                     - route53:ChangeResourceRecordSets
-                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${r53ZoneID}
+                  Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/*
                   Condition:
                     IpAddress:
                       aws:SourceIp: 0.0.0.0/0

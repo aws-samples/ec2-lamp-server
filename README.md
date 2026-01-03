@@ -37,7 +37,7 @@ The template provides the following features:
   - [Composer](https://getcomposer.org/)
   - [Valkey](https://valkey.io/)/[Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
   - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#ssltls-certificate-on-ec2-instance)
-    - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for use by [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) DNS plugin (optional)
+    - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for [ACME DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) support (optional)
   - [Docker Engine](https://docs.docker.com/engine/) (optional)
   - [MountPoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/) for mounting S3 bucket as local file system
     - [Amazon S3](https://aws.amazon.com/s3/) bucket access for use by Mountpoint with S3 (optional)
@@ -115,8 +115,9 @@ LAMP
 
 Others
 
-- `installDocker` (optional):  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `Yes`
-- `r53ZoneID` (optional):  [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone ID to grant access for use with Certbot [certbot-dns-route53](#option-2-using-certbot-certbot-dns-route53-plugin) DNS plugin. Default is `*` for access to all Route 53 zones in your AWS account. Permission is restricted to **_acme-challenge.\*** TXT DNS records using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html)
+- `installDocker`:  install [Docker Engine](https://docs.docker.com/engine/) (also known as Docker CE) from [Docker repository](https://download.docker.com/) or Linux OS package repository. Default is `Yes`
+- `enableR53acmeSupport`: grant EC2 instance IAM permission for [ACME clients](https://letsencrypt.org/docs/client-options/) such as [Certbot](https://certbot.eff.org/) to use [DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) with your [Amazon Route 53](https://aws.amazon.com/route53/) [public hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/AboutHZWorkingWith.html) to obtain free HTTPS/TLS certificates. For security reasons, DNS record access is restricted to **_acme-challenge.\*** TXT records using [resource record set permissions](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-permissions.html). Refer to section [SSL/TLS certificate on EC2 instance](https://github.com/aws-samples/ec2-lamp-server#ssltls-certificate-on-ec2-instance) for more details. Default is `Yes`
+
 - `s3BucketName` (optional): name of [Amazon S3](https://aws.amazon.com/s3/) bucket to grant EC2 instance access using [IAM policy](https://aws.amazon.com/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/). Default is empty not to grant access. A `*` value will grant the EC2 instance access to all S3 buckets in your AWS account
 
 EBS
@@ -205,7 +206,7 @@ To troubleshoot any installation issue, you can view contents of the following l
 
 Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS and  [alternative domain name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/CNAMEs.html). You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a non-exportable public certificate at [no additional cost](https://aws.amazon.com/certificate-manager/pricing/) and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
 
-The EC2 instance uses a self-signed certificate for HTTPS. You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public certificate from AWS Certificate Manager and install it on your EC2 instance. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install [Let's Encrypt](https://letsencrypt.org/) certificate on your web server as follows.
+The EC2 instance uses a self-signed certificate for HTTPS. You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public certificate from AWS Certificate Manager and install it on your EC2 instance. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install free [Let's Encrypt](https://letsencrypt.org/) certificate on your web server as follows.
 
 ### Certbot prerequisites
 
@@ -227,11 +228,11 @@ Ensure you have a domain name whose DNS entry resolves to your EC2 instance publ
   sudo certbot --nginx
   ```
 
-  *Apache and Nginx plugin uses [HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/#http-01-challenge), and require HTTP port 80 to be accessible from public internet*
+*Apache and Nginx plugin uses [HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/#http-01-challenge), and require HTTP port 80 to be accessible from public internet*
 
 ### Using Route 53 plugin
 
-The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) option uses [DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and requires your DNS to be hosted by Route 53. It supports wildcard certificates and domain names that resolve to private IP addresses.  Ensure that Route 53 zone access is granted by specifying `r53ZoneID` value. From terminal, run the below command based on installed web server type and follow instructions.
+The [certbot-dns-route53](https://certbot-dns-route53.readthedocs.io/en/stable/) option uses [DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) and requires your domain DNS to be [hosted by Route 53](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/migrate-dns-domain-in-use.html). It supports wildcard certificates and domain names that resolve to private IP addresses.  Ensure that Route 53 zone access is granted through `enableR53acmeSupport`. From terminal, run the below command based on installed web server type and follow instructions.
 
 - Apache
 
