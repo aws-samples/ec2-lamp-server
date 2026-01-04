@@ -2249,6 +2249,12 @@ Resources:
                     WordPress)
                       curl -s -L -O https://wordpress.org/latest.tar.gz
                       tar -xf latest.tar.gz
+
+                      # Allow CloudFront: https://developer.wordpress.org/advanced-administration/security/https/
+                      if (echo '${enableCloudFront}' | grep -q "Yes"); then
+                        sed -i "/Add any custom value/a \$_SERVER['HTTPS'] = 'on';" /tmp/cfn/wordpress/wp-config-sample.php
+                      fi
+
                       case ${webOption} in
                         Apache)
                           rsync -r /tmp/cfn/wordpress/ /var/www/html/
