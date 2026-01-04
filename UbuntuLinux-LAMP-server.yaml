@@ -2262,7 +2262,7 @@ Resources:
                       ;;
                     Moodle*)
                       if (echo '${installApp}' | grep -q "Moodle 5.1"); then
-                        curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-5.1.tgz -o moodle.tgz
+                        curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
                       elif (echo '${installApp}' | grep -q "Moodle 5.0"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
                       else
@@ -2272,17 +2272,31 @@ Resources:
                       case ${webOption} in
                         Apache)
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
+
+                          # Moodle 5.1: https://moodledev.io/general/releases/5.1
+                          if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                            sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/apache2/sites-available/*.conf
+                          fi
+
                           ;;
                         Nginx)
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
+
+                          # Moodle 5.1: https://moodledev.io/general/releases/5.1
+                          if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                            sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/nginx/sites-available/default
+                          fi
+
                           ;;
                       esac
                       chown www-data:www-data -R /var/www/html
                       chmod g+rw -R /var/www/html
+
                       # Moodle data
                       mkdir -p /var/www/moodledata
                       chown www-data:www-data -R /var/www/moodledata
                       chmod g+rw -R /var/www/moodledata
+
                       # Moodle cron : https://docs.moodle.org/405/en/Cron
                       mkdir -p /home/ubuntu/moodle
                       echo "* * * * * /usr/bin/php  /var/www/html/admin/cli/cron.php >/dev/null" > /home/ubuntu/moodle/cron

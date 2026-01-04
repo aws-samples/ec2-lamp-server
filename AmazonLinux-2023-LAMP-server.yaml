@@ -2262,7 +2262,7 @@ Resources:
                     Moodle*)
                       mkdir -p /home/ec2-user/moodle
                       if (echo '${installApp}' | grep -q "Moodle 5.1"); then
-                        curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-5.1.tgz -o moodle.tgz
+                        curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
                       elif (echo '${installApp}' | grep -q "Moodle 5.0"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
                       else
@@ -2274,6 +2274,13 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
                           chown apache:apache -R /var/www/html
                           chmod g+rw -R /var/www/html
+
+                          # Moodle 5.1: https://moodledev.io/general/releases/5.1
+                          if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                            sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/httpd/conf/httpd.conf
+                            sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/httpd/conf.d/ssl.conf
+                            sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/httpd/conf.d/www.conf
+                          fi
 
                           # Moodle data
                           mkdir -p /var/www/moodledata
@@ -2287,6 +2294,11 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /usr/share/nginx/html/
                           chown apache:nginx -R /usr/share/nginx/html
                           chmod g+rw -R /usr/share/nginx/html
+
+                          # Moodle 5.1: https://moodledev.io/general/releases/5.1
+                          if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                            sed -i "s/\/usr\/share\/nginx\/html/\/usr\/share\/nginx\/html\/public/g" /etc/nginx/nginx.conf
+                          fi
 
                           # Moodle data
                           mkdir -p /usr/share/nginx/moodledata
