@@ -176,7 +176,7 @@ The following are available on **Outputs** section
 
 If `installDCV` is `Yes`
 
-- `DCVUrl` : DCV [web browser client](https://docs.aws.amazon.com/dcv/latest/userguide/client-web.html) and [native client](https://docs.aws.amazon.com/dcv/latest/userguide/client.html) URLs. Native clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Login as the user specified in *Description* field. Default password is `EC2instanceID`
+- `DCVUrl` : DCV [web browser client](https://docs.aws.amazon.com/dcv/latest/userguide/client-web.html) and [native client](https://docs.aws.amazon.com/dcv/latest/userguide/client.html) URLs. Native clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Login as the user specified in *Description* field. Default password is `EC2instanceID` value
 
 If `installWebmin` is `Yes`
 
@@ -189,7 +189,7 @@ If `enableALB` is `Yes`
 
 If `enableCloudFront` is `Yes`
 
-- `CloudFrontConsole` : CloudFront console URL link. Some adjustment of your CloudFront distribution settings may be required
+- `CloudFrontConsole` : CloudFront console URL. Some adjustment of your CloudFront distribution settings may be required
 - `CloudFrontUrl` : CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
 
 ### Troubleshooting
