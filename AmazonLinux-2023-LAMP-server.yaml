@@ -2821,18 +2821,12 @@ Outputs:
       - role: !Select [1, !Split ["/", !GetAtt instanceIamRole.Arn]]
 
   SSMsessionManager:
-    Condition: noDCV
-    Description: SSM Session Manager
+    Description: SSM Session Manager (" sudo passwd ec2-user " to change login user password)
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
 
-  SSMsessionManagerDCV:
+  DCVUrl:
     Condition: installDCV
-    Description: SSM Session Manager ("sudo passwd ec2-user" to set password for DCV login)
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${ec2Instance}"
-
-  DCVwebConsole:
-    Condition: installDCV
-    Description: DCV web browser client (login as ec2-user)
+    Description: DCV URL (login as ec2-user)
     Value:
       !If [
         displayPublicIP,
@@ -2859,7 +2853,7 @@ Outputs:
         !Sub "https://${ec2Instance.PrivateIp}:10000",
       ]
 
-  CloudFrontURL:
+  CloudFrontUrl:
     Condition: createCloudFront
     Description: CloudFront distribution URL
     Value: !Sub "https://${cfDistribution.DomainName}"

@@ -168,15 +168,15 @@ The following are available on **Outputs** section
 
 - `EC2console`: EC2 console URL to manage your EC2 instance
 - `EC2instanceID`: EC2 instance ID
-- `EC2instanceConnect`: [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) URL. Functionality is only available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html)
-- `EC2serialConsole`: [EC2 Serial Console](https://aws.amazon.com/blogs/aws/troubleshoot-boot-and-networking-issues-with-new-ec2-serial-console/) URL. Functionality is available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html).
+- `EC2instanceConnect`: [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html) URL. Functionality is only available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-eic.html)
+- `EC2serialConsole`: [EC2 Serial Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-to-serial-console.html) URL. Functionality is available under [certain conditions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html).
 - `EC2iamRole`: [IAM role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html) URL link to manage permissions
-- `SSMsessionManager` or `SSMsessionManagerDCV`: [SSM Session Manager](https://aws.amazon.com/blogs/aws/new-session-manager/) URL
+- `SSMsessionManager`: [SSM Session Manager](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html) URL
 - `WebUrl`: EC2 web server URL
 
 If `installDCV` is `Yes`
 
-- `DCVwebConsole` : DCV web browser client URL. Native DCV clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Login as the user specified in *Description* field. Default password is `EC2instanceID`
+- `DCVUrl` : DCV [web browser client](https://docs.aws.amazon.com/dcv/latest/userguide/client-web.html) and [native client](https://docs.aws.amazon.com/dcv/latest/userguide/client.html) URLs. Native clients can be downloaded from [https://www.amazondcv.com/](https://www.amazondcv.com/). Login as the user specified in *Description* field. Default password is `EC2instanceID`
 
 If `installWebmin` is `Yes`
 
@@ -190,7 +190,7 @@ If `enableALB` is `Yes`
 If `enableCloudFront` is `Yes`
 
 - `CloudFrontConsole` : CloudFront console URL link. Some adjustment of your CloudFront distribution settings may be required
-- `CloudFrontURL` : CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
+- `CloudFrontUrl` : CloudFront distribution URL, e.g. `https://d111111abcdef8.cloudfront.net`
 
 ### Troubleshooting
 
@@ -317,6 +317,7 @@ If you enable AWS Backup, you can restore your [EC2 instance](https://docs.aws.a
 
 To futher secure your EC2 instance, you may want to
 
+- Set a strong login user (`ec2-user`/`ubuntu`) password
 - Restrict remote administration access to your IP address only (`ingressIPv4` and `ingressIPv6`)
 - For DCV (`installDCV`)
   - Use [native clients](https://www.amazondcv.com/) for remote access, and disable web browser client by removing `nice-dcv-web-viewer` package
