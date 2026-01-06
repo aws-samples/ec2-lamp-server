@@ -27,7 +27,8 @@ https://github.com/user-attachments/assets/2a0cf991-cf33-4526-8f24-02113c9e84aa
 
 The template provides the following features:
 
-- [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/), [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04, or [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
+- [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04
+  - [NVIDIA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) GPU driver and NVIDIA Container Toolkit install
 - Applications
   - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
   - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
