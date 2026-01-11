@@ -1989,7 +1989,7 @@ Resources:
                 </VirtualHost>
                 EoF
 
-                    if (! echo "${phpVersion}" | grep -q "None"); then
+                    if (! echo "${phpVersion}" | grep -i -q "none"); then
                       cp /root/index.php /var/www/html/
                     fi
 
@@ -2056,7 +2056,7 @@ Resources:
                     # redirect HTTP to HTTPS if not CloudFront
                     sed -i '/^server/r /root/nginx-redirect' /etc/nginx/sites-available/default
 
-                    if (! echo "${phpVersion}" | grep -q "None"); then
+                    if (! echo "${phpVersion}" | grep -i -q "none"); then
                       cp /root/index.php /usr/share/nginx/html/
                     fi
 
