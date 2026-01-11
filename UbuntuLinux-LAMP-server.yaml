@@ -2122,7 +2122,12 @@ Resources:
                     # Enable index.php
                     sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
 
-                    cp /root/index.php /var/www/html/
+                    # Redirect HTTP to HTTPS
+                    sed -i '/\/VirtualHost/i RewriteEngine on\nRewriteCond %{HTTP:X-AMZ-CF-ID} ^\$ \nRewriteRule ^ https:\/\/%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]' /etc/apache2/sites-enabled/000-default.conf
+
+                    if (! echo "${phpVersion}" | grep -q "None"); then
+                      cp /root/index.php /var/www/html/
+                    fi
 
                     # Change permissions and ownership
                     usermod -a -G www-data ubuntu
@@ -2150,14 +2155,18 @@ Resources:
                     sed -i "60,60s/#//g" /etc/nginx/sites-available/default
                     sed -i "s/7.4/$PHP_VERSION/g" /etc/nginx/sites-available/default
                     sed -i "63,63s/#//g" /etc/nginx/sites-available/default
+
                     # Enable index.php
                     sed -i "s/index index.html index.htm index.nginx-debian.html;/index index.php index.html index.htm index.nginx-debian.html;/g" /etc/nginx/sites-available/default
 
                     cp /etc/nginx/nginx.conf  /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
+
                     # disable gzip as per https://bugs.debian.org/773332
                     sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
 
-                    cp /root/index.php /var/www/html/
+                    if (! echo "${phpVersion}" | grep -q "None"); then
+                      cp /root/index.php /var/www/html/
+                    fi
 
                     # Change permissions and ownership
                     usermod -a -G www-data ubuntu

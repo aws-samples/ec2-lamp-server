@@ -1968,12 +1968,17 @@ Resources:
                     # virtual host: for Certbot
                     cat << EoF > /etc/httpd/conf.d/www.conf
                 <VirtualHost *:80>
-                  ServerAdmin webmaster@localhost
                   DocumentRoot /var/www/html
+
+                  RewriteEngine on
+                  RewriteCond %{HTTP:X-AMZ-CF-ID} ^$
+                  RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
                 </VirtualHost>
                 EoF
 
-                    cp /root/index.php /var/www/html/
+                    if (! echo "${phpVersion}" | grep -q "None"); then
+                      cp /root/index.php /var/www/html/
+                    fi
 
                     # Change permissions and ownership
                     usermod -a -G apache ec2-user
@@ -2035,7 +2040,9 @@ Resources:
                     sed -i "20,20s/root/#root/g" /etc/nginx/sites-available/default
                     sed -i "31,31s/}/#}/g" /etc/nginx/sites-available/default
 
-                    cp /root/index.php /usr/share/nginx/html/
+                    if (! echo "${phpVersion}" | grep -q "None"); then
+                      cp /root/index.php /usr/share/nginx/html/
+                    fi
 
                     # Change permissions and ownership
                     usermod -a -G nginx ec2-user

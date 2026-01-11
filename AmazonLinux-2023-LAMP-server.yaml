@@ -2051,10 +2051,16 @@ Resources:
                     cat << EoF > /etc/httpd/conf.d/www.conf
                 <VirtualHost *:80>
                   DocumentRoot /var/www/html
+
+                  RewriteEngine on
+                  RewriteCond %{HTTP:X-AMZ-CF-ID} ^$
+                  RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
                 </VirtualHost>
                 EoF
 
-                    cp /root/index.php /var/www/html/
+                    if (! echo "${phpVersion}" | grep -q "None"); then
+                      cp /root/index.php /var/www/html/
+                    fi
 
                     # Change permissions and ownership
                     usermod -a -G apache ec2-user
@@ -2108,8 +2114,10 @@ Resources:
                     # remove leading white spaces and commented lines
                     sed -i "/^#/d" /etc/nginx/sites-available/default
                     sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
-
-                    cp /root/index.php /usr/share/nginx/html/
+                    
+                    if (! echo "${phpVersion}" | grep -q "None"); then
+                      cp /root/index.php /usr/share/nginx/html/
+                    fi
 
                     # Change permissions and ownership
                     usermod -a -G nginx ec2-user
