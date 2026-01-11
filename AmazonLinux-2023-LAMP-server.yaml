@@ -141,7 +141,7 @@ Metadata:
       allowSSHport:
         default: "Allow SSH from network"
       installDCV:
-        default: "Install graphical desktop environment and DCV server"
+        default: "Install graphical desktop environment and Amazon DCV server"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -2026,6 +2026,19 @@ Resources:
               ignoreErrors: "true"
         02_lamp_install:
           files:
+            "/root/nginx-redirect":
+              content: |
+                # Redirect HTTP to HTTPS if not CloudFront
+                set $and_condition 1;
+                if ($scheme != "http") { set $and_condition 0; }
+                if ($http_x_amz_cf_id != "") { set $and_condition 0; }
+                if ($and_condition = 1) {
+                  return 301 https://$host$request_uri;
+                }
+
+              mode: "000640"
+              owner: "root"
+              group: "root"
             "/root/install-lamp.sh":
               content: !Sub |
                 #!/bin/bash
@@ -2108,13 +2121,18 @@ Resources:
                     sed -i "s/ssl_certificate_key /#&/" /etc/nginx/sites-available/default
                     sed -i "/#ssl_certificate_key/a \        \ssl_certificate_key \"/etc/pki/tls/nginx/key.pem\";" /etc/nginx/sites-available/default
                     sed -i "/#ssl_certificate_key/a \        \ssl_ciphers PROFILE=SYSTEM;" /etc/nginx/sites-available/default
+
                     # set default_server
                     sed -i "s/80;/80 default_server;/g" /etc/nginx/sites-available/default
                     sed -i "s/http2;/http2 default_server;/g" /etc/nginx/sites-available/default
+
                     # remove leading white spaces and commented lines
                     sed -i "/^#/d" /etc/nginx/sites-available/default
                     sed -i "s/^\s\s\s\s//" /etc/nginx/sites-available/default
-                    
+                   
+                    # redirect HTTP to HTTPS if not CloudFront
+                    sed -i '/^server/r /root/nginx-redirect' /etc/nginx/sites-available/default
+
                     if (! echo "${phpVersion}" | grep -q "None"); then
                       cp /root/index.php /usr/share/nginx/html/
                     fi
@@ -2136,6 +2154,7 @@ Resources:
                     dnf remove -q -y httpd
                     ;;
                 esac
+                rm -f /root/nginx-redirect
 
                 # Database
                 export DB="${databaseOption}"

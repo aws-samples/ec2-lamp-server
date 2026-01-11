@@ -142,7 +142,7 @@ Metadata:
       allowSSHport:
         default: "Allow SSH from network"
       installDCV:
-        default: "Install graphical desktop environment and DCV server"
+        default: "Install graphical desktop environment and Amazon DCV server"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -1923,6 +1923,19 @@ Resources:
               ignoreErrors: "true"
         02_lamp_install:
           files:
+            "/root/nginx-redirect":
+              content: |
+                # Redirect HTTP to HTTPS if not CloudFront
+                set $and_condition 1;
+                if ($scheme != "http") { set $and_condition 0; }
+                if ($http_x_amz_cf_id != "") { set $and_condition 0; }
+                if ($and_condition = 1) {
+                  return 301 https://$host$request_uri;
+                }
+
+              mode: "000640"
+              owner: "root"
+              group: "root"
             "/root/install-lamp.sh":
               content: !Sub |
                 #!/bin/bash
@@ -2040,6 +2053,9 @@ Resources:
                     sed -i "20,20s/root/#root/g" /etc/nginx/sites-available/default
                     sed -i "31,31s/}/#}/g" /etc/nginx/sites-available/default
 
+                    # redirect HTTP to HTTPS if not CloudFront
+                    sed -i '/^server/r /root/nginx-redirect' /etc/nginx/sites-available/default
+
                     if (! echo "${phpVersion}" | grep -q "None"); then
                       cp /root/index.php /usr/share/nginx/html/
                     fi
@@ -2061,6 +2077,7 @@ Resources:
                     yum remove -q -y httpd
                     ;;
                 esac
+                rm -f /root/nginx-redirect
 
                 # Database
                 export DB="${databaseOption}"
