@@ -141,7 +141,7 @@ Metadata:
       allowSSHport:
         default: "Allow SSH from network"
       installDCV:
-        default: "Install graphical desktop environment and DCV server"
+        default: "Install graphical desktop environment and Amazon DCV server"
       installWebmin:
         default: "Install Webmin web-based system administration tool"
       webOption:
@@ -180,12 +180,12 @@ Parameters:
     Description: https://aws.amazon.com/ec2/graviton/ https://ubuntu.com/aws/pro
     AllowedValues:
       - Ubuntu 24.04 (arm64)
-      - Ubuntu 24.04 (x86_64)
       - Ubuntu 22.04 (arm64)
-      - Ubuntu 22.04 (x86_64)
       - Ubuntu Pro 24.04 (arm64)
-      - Ubuntu Pro 24.04 (x86_64)
       - Ubuntu Pro 22.04 (arm64)
+      - Ubuntu 24.04 (x86_64)
+      - Ubuntu 22.04 (x86_64)
+      - Ubuntu Pro 24.04 (x86_64)
       - Ubuntu Pro 22.04 (x86_64)
     Default: Ubuntu 24.04 (arm64)
 
@@ -1928,7 +1928,9 @@ Resources:
 
                     # PHP install
                     apt-get install -q -y ${phpVersion}
-                    apt-get install -q -y ${phpVersion}-{common,fpm,opcache,apcu}
+                    apt-get install -q -y ${phpVersion}-{common,fpm}
+                    apt-get install -q -y ${phpVersion}-opcache
+                    apt-get install -q -y ${phpVersion}-apcu
                     apt-get install -q -y ${phpVersion}-{memcached,redis}
                     apt-get install -q -y ${phpVersion}-{mysql,pgsql,dba}
                     apt-get install -q -y ${phpVersion}-{xml,xmlrpc,xsl,soap,ldap,zip,bz2,intl,curl}
@@ -2073,6 +2075,18 @@ Resources:
               ignoreErrors: "true"
         02_lamp_install:
           files:
+            "/root/nginx-redirect":
+              content: |
+                # Redirect HTTP to HTTPS if not CloudFront
+                set $and_condition 1;
+                if ($scheme != "http") { set $and_condition 0; }
+                if ($http_x_amz_cf_id != "") { set $and_condition 0; }
+                if ($and_condition = 1) {
+                  return 301 https://$host$request_uri;
+                }
+              mode: "000640"
+              owner: "root"
+              group: "root"
             "/root/install-lamp.sh":
               content: !Sub |
                 #!/bin/bash
@@ -2159,10 +2173,17 @@ Resources:
                     # Enable index.php
                     sed -i "s/index index.html index.htm index.nginx-debian.html;/index index.php index.html index.htm index.nginx-debian.html;/g" /etc/nginx/sites-available/default
 
+                    # dummy HTTPS cert
+                    mkdir -p /etc/nginx/ssl
+                    openssl req -x509 -newkey rsa:2048 -keyout /etc/ssl/private/ssl-cert-snakeoil.key -out  /etc/ssl/certs/ssl-cert-snakeoil.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=State/L=City/O=Company/OU=Dept/CN=Host"
+
                     cp /etc/nginx/nginx.conf  /etc/nginx/nginx.conf."`date +"%Y-%m-%d"`"
 
                     # disable gzip as per https://bugs.debian.org/773332
                     sed -i "s/gzip on/gzip off/g" /etc/nginx/nginx.conf
+
+                    # redirect HTTP to HTTPS if not CloudFront
+                    sed -i '/^server/r /root/nginx-redirect' /etc/nginx/sites-available/default
 
                     if (! echo "${phpVersion}" | grep -q "None"); then
                       cp /root/index.php /var/www/html/
@@ -2184,6 +2205,7 @@ Resources:
                     apt-get remove -y apache2
                     ;;
                 esac
+                rm -f /root/nginx-redirect
 
                 # Database
                 export DB="${databaseOption}"
