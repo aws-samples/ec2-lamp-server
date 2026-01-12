@@ -181,7 +181,7 @@ If `installDCV` is `Yes`
 
 If `installWebmin` is `Yes`
 
-- `WebminUrl` : Webmin URL link. Set the root password by running `sudo passwd root` using `EC2instanceConnect`, `SSMsessionManager` or SSH session first
+- `WebminUrl` : Webmin URL link. Login as the user specified in *Description* field. Default password is `EC2instanceID` value
 
 If `enableALB` is `Yes`
 
