@@ -2278,7 +2278,10 @@ Resources:
                       sed -i "/Add any custom value/a \$_SERVER['HTTPS'] = 'on';" /tmp/cfn/wordpress/wp-config-sample.php
 
                       case ${webOption} in
-                        Apache)
+                        Apache)                          
+                          # Allow permalinks: https://developer.wordpress.org/advanced-administration/server/web-server/httpd/
+                          sed -i '156s/AllowOverride None/AllowOverride All/' /etc/httpd/conf/httpd.conf
+
                           rsync -r /tmp/cfn/wordpress/ /var/www/html/
                           chown apache:apache -R /var/www/html
                           chmod g+rw -R /var/www/html
