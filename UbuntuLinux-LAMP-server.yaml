@@ -1998,6 +1998,10 @@ Resources:
                       fi
                     fi
 
+                    # Imagick
+                    apt-get install -q -y imagemagick
+                    apt-get install -q -y ghostscript
+
                     # php-lz4: https://github.com/kjdev/php-ext-lz4
                     apt-get install -q -y ${phpVersion}-lz4
                     if (! php -m | grep -q lz4); then

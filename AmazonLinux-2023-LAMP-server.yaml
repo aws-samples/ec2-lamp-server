@@ -1881,6 +1881,8 @@ Resources:
 
                     # php-imagick: https://github.com/Imagick/imagick/blob/master/package.xml
                     dnf install -q -y ${phpVersion}-imagick
+                    dnf install -q -y ImageMagick
+                    dnf install -q -y ghostscript
                     if (! php -m | grep -q imagick); then
                       dnf install -q -y ImageMagick ImageMagick-devel
                       yes 'no' | sudo pecl install imagick
