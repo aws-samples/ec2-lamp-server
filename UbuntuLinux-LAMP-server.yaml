@@ -2288,14 +2288,24 @@ Resources:
                       # Allow CloudFront: https://developer.wordpress.org/advanced-administration/security/https/
                       sed -i "/Add any custom value/a \$_SERVER['HTTPS'] = 'on';" /tmp/cfn/wordpress/wp-config-sample.php
 
-                      rsync -r /tmp/cfn/wordpress/ /var/www/html/
-
                       case ${webOption} in
                         Apache)
                           # Allow permalinks: https://developer.wordpress.org/advanced-administration/server/web-server/httpd/
                           sed -i '$a # WordPress permalinks\n<Directory /var/www/html/>\n  AllowOverride all\n</Directory>' /etc/apache2/apache2.conf
+
+                          # Enable static content caching: https://developer.wordpress.org/advanced-administration/performance/cache/#browser-caching
+                          tee /tmp/cfn/wordpress/.htaccess > /dev/null << EOF
+                          <IfModule mod_headers.c>
+                          <FilesMatch "\.(css|gif|ico|js|jpg|jpeg|png|svg|ttf|txt|webp|woff|woff2)$">
+                          Header set Cache-Control "public, max-age=31536000"
+                          </FilesMatch>
+                          </IfModule>
+                          EOF
+
                           ;;
                       esac
+
+                      rsync -r /tmp/cfn/wordpress/ /var/www/html/
                       chown www-data:www-data -R /var/www/html
                       chmod g+rw -R /var/www/html
                       ;;

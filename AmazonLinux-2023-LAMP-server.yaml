@@ -2284,6 +2284,15 @@ Resources:
                           # Allow permalinks: https://developer.wordpress.org/advanced-administration/server/web-server/httpd/
                           sed -i '156s/AllowOverride None/AllowOverride All/' /etc/httpd/conf/httpd.conf
 
+                          # Enable static content caching: https://developer.wordpress.org/advanced-administration/performance/cache/#browser-caching
+                          tee /tmp/cfn/wordpress/.htaccess > /dev/null << EOF
+                          <IfModule mod_headers.c>
+                          <FilesMatch "\.(css|gif|ico|js|jpg|jpeg|png|svg|ttf|txt|webp|woff|woff2)$">
+                          Header set Cache-Control "public, max-age=31536000"
+                          </FilesMatch>
+                          </IfModule>
+                          EOF
+
                           rsync -r /tmp/cfn/wordpress/ /var/www/html/
                           chown apache:apache -R /var/www/html
                           chmod g+rw -R /var/www/html
@@ -2813,7 +2822,7 @@ Resources:
             - "GET"
           Compress: true
           CachePolicyId: "4cc15a8a-d715-48a4-82b8-cc0b614638fe"
-          OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          OriginRequestPolicyId: "b689b0a8-53d0-40ab-baf2-68738e2966ac"
           ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
           TargetOriginId:
             !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]

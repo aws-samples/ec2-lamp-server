@@ -2590,7 +2590,7 @@ Resources:
             - "GET"
           Compress: true
           CachePolicyId: "4cc15a8a-d715-48a4-82b8-cc0b614638fe"
-          OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          OriginRequestPolicyId: "b689b0a8-53d0-40ab-baf2-68738e2966ac"
           ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
           TargetOriginId:
             !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
@@ -2652,7 +2652,7 @@ Outputs:
 
   WebminUrl:
     Condition: installWebmin
-    Description: Webmin URL (login as ec2-user)
+    Description: Webmin (login as ec2-user)
     Value:
       !If [
         displayPublicIP,
