@@ -1925,10 +1925,11 @@ Resources:
           files:
             "/root/nginx-redirect":
               content: |
-                # Redirect HTTP to HTTPS if not CloudFront
+                # Redirect HTTP to HTTPS if not CloudFront CDN or Varnish/Vinyl Cache
                 set $and_condition 1;
                 if ($scheme != "http") { set $and_condition 0; }
                 if ($http_x_amz_cf_id != "") { set $and_condition 0; }
+                if ($http_x_varnish != "") { set $and_condition 0; }
                 if ($and_condition = 1) {
                   return 301 https://$host$request_uri;
                 }
@@ -1979,15 +1980,16 @@ Resources:
                     sed -i "/^#SSLCipherSuite RC4/a SSLCipherSuite  ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256" /etc/httpd/conf.d/ssl.conf
 
                     # virtual host: for Certbot
-                    cat << EoF > /etc/httpd/conf.d/www.conf
+                    cat << EOF > /etc/httpd/conf.d/www.conf
                 <VirtualHost *:80>
                   DocumentRoot /var/www/html
 
                   RewriteEngine on
                   RewriteCond %{HTTP:X-AMZ-CF-ID} ^$
+                  RewriteCond %{HTTP:X-VARNISH} ^$
                   RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
                 </VirtualHost>
-                EoF
+                EOF
 
                     if (! echo "${phpVersion}" | grep -i -q "none"); then
                       cp /root/index.php /var/www/html/

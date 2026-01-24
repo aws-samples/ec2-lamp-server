@@ -2081,13 +2081,15 @@ Resources:
           files:
             "/root/nginx-redirect":
               content: |
-                # Redirect HTTP to HTTPS if not CloudFront
+                # Redirect HTTP to HTTPS if not CloudFront CDN or Varnish/Vinyl Cache
                 set $and_condition 1;
                 if ($scheme != "http") { set $and_condition 0; }
                 if ($http_x_amz_cf_id != "") { set $and_condition 0; }
+                if ($http_x_varnish != "") { set $and_condition 0; }
                 if ($and_condition = 1) {
                   return 301 https://$host$request_uri;
                 }
+
               mode: "000640"
               owner: "root"
               group: "root"
@@ -2141,7 +2143,7 @@ Resources:
                     sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
 
                     # Redirect HTTP to HTTPS
-                    sed -i '/\/VirtualHost/i RewriteEngine on\nRewriteCond %{HTTP:X-AMZ-CF-ID} ^\$ \nRewriteRule ^ https:\/\/%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]' /etc/apache2/sites-enabled/000-default.conf
+                    sed -i '/\/VirtualHost/i RewriteEngine on\nRewriteCond %{HTTP:X-AMZ-CF-ID} ^\$ \nRewriteCond %{HTTP:X-VARNISH} ^\$ \nRewriteRule ^ https:\/\/%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]' /etc/apache2/sites-enabled/000-default.conf
 
                     if (! echo "${phpVersion}" | grep -i -q "none"); then
                       cp /root/index.php /var/www/html/
