@@ -1895,7 +1895,7 @@ Resources:
                     # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
                     dnf install -q -y ${phpVersion}-pecl-redis6
                     if (! php -m | grep -q redis); then
-                      dnf install -q -y redis6-devel lz4-devel
+                      dnf install -q -y redis6-devel lz4-devel libzstd-devel
                       yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
                       if [ $? -eq 0 ]; then
                         echo 'extension=redis.so' > /etc/php.d/40-redis.ini
