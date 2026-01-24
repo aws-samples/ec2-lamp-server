@@ -2295,12 +2295,12 @@ Resources:
 
                           # Enable static content caching: https://developer.wordpress.org/advanced-administration/performance/cache/#browser-caching
                       cat << EOF > /tmp/cfn/wordpress/.htaccess
-                  <IfModule mod_headers.c>
-                    <FilesMatch "\.(css|gif|ico|js|jpg|jpeg|png|svg|ttf|txt|webp|woff|woff2)$">
-                      Header set Cache-Control "public, max-age=31536000"
-                    </FilesMatch>
-                  </IfModule>
-                  EOF
+                <IfModule mod_headers.c>
+                  <FilesMatch "\.(css|gif|ico|js|jpg|jpeg|png|svg|ttf|txt|webp|woff|woff2)$">
+                    Header set Cache-Control "public, max-age=31536000"
+                  </FilesMatch>
+                </IfModule>
+                EOF
 
                           ;;
                       esac
