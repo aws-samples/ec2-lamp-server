@@ -2294,13 +2294,13 @@ Resources:
                           sed -i '$a # WordPress permalinks\n<Directory /var/www/html/>\n  AllowOverride all\n</Directory>' /etc/apache2/apache2.conf
 
                           # Enable static content caching: https://developer.wordpress.org/advanced-administration/performance/cache/#browser-caching
-                          tee /tmp/cfn/wordpress/.htaccess > /dev/null << EOF
-                          <IfModule mod_headers.c>
-                          <FilesMatch "\.(css|gif|ico|js|jpg|jpeg|png|svg|ttf|txt|webp|woff|woff2)$">
-                          Header set Cache-Control "public, max-age=31536000"
-                          </FilesMatch>
-                          </IfModule>
-                          EOF
+                      cat << EOF > /tmp/cfn/wordpress/.htaccess
+                  <IfModule mod_headers.c>
+                    <FilesMatch "\.(css|gif|ico|js|jpg|jpeg|png|svg|ttf|txt|webp|woff|woff2)$">
+                      Header set Cache-Control "public, max-age=31536000"
+                    </FilesMatch>
+                  </IfModule>
+                  EOF
 
                           ;;
                       esac
