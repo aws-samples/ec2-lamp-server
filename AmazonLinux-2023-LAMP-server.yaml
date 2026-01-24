@@ -361,6 +361,7 @@ Parameters:
       - "php8.2"
       - "php8.3"
       - "php8.4"
+      - "php8.5"
       - "none"
     Default: "php8.4"
   s3BucketName:
