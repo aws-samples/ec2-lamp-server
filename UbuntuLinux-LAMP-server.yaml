@@ -2124,6 +2124,7 @@ Resources:
                   Apache)
                     apt-get install -q -y apache2 libapache2-mod-fcgid
                     systemctl enable apache2
+                    a2enmod headers
 
                     # Apache MPM event: https://httpd.apache.org/docs/2.4/mod/event.html
                     a2dismod ${phpVersion}
