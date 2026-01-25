@@ -294,9 +294,12 @@ Based on public articles about PHP performance (many thanks to the authors), the
 
 If you are looking to compile PHP extensions on AL2023, refer to community article [How do I compile PHP extensions on Amazon Linux 2023?](https://repost.aws/articles/ARM9q-NiODRKC9V7N_jJnNbg/how-do-i-compile-php-extensions-on-amazon-linux-2023)
 
-### Installing WordPress on AL2023
+### Installing WordPress manually
 
-If you are looking to install WordPress on AL2023, refer to community article [Install WordPress on Amazon Linux 2023 (AL2023)](https://repost.aws/articles/ARarysTJYQTh-zCNMftIolwA/install-wordpress-on-amazon-linux-2023-al2023) for options
+If wish to install WordPress manually, you can refer to the following community articles
+
+- [Install WordPress on Amazon Linux 2023 (AL2023)](https://repost.aws/articles/ARarysTJYQTh-zCNMftIolwA/install-wordpress-on-amazon-linux-2023-al2023)
+- [Install WordPress on Ubuntu Linux](https://repost.aws/articles/ARhZ6hHllFSkq53LaA8XDWjQ/install-wordpress-on-ubuntu-linux)
 
 ## About EC2 instance
 
