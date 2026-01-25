@@ -2109,7 +2109,7 @@ Resources:
 
                 # Valkey/Redis & Memcached
                 apt-get install -q -y memcached
-                systemctl enable redis-server memcached
+                systemctl enable memcached
                 if (lsb_release -r -s | grep -q 22); then
                   apt-get install -q -y redis-server
                   systemctl enable redis-server
