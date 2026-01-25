@@ -1942,7 +1942,7 @@ Resources:
 
                     # https://www.php.net/manual/en/opcache.configuration.php
                     # https://github.com/php/php-src/issues/7817#issuecomment-1420343474
-                    sed -i "/^\[opcache\]/a opcache.enable=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M" /etc/php/$PHP_VERSION/fpm/php.ini
+                    sed -i "/^\[opcache\]/a opcache.enable=1\n;opcache.jit=tracing\n;opcache.jit_buffer_size=128M" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i "s/^opcache.enable_cli/;&/" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i "/^;opcache.enable_cli/a opcache.enable_cli=1" /etc/php/$PHP_VERSION/fpm/php.ini
                     sed -i "s/^opcache.jit=/;&/" /etc/php/$PHP_VERSION/mods-available/opcache.ini                    

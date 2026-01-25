@@ -1795,7 +1795,7 @@ Resources:
 
                     # https://www.php.net/manual/en/opcache.configuration.php
                     cp /etc/php.d/10-opcache.ini /etc/php.d/10-opcache.ini."`date +"%Y-%m-%d"`"
-                    sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\nopcache.jit=1205\nopcache.jit_buffer_size=100M' /etc/php.d/10-opcache.ini
+                    sed -i '1 i\opcache.enable=1\nopcache.enable_cli=1\n;opcache.jit=tracing\n;opcache.jit_buffer_size=128M' /etc/php.d/10-opcache.ini
                     # https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.file-cache
                     mkdir -p /var/www/.opcache
                     chown apache:apache /var/www/.opcache
