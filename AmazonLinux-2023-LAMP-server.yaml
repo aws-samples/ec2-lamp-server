@@ -1585,6 +1585,9 @@ Resources:
 
                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
+                # Supplementary Packages for Amazon Linux (SPAL): https://docs.aws.amazon.com/linux/al2023/ug/spal.html
+                dnf install -q -y spal-release
+
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
                 systemctl daemon-reload
