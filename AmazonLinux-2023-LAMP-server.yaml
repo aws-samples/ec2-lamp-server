@@ -2067,6 +2067,9 @@ Resources:
                     dnf install -q -y httpd mod_ssl mod_fcgid
                     systemctl enable httpd
 
+                    # Enable HTTP/2
+                    sed -i "/SSLEngine on/a Protocols h2 http/1.1" /etc/httpd/conf.d/ssl.conf
+
                     # virtual host: for Certbot
                     cat << EOF > /etc/httpd/conf.d/www.conf
                 <VirtualHost *:80>
