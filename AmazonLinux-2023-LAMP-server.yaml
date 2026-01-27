@@ -2068,7 +2068,10 @@ Resources:
                     systemctl enable httpd
 
                     # Enable HTTP/2
-                    sed -i "/SSLEngine on/a Protocols h2 http/1.1" /etc/httpd/conf.d/ssl.conf
+                    sed -i "/LoadModule /a Protocols h2 h2c http/1.1" /etc/httpd/conf.modules.d/10-h2.conf
+
+                    # TLS 1.2 and higher
+                    sed -i "/LoadModule /a SSLProtocol all -SSLv2 -SSLv3 -TLSv1 -TLSv1.1" /etc/httpd/conf.modules.d/00-ssl.conf
 
                     # virtual host: for Certbot
                     cat << EOF > /etc/httpd/conf.d/www.conf
