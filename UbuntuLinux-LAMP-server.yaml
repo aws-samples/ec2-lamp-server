@@ -1918,14 +1918,16 @@ Resources:
 
                 export PHP="${phpVersion}"
                 export PHP_VERSION=`echo ${phpVersion} | cut -c 4-7`
+
+                # Enable Ondřej Surý PHP repo: https://launchpad.net/~ondrej/+archive/ubuntu/php/
+                apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
+                add-apt-repository -y ppa:ondrej/php
+                sudo apt update
+
                 case $PHP in
                   none)
                     ;;
                   *)
-                    # PHP from Ondrej repo: https://deb.sury.org/
-                    apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
-                    add-apt-repository -y ppa:ondrej/php
-
                     # PHP install
                     apt-get install -q -y ${phpVersion}
                     apt-get install -q -y ${phpVersion}-{common,fpm}
