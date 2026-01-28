@@ -2291,6 +2291,11 @@ Resources:
                       # Allow CloudFront: https://developer.wordpress.org/advanced-administration/security/https/
                       sed -i "/Add any custom value/a \$_SERVER['HTTPS'] = 'on';" /tmp/cfn/wordpress/wp-config-sample.php
 
+                      # Install WP-CLI: https://make.wordpress.org/cli/handbook/guides/installing/
+                      curl -s -L -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                      chmod +x wp-cli.phar
+                      mv wp-cli.phar /usr/local/bin/wp
+
                       case ${webOption} in
                         Apache)                          
                           # Allow permalinks: https://developer.wordpress.org/advanced-administration/server/web-server/httpd/
@@ -2307,7 +2312,7 @@ Resources:
 
                           rsync -r /tmp/cfn/wordpress/ /var/www/html/
                           chown apache:apache -R /var/www/html
-                          chmod g+rw -R /var/www/html
+                          chmod g+rw -R /var/www/htmlp
                           ;;
                         Nginx)
                           rsync -r /tmp/cfn/wordpress/ /usr/share/nginx/html/
