@@ -2064,7 +2064,7 @@ Resources:
                 export WEB="${webOption}"
                 case $WEB in
                   Apache)
-                    dnf install -q -y httpd mod_ssl mod_fcgid
+                    dnf install -q -y httpd mod_ssl mod_http2 mod_fcgid
                     systemctl enable httpd
 
                     # Enable HTTP/2
@@ -2203,6 +2203,7 @@ Resources:
                     ;;
                   MariaDB*) # https://github.com/amazonlinux/amazon-linux-2023/issues/571
                     dnf install -q -y mariadb1011-server
+                    dnf install -q -y mariadb1011-backup
                     if (ec2-metadata -t | grep -q large$); then
                       sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
                     fi

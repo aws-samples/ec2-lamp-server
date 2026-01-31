@@ -2225,6 +2225,7 @@ Resources:
                     ;;
                   MariaDB)
                     apt-get install -q -y mariadb-server
+                    apt-get install -q -y mariadb-backup
                     systemctl enable mariadb
 
                     ;;
