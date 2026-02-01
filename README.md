@@ -298,7 +298,7 @@ If you are looking to compile PHP extensions on AL2023, refer to community artic
 
 ### Installing WordPress manually
 
-If wish to install WordPress manually, you can refer to the following community articles
+To install LAMP stack and/or WordPress manually on new EC2 instance, you can refer to the following community articles
 
 - [Install WordPress on Amazon Linux 2023 (AL2023)](https://repost.aws/articles/ARarysTJYQTh-zCNMftIolwA/install-wordpress-on-amazon-linux-2023-al2023)
 - [Install WordPress on Ubuntu Linux](https://repost.aws/articles/ARhZ6hHllFSkq53LaA8XDWjQ/install-wordpress-on-ubuntu-linux)
