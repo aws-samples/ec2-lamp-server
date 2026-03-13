@@ -353,7 +353,7 @@ Parameters:
       - "MySQL8.0"
       - "PostgreSQL"
       - "none"
-    Default: "MariaDB 10.11"
+    Default: "MariaDB 11.4"
   phpVersion:
     Type: String
     #Description: PHP version to install
@@ -1148,7 +1148,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - hasR53Zone
-          - PolicyName: Route53CertbotAccess
+          - PolicyName: R53acmeAccess
             PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
               Version: "2012-10-17"
               Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
@@ -1541,19 +1541,16 @@ Resources:
                   systemctl enable dkms
                   dnf install -q -y vulkan-devel libglvnd-devel elfutils-libelf-devel xorg-x11-server-Xorg
 
-                  KVER=$(uname -r)
+                  K_VER=$(uname -r)
+                  K_MAJOR_VER=$(echo $K_VER | cut -d. -f1-2)
                   case $KVER in
-                    6.18.*)
-                      dnf install -q -y kernel6.18
-                      dnf install -q -y kernel6.18-headers kernel6.18-devel kernel6.18-modules-extra kernel6.18-modules-extra-common --allowerasing
-                      ;;
-                    6.12.*)
-                      dnf install -q -y kernel6.12
-                      dnf install -q -y kernel6.12-headers kernel6.12-devel kernel6.12-modules-extra kernel6.12-modules-extra-common --allowerasing
-                      ;;
-                    *)
+                    6.1.*)
                       dnf install -q -y kernel
                       dnf install -q -y kernel-headers kernel-devel kernel-modules-extra kernel-modules-extra-common --allowerasing
+                      ;;
+                    *)
+                      dnf install -q -y kernel$K_MAJOR_VER
+                      dnf install -q -y kernel$K_MAJOR_VER-headers kernel$K_MAJOR_VER8-devel kernel$K_MAJOR_VER-modules-extra kernel$K_MAJOR_VER-modules-extra-common --allowerasing
                       ;;
                   esac
 
@@ -1599,6 +1596,65 @@ Resources:
                   fi
                 fi
 
+                # IP address cert: https://letsencrypt.org/2026/03/11/shorter-certs-certbot
+                if [ "${displayPublicIP}" = "Yes" ]; then
+                  # Some Regions create Elastic IP after EC2 instance is created
+                  /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+                  sleep 45
+
+                  case ${webOption} in
+                    Apache)
+                      WEB_ROOT="/var/www/html/"
+                      if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                        WEB_ROOT="/var/www/html/public/"
+                      fi
+                      ;;
+                    Nginx)
+                      WEB_ROOT="/usr/share/nginx/html/"
+                      if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                        WEB_ROOT="/usr/share/nginx/html/public/"
+                      fi
+                      ;;
+                  esac
+
+                  IP_ADDR=$(curl -s checkip.amazonaws.com)
+                  certbot certonly -n --agree-tos --preferred-profile shortlived --webroot --webroot-path $WEB_ROOT --ip-address $IP_ADDR
+
+                  if [ -d "/etc/letsencrypt/live/$IP_ADDR/" ]; then
+                    # Update web server cert
+                    case ${webOption} in
+                      Apache)
+                        rm -f /etc/pki/tls/certs/localhost.crt
+                        rm -f /etc/pki/tls/private/localhost.key
+                        ln -s -f /etc/letsencrypt/live/$IP_ADDR/fullchain.pem /etc/pki/tls/certs/localhost.crt
+                        ln -s -f /etc/letsencrypt/live/$IP_ADDR/privkey.pem /etc/pki/tls/private/localhost.key
+                        systemctl reload httpd
+                        ;;
+                      Nginx)
+                        rm -f /etc/pki/tls/nginx/cert.pem
+                        rm -f /etc/pki/tls/nginx/key.pem
+                        ln -s -f /etc/letsencrypt/live/$IP_ADDR/fullchain.pem /etc/pki/tls/nginx/cert.pem
+                        ln -s -f /etc/letsencrypt/live/$IP_ADDR/privkey.pem /etc/pki/tls/nginx/key.pem
+                        systemctl reload nginx
+                        ;;
+                    esac
+
+                    # DCV TLS cert: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-cert.html
+                    if [ "${installDCV}" = "Yes" ]; then
+                      cp -f /etc/letsencrypt/live/$IP_ADDR/fullchain.pem /etc/dcv/dcv.pem
+                      cp -f /etc/letsencrypt/live/$IP_ADDR/privkey.pem /etc/dcv/dcv.key
+                      chown dcv /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                      chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
+
+                      # post cert renewal hook
+                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/
+                    fi
+                  fi
+                fi
+                if [ -f "/opt/dcv-renew-cert.sh" ]; then
+                  rm /opt/dcv-renew-cert.sh
+                fi
+
                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
                 # Supplementary Packages for Amazon Linux (SPAL): https://docs.aws.amazon.com/linux/al2023/ug/spal.html
@@ -1607,6 +1663,19 @@ Resources:
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
                 systemctl daemon-reload
+              mode: "000755"
+              owner: "root"
+              group: "root"
+            "/opt/dcv-renew-cert.sh":
+              content: |
+                #!/bin/bash
+                CERT_FOLDER=$(curl -s checkip.amazonaws.com)
+                if [ -d "/etc/letsencrypt/live/$CERT_FOLDER/" ]; then
+                  cp -f /etc/letsencrypt/live/$CERT_FOLDER/fullchain.pem /etc/dcv/dcv.pem
+                  cp -f /etc/letsencrypt/live/$CERT_FOLDER/privkey.pem /etc/dcv/dcv.key
+                  chown dcv /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                  chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                fi
               mode: "000755"
               owner: "root"
               group: "root"
@@ -1713,19 +1782,16 @@ Resources:
                 systemctl enable dkms
 
                 # Kernel headers for GPU and USB remotization
-                KVER=$(uname -r)
+                K_VER=$(uname -r)
+                K_MAJOR_VER=$(echo $K_VER | cut -d. -f1-2)
                 case $KVER in
-                  6.18.*)
-                    dnf install -q -y kernel6.18
-                    dnf install -q -y kernel6.18-headers kernel6.18-devel kernel6.18-modules-extra kernel6.18-modules-extra-common --allowerasing
-                    ;;
-                  6.12.*)
-                    dnf install -q -y kernel6.12
-                    dnf install -q -y kernel6.12-headers kernel6.12-devel kernel6.12-modules-extra kernel6.12-modules-extra-common --allowerasing
-                    ;;
-                  *)
+                  6.1.*)
                     dnf install -q -y kernel
                     dnf install -q -y kernel-headers kernel-devel kernel-modules-extra kernel-modules-extra-common --allowerasing
+                    ;;
+                  *)
+                    dnf install -q -y kernel$K_MAJOR_VER
+                    dnf install -q -y kernel$K_MAJOR_VER-headers kernel$K_MAJOR_VER8-devel kernel$K_MAJOR_VER-modules-extra kernel$K_MAJOR_VER-modules-extra-common --allowerasing
                     ;;
                 esac
 
@@ -1742,14 +1808,49 @@ Resources:
                 fi
 
                 # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
-                dnf install -q -y certbot python3-certbot-dns-route53
-                dnf install -q -y python3-certbot-apache
-                dnf install -q -y python3-certbot-nginx
+                dnf install -q -y python3.14 python3.14-pip
+                dnf install -q -y python3.14-devel augeas-devel
+                python3.14 -m venv /opt/certbot
+                /opt/certbot/bin/pip install --upgrade pip
+                /opt/certbot/bin/pip install certbot
+                /opt/certbot/bin/pip install certbot-dns-route53
+                /opt/certbot/bin/pip install certbot-apache
+                /opt/certbot/bin/pip install certbot-nginx
+                ln -s -f /opt/certbot/bin/certbot /usr/bin/certbot
+                touch /etc/sysconfig/certbot
+                chmod og-rwx /etc/sysconfig/certbot
                 systemctl daemon-reload
                 systemctl enable --now certbot-renew.timer
 
                 rm -f ${!0}
               mode: "000740"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.timer":
+              content: |
+                [Unit]
+                Description=This is the timer to set the schedule for automated renewals
+
+                [Timer]
+                OnCalendar=*-*-* 00/12:00:00
+                RandomizedDelaySec=12hours
+                Persistent=true
+
+                [Install]
+                WantedBy=timers.target
+              mode: "000640"
+              owner: "root"
+              group: "root"
+            "/usr/lib/systemd/system/certbot-renew.service":
+              content: |
+                [Unit]
+                Description=This service automatically renews any certbot certificates found
+
+                [Service]
+                EnvironmentFile=/etc/sysconfig/certbot
+                Type=oneshot
+                ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+              mode: "000640"
               owner: "root"
               group: "root"
           commands:
@@ -2057,12 +2158,13 @@ Resources:
           files:
             "/root/nginx-redirect":
               content: |
-                # Redirect HTTP to HTTPS if not CloudFront CDN or Varnish/Vinyl Cache
-                set $and_condition 1;
-                if ($scheme != "http") { set $and_condition 0; }
-                if ($http_x_amz_cf_id != "") { set $and_condition 0; }
-                if ($http_x_varnish != "") { set $and_condition 0; }
-                if ($and_condition = 1) {
+                # Redirect HTTP to HTTPS if not ACME HTTP-01 challenge, CloudFront CDN or Varnish/Vinyl Cache
+                set $redirect_condition 1;
+                if ($scheme != "http") { set $redirect_condition 0; }
+                if ($http_x_amz_cf_id != "") { set $redirect_condition 0; }
+                if ($http_x_varnish != "") { set $redirect_condition 0; }
+                if ($request_uri ~ "^/\.well-known/")  { set $redirect_condition 0; }
+                if ($redirect_condition = 1) {
                   return 301 https://$host$request_uri;
                 }
 
@@ -2102,6 +2204,7 @@ Resources:
                   DocumentRoot /var/www/html
 
                   RewriteEngine on
+                  RewriteCond %{REQUEST_URI} !/\.well\-known/?.*
                   RewriteCond %{HTTP:X-AMZ-CF-ID} ^$
                   RewriteCond %{HTTP:X-VARNISH} ^$
                   RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
@@ -2330,7 +2433,7 @@ Resources:
                       mv wp-cli.phar /usr/local/bin/wp
 
                       case ${webOption} in
-                        Apache)                          
+                        Apache)
                           # Allow permalinks: https://developer.wordpress.org/advanced-administration/server/web-server/httpd/
                           sed -i '156s/AllowOverride None/AllowOverride All/' /etc/httpd/conf/httpd.conf
 
@@ -2355,7 +2458,6 @@ Resources:
                       esac
                       ;;
                     Moodle*)
-                      mkdir -p /home/ec2-user/moodle
                       if (echo '${installApp}' | grep -q "Moodle 5.1"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
                       elif (echo '${installApp}' | grep -q "Moodle 5.0"); then

@@ -1165,7 +1165,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - hasR53Zone
-          - PolicyName: Route53CertbotAccess
+          - PolicyName: R53acmeAccess
             PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
               Version: "2012-10-17"
               Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
@@ -1608,9 +1608,11 @@ Resources:
                       ./NVIDIA-Linux-x86_64*.run -s --kernel-source-path=/lib/modules/$KERNEL_VERSION/build --kernel-name=$KERNEL_VERSION --skip-module-load
                       dkms autoinstall
                     else 
-                      ./NVIDIA-Linux-x86_64*.run -s
+                      ./NVIDIA-Linux-x86_64*.run -s --skip-module-load
                     fi
-                    
+                    modprobe nvidia
+                    nvidia-smi
+
                     echo "options nvidia NVreg_EnableGpuFirmware=0" | tee --append /etc/modprobe.d/nvidia.conf                   
                   else                      
                     VERSION=$(apt-cache search "nvidia-driver" | grep "^nvidia-driver-.*-server-open" | cut -d"-" -f3 | sort -r | head -1)
@@ -1637,11 +1639,70 @@ Resources:
                   fi
                 fi
 
+                # IP address cert: https://letsencrypt.org/2026/03/11/shorter-certs-certbot
+                if [ "${displayPublicIP}" = "Yes" ]; then
+                  # Some Regions create Elastic IP after EC2 instance is created
+                  python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
+                  sleep 45
+
+
+                  WEB_ROOT="/var/www/html/"
+                  if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                    WEB_ROOT="/var/www/html/public/"
+                  fi
+
+                  IP_ADDR=$(curl -s checkip.amazonaws.com)
+                  certbot certonly -n --agree-tos --preferred-profile shortlived --webroot --webroot-path $WEB_ROOT --ip-address $IP_ADDR
+
+                  if [ -d "/etc/letsencrypt/live/$IP_ADDR/" ]; then
+                    # Update web server cert
+                    rm -f /etc/ssl/certs/ssl-cert-snakeoil.pem
+                    rm -f /etc/ssl/private/ssl-cert-snakeoil.key
+                    ln -s -f /etc/letsencrypt/live/$IP_ADDR/fullchain.pem /etc/ssl/certs/ssl-cert-snakeoil.pem
+                    ln -s -f /etc/letsencrypt/live/$IP_ADDR/privkey.pem /etc/ssl/private/ssl-cert-snakeoil.key
+
+                    case ${webOption} in
+                      Apache)
+                        systemctl reload apache2
+                        ;;
+                      Nginx)
+                        systemctl reload nginx
+                        ;;
+                    esac
+
+                    # DCV TLS cert: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-cert.html
+                    if [ "${installDCV}" = "Yes" ]; then
+                      cp -f /etc/letsencrypt/live/$IP_ADDR/fullchain.pem /etc/dcv/dcv.pem
+                      cp -f /etc/letsencrypt/live/$IP_ADDR/privkey.pem /etc/dcv/dcv.key
+                      chown dcv /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                      chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
+
+                      # post cert renewal hook
+                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/
+                    fi
+                  fi
+                fi
+                if [ -f "/opt/dcv-renew-cert.sh" ]; then
+                  rm /opt/dcv-renew-cert.sh
+                fi
                 python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
 
                 rm -f /etc/systemd/system/dcv-post-reboot.service
                 rm -f ${!0}
                 systemctl daemon-reload
+              mode: "000755"
+              owner: "root"
+              group: "root"
+            "/opt/dcv-renew-cert.sh":
+              content: |
+                #!/bin/bash
+                CERT_FOLDER=$(curl -s checkip.amazonaws.com)
+                if [ -d "/etc/letsencrypt/live/$CERT_FOLDER/" ]; then
+                  cp -f /etc/letsencrypt/live/$CERT_FOLDER/fullchain.pem /etc/dcv/dcv.pem
+                  cp -f /etc/letsencrypt/live/$CERT_FOLDER/privkey.pem /etc/dcv/dcv.key
+                  chown dcv /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                  chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                fi
               mode: "000755"
               owner: "root"
               group: "root"
@@ -2083,14 +2144,15 @@ Resources:
           files:
             "/root/nginx-redirect":
               content: |
-                # Redirect HTTP to HTTPS if not CloudFront CDN or Varnish/Vinyl Cache
-                set $and_condition 1;
-                if ($scheme != "http") { set $and_condition 0; }
-                if ($http_x_amz_cf_id != "") { set $and_condition 0; }
-                if ($http_x_varnish != "") { set $and_condition 0; }
-                if ($and_condition = 1) {
+                # Redirect HTTP to HTTPS if not ACME HTTP-01 challenge, CloudFront CDN or Varnish/Vinyl Cache
+                set $redirect_condition 1;
+                if ($scheme != "http") { set $redirect_condition 0; }
+                if ($http_x_amz_cf_id != "") { set $redirect_condition 0; }
+                if ($http_x_varnish != "") { set $redirect_condition 0; }
+                if ($request_uri ~ "^/\.well-known/")  { set $redirect_condition 0; }
+                if ($redirect_condition = 1) {
                   return 301 https://$host$request_uri;
-                }
+                }}
 
               mode: "000640"
               owner: "root"
@@ -2146,7 +2208,7 @@ Resources:
                     sed -i "s/\bDirectoryIndex\b/& index.php/" /etc/apache2/mods-enabled/dir.conf
 
                     # Redirect HTTP to HTTPS
-                    sed -i '/\/VirtualHost/i RewriteEngine on\nRewriteCond %{HTTP:X-AMZ-CF-ID} ^\$ \nRewriteCond %{HTTP:X-VARNISH} ^\$ \nRewriteRule ^ https:\/\/%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]' /etc/apache2/sites-enabled/000-default.conf
+                    sed -i '/\/VirtualHost/i RewriteEngine on\nRewriteCond %{REQUEST_URI} !\/\\.well\\-known\/?.*\nRewriteCond %{HTTP:X-AMZ-CF-ID} ^\$ \nRewriteCond %{HTTP:X-VARNISH} ^\$ \nRewriteRule ^ https:\/\/%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]' /etc/apache2/sites-enabled/000-default.conf
 
                     if (! echo "${phpVersion}" | grep -i -q "none"); then
                       cp /root/index.php /var/www/html/
