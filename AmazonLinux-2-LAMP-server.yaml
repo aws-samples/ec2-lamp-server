@@ -1133,7 +1133,7 @@ Resources:
           - !Ref AWS::NoValue
         - !If
           - hasR53Zone
-          - PolicyName: Route53CertbotAccess
+          - PolicyName: R53acmeAccess
             PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
               Version: "2012-10-17"
               Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
@@ -1925,12 +1925,13 @@ Resources:
           files:
             "/root/nginx-redirect":
               content: |
-                # Redirect HTTP to HTTPS if not CloudFront CDN or Varnish/Vinyl Cache
-                set $and_condition 1;
-                if ($scheme != "http") { set $and_condition 0; }
-                if ($http_x_amz_cf_id != "") { set $and_condition 0; }
-                if ($http_x_varnish != "") { set $and_condition 0; }
-                if ($and_condition = 1) {
+                # Redirect HTTP to HTTPS if not ACME HTTP-01 challenge, CloudFront CDN or Varnish/Vinyl Cache
+                set $redirect_condition 1;
+                if ($scheme != "http") { set $redirect_condition 0; }
+                if ($http_x_amz_cf_id != "") { set $redirect_condition 0; }
+                if ($http_x_varnish != "") { set $redirect_condition 0; }
+                if ($request_uri ~ "^/\.well-known/")  { set $redirect_condition 0; }
+                if ($redirect_condition = 1) {
                   return 301 https://$host$request_uri;
                 }
 
@@ -1985,6 +1986,7 @@ Resources:
                   DocumentRoot /var/www/html
 
                   RewriteEngine on
+                  RewriteCond %{REQUEST_URI} !/\.well\-known/?.*
                   RewriteCond %{HTTP:X-AMZ-CF-ID} ^$
                   RewriteCond %{HTTP:X-VARNISH} ^$
                   RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
