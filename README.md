@@ -10,10 +10,9 @@ This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) temp
 
 ## Demo
 
-https://github.com/user-attachments/assets/2a0cf991-cf33-4526-8f24-02113c9e84aa
+<https://github.com/user-attachments/assets/2a0cf991-cf33-4526-8f24-02113c9e84aa>
 
 *WordPress on Amazon Linux 2023 with Amazon DCV and Amazon CloudFront*
-
 
 <https://github.com/user-attachments/assets/e6fe07a0-3908-4d6e-9de7-9cda5d4214c2>
 
@@ -30,9 +29,9 @@ The template provides the following features:
 - [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04
   - [NVIDIA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) GPU driver and NVIDIA Container Toolkit install
 - Applications
-  - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server
+  - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server with valid [IP address certificate](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability)
   - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
-  - PHP
+  - PHP (optional)
     - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) [compiled](#compiling-php-extensions-on-al2023)
     - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) from [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
   - Web application: [WordPress](https://wordpress.org/download/) or [Moodle](https://download.moodle.org/) (optional)
@@ -206,9 +205,11 @@ To troubleshoot any installation issue, you can view contents of the following l
 
 ## SSL/TLS certificate on EC2 instance
 
+Template will install a valid [IPv4 address certificate](https://letsencrypt.org/2026/03/11/shorter-certs-certbot) for HTTPS and DCV if `displayPublicIP` is `Yes`. IP address certificates are valid for 160 hours, just over six days, and [Certbot](https://letsencrypt.org/2026/03/11/shorter-certs-certbot) will attempt to renew them before expiry. To ensure proper operation, ensure `assignStaticIP` is set to `Yes`.
+
 Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS and  [alternative domain name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/CNAMEs.html). You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a non-exportable public certificate at [no additional cost](https://aws.amazon.com/certificate-manager/pricing/) and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
 
-The EC2 instance uses a self-signed certificate for HTTPS. You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public certificate from AWS Certificate Manager and install it on your EC2 instance. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install free [Let's Encrypt](https://letsencrypt.org/) certificate on your web server as follows.
+ You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public Domain Validated (DV)  certificate from AWS Certificate Manager and install it on your EC2 instance. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install free [Let's Encrypt](https://letsencrypt.org/) DV certificate on your web server as follows.
 
 ### Certbot prerequisites
 
