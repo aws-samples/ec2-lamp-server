@@ -2152,7 +2152,7 @@ Resources:
                 if ($request_uri ~ "^/\.well-known/")  { set $redirect_condition 0; }
                 if ($redirect_condition = 1) {
                   return 301 https://$host$request_uri;
-                }}
+                }
 
               mode: "000640"
               owner: "root"
