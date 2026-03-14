@@ -98,7 +98,7 @@ EC2 Network
 EC2 Remote Administration
 
 - `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`
-- `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Use `::1/128` to block all incoming IPv6 access. Default is `::/0`
+- `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Default is `::/0`. Subnets in [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) do not have [IPv6 CIDR blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/working-with-ipv6-addresses.html) associated. Specify `fe80::/10` link local prefix to allow internal access only, or `::1/128` to block all inbound IPv6 access
 - `allowSSHport`: allow inbound SSH. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
 - `installWebmin`: install [Webmin](https://webmin.com/) web-based system administration tool. Default is `No`
