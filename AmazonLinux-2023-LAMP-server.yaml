@@ -1853,6 +1853,17 @@ Resources:
               mode: "000640"
               owner: "root"
               group: "root"
+            "/home/ec2-user/update-certbot":
+              content: |
+                #!/bin/bash
+                sudo /opt/certbot/bin/pip install --upgrade pip
+                sudo /opt/certbot/bin/pip install --upgrade certbot
+                sudo /opt/certbot/bin/pip install --upgrade certbot-dns-route53
+                sudo /opt/certbot/bin/pip install --upgrade certbot-apache
+                sudo /opt/certbot/bin/pip install --upgrade certbot-nginx
+              mode: "000755"
+              owner: "ec2-user"
+              group: "users"
           commands:
             install:
               command: "/root/install-sw.sh >> /var/log/install-sw.log 2>&1"
@@ -1874,10 +1885,13 @@ Resources:
                 # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
                 sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
 
+                # Microphone redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+                dnf install -q -y pulseaudio-utils
+
                 # DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
                 rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-$(arch).tgz
-                tar -xvzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
+                tar -xzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
                 dnf install -q -y ./nice-dcv-server-*.rpm
                 dnf install -q -y ./nice-dcv-web-viewer-*.rpm
                 dnf install -q -y ./nice-xdcv-*.rpm
