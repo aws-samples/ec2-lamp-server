@@ -10,7 +10,7 @@ This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) temp
 
 ## Demo
 
-<https://github.com/user-attachments/assets/2a0cf991-cf33-4526-8f24-02113c9e84aa>
+https://github.com/user-attachments/assets/c6e84225-298a-4ea3-b985-e301b745456d
 
 *WordPress on Amazon Linux 2023 with Amazon DCV and Amazon CloudFront*
 
