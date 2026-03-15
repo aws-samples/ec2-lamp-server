@@ -29,7 +29,7 @@ The template provides the following features:
 - [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04
   - [NVIDIA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) GPU driver and NVIDIA Container Toolkit install
 - Applications
-  - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server with valid [IP address certificate](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability)
+  - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server with valid [IP address certificate](#ssltls-certificate-on-ec2-instance)
   - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
   - PHP (optional)
     - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) [compiled](#compiling-php-extensions-on-al2023)
