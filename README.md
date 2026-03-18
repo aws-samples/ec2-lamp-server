@@ -27,12 +27,13 @@ https://github.com/user-attachments/assets/c6e84225-298a-4ea3-b985-e301b745456d
 The template provides the following features:
 
 - [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04
-  - [NVIDIA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) GPU driver and NVIDIA Container Toolkit install
+  - [NVIDIA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) GPU driver and NVIDIA Container Toolkit install (NVIDIA [instance types](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type))
 - Applications
+- R Applications
   - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server with valid [IP address certificate](#ssltls-certificate-on-ec2-instance)
   - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
   - PHP (optional)
-    - Amazon Linux: PHP 8 with additional PECL extensions (imagick, apcu, memcached, redis, igbinary, msgpack, lzf, lz4, zstd, etc) [compiled](#compiling-php-extensions-on-al2023)
+    - Amazon Linux: PHP 8 with additional PECL extensions (imagick, lzf, lz4, zstd, etc) [compiled](#compiling-php-extensions-on-al2023)
     - Ubuntu Linux: [PHP 5.6, 7.x or 8.x](https://launchpad.net/~ondrej/+archive/ubuntu/php/) from [Ondřej Surý's](https://deb.sury.org/) [ppa:ondrej/php](https://launchpad.net/~ondrej/+archive/ubuntu/php/) repository
   - Web application: [WordPress](https://wordpress.org/download/) or [Moodle](https://download.moodle.org/) (optional)
   - [Composer](https://getcomposer.org/)
@@ -70,9 +71,9 @@ By using the template, you accept license agreement of all software that is inst
 
 ## Deploying using CloudFormation console
 
-Download .yaml file for the desired operating system ([Amazon Linux 2023](AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](UbuntuLinux-LAMP-server.yaml))
+Download .yaml file for the desired operating system ([Amazon Linux 2023](https://raw.githubusercontent.com/aws-samples/ec2-lamp-server/refs/heads/main/AmazonLinux-2023-LAMP-server.yaml) or [Ubuntu/Ubuntu Pro](https://raw.githubusercontent.com/aws-samples/ec2-lamp-server/refs/heads/main/UbuntuLinux-LAMP-server.yaml))
 
-Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). Choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values.
+Login to AWS [CloudFormation console](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template). To [create a stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-create-stack.html), choose **Create Stack**, **Upload a template file**, **Choose File**, select your .YAML file and choose **Next**. Enter a **Stack name** and specify parameters values.
 
 ### CloudFormation Parameters
 
@@ -98,7 +99,7 @@ EC2 Network
 EC2 Remote Administration
 
 - `ingressIPv4`: allowed IPv4 source prefix to remote administration services, e.g. `1.2.3.4/32`. You can get your source IP from [https://checkip.amazonaws.com](https://checkip.amazonaws.com). Default is `0.0.0.0/0`
-- `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Default is `::/0`. Subnets in [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) do not have [IPv6 CIDR blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/working-with-ipv6-addresses.html) associated. Specify `fe80::/10` link local prefix to allow internal access only, or `::1/128` to block all inbound IPv6 access
+- `ingressIPv6`: allowed IPv6 source prefix to remote administration services. Default is `::/0`. Subnets in [default VPC](https://docs.aws.amazon.com/vpc/latest/userguide/default-vpc.html) do not have [IPv6 CIDR blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/working-with-ipv6-addresses.html) associated. Specify `::1/128` to block all inbound IPv6 access
 - `allowSSHport`: allow inbound SSH. Option does not affect [EC2 Instance Connect](https://aws.amazon.com/blogs/compute/new-using-amazon-ec2-instance-connect-for-ssh-access-to-your-ec2-instances/) access. Default is `Yes`
 - `installDCV`: install graphical desktop environment and [DCV](https://aws.amazon.com/hpc/dcv/) server. Default is `Yes`
 - `installWebmin`: install [Webmin](https://webmin.com/) web-based system administration tool. Default is `No`
@@ -209,7 +210,7 @@ Template will install a valid [IPv4 address certificate](https://letsencrypt.org
 
 Amazon CloudFront (`enableCloudFront`) [supports](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-viewers-to-cloudfront.html) HTTPS and  [alternative domain name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/CNAMEs.html). You can use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to [request](https://docs.aws.amazon.com/acm/latest/userguide/acm-public-certificates.html) a non-exportable public certificate at [no additional cost](https://aws.amazon.com/certificate-manager/pricing/) and [associate](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) it with your CloudFront distribution.
 
- You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public Domain Validated (DV)  certificate from AWS Certificate Manager and install it on your EC2 instance. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install free [Let's Encrypt](https://letsencrypt.org/) DV certificate on your web server as follows.
+ You can [request and export](https://aws.amazon.com/blogs/security/aws-certificate-manager-now-supports-exporting-public-certificates/) public domain validated (DV) certificate from AWS Certificate Manager and install it on your EC2 instance. Associated charges are listed on [ACM pricing](https://aws.amazon.com/certificate-manager/pricing/) page. You can also use [Certbot](https://certbot.eff.org/pages/about) to obtain and install free [Let's Encrypt](https://letsencrypt.org/) DV certificate on your web server as follows.
 
 ### Certbot prerequisites
 
@@ -343,6 +344,13 @@ To futher secure your EC2 instance, you may want to
   - Install public HTTPS certificate on your ALB/EC2 origin. Enable [HTTPS communication](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-cloudfront-to-custom-origin.html#using-https-cloudfront-to-origin-distribution-setting) between CloudFront and origin. For custom origin, configure [origin domain name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesDomainName) to match [certificate name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html#https-requirements-domain-names-in-cert)
 - Enable [Amazon Inspector](https://aws.amazon.com/inspector/) to [scan EC2 instance](https://docs.aws.amazon.com/inspector/latest/user/scanning-ec2.html) for software vulnerabilities and unintended network exposure.
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) security monitoring service with [Runtime Monitoring](https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ec2.html) and [Malware Protection for EC2](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html)
+
+
+## Cost
+
+There is no additional charge for using [AWS CloudFormation](https://aws.amazon.com/cloudformation/pricing/). You pay for AWS resources created using the template the same as if you had created them manually. You only pay for what you use, with no minimum fees and no required upfront commitments.
+
+Where possible, template assigns all created resources with user-defined tags of key names `StackName` and `StackId`. You can [activate](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/activating-tags.html) them as [cost-allocation tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html) to track your AWS costs on a detailed level. Refer to [AWS Billing Guide](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-what-is.html) for more information.
 
 ## Clean Up
 
