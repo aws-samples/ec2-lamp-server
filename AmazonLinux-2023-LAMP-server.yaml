@@ -1602,6 +1602,9 @@ Resources:
                   /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
                   sleep 45
 
+                  # web server reload script
+                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/web-server-renew-cert.sh
+
                   case ${webOption} in
                     Apache)
                       WEB_ROOT="/var/www/html/"
@@ -1647,12 +1650,15 @@ Resources:
                       chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
 
                       # post cert renewal hook
-                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/
+                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/opt/dcv-renew-cert.sh
                     fi
                   fi
                 fi
                 if [ -f "/opt/dcv-renew-cert.sh" ]; then
                   rm /opt/dcv-renew-cert.sh
+                fi
+                if [ -f "/opt/web-server-renew-cert.sh" ]; then
+                  rm /opt/web-server-renew-cert.sh
                 fi
 
                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
@@ -1675,6 +1681,17 @@ Resources:
                   cp -f /etc/letsencrypt/live/$CERT_FOLDER/privkey.pem /etc/dcv/dcv.key
                   chown dcv /etc/dcv/dcv.pem /etc/dcv/dcv.key
                   chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
+                fi
+              mode: "000755"
+              owner: "root"
+              group: "root"
+            "/opt/web-server-renew-cert.sh":
+              content: |
+                #!/bin/bash
+                if (systemctl status httpd | grep -q running); then
+                  systemctl reload httpd
+                elif (systemctl status nginx | grep -q running); then
+                  systemctl reload nginx
                 fi
               mode: "000755"
               owner: "root"
