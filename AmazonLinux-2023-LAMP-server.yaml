@@ -1603,7 +1603,7 @@ Resources:
                   sleep 45
 
                   # web server reload script
-                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/web-server-renew-cert.sh
+                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
 
                   case ${webOption} in
                     Apache)
@@ -1650,7 +1650,7 @@ Resources:
                       chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
 
                       # post cert renewal hook
-                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/opt/dcv-renew-cert.sh
+                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/opt/dcv-renew-cert.sh
                     fi
                   fi
                 fi
@@ -1690,7 +1690,8 @@ Resources:
                 #!/bin/bash
                 if (systemctl status httpd | grep -q running); then
                   systemctl reload httpd
-                elif (systemctl status nginx | grep -q running); then
+                fi
+                if (systemctl status nginx | grep -q running); then
                   systemctl reload nginx
                 fi
               mode: "000755"

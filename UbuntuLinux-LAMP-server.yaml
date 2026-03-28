@@ -1646,7 +1646,7 @@ Resources:
                   sleep 45
 
                   # web server reload script
-                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/web-server-renew-cert.sh
+                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
 
                   WEB_ROOT="/var/www/html/"
                   if (echo '${installApp}' | grep -q "Moodle 5.1"); then
@@ -1680,7 +1680,7 @@ Resources:
                       chmod 600 /etc/dcv/dcv.pem /etc/dcv/dcv.key
 
                       # post cert renewal hook
-                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/post/dcv-renew-cert.sh
+                      mv /opt/dcv-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/dcv-renew-cert.sh
                     fi
                   fi
                 fi
@@ -1715,9 +1715,10 @@ Resources:
             "/opt/web-server-renew-cert.sh":
               content: |
                 #!/bin/bash
-                if (systemctl status apache2 | grep -q running); then
-                  systemctl reload apache2
-                elif (systemctl status nginx | grep -q running); then
+                if (systemctl status httpd | grep -q running); then
+                  systemctl reload httpd
+                fi
+                if (systemctl status nginx | grep -q running); then
                   systemctl reload nginx
                 fi
               mode: "000755"
