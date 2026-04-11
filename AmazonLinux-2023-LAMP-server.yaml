@@ -1840,6 +1840,13 @@ Resources:
                 systemctl daemon-reload
                 systemctl enable --now certbot-renew.timer
 
+                # https://aws.amazon.com/about-aws/whats-new/2025/11/mountpoint-amazon-s3-amazon-linux-2023/
+                # https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.9.20251110.html#amis-2023.9.20251110.Core-New-Packages
+                dnf install -q -y mount-s3
+
+                # Amazon EFS Utils: https://docs.aws.amazon.com/efs/latest/ug/using-amazon-efs-utils.html
+                dnf install -q -y amazon-efs-utils
+
                 rm -f ${!0}
               mode: "000740"
               owner: "root"
@@ -2208,10 +2215,6 @@ Resources:
                 #!/bin/bash
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
-
-                # https://aws.amazon.com/about-aws/whats-new/2025/11/mountpoint-amazon-s3-amazon-linux-2023/
-                # https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.9.20251110.html#amis-2023.9.20251110.Core-New-Packages
-                dnf install -q -y mount-s3
 
                 # Valkey (replace redis6) & Memcached
                 dnf install -q -y valkey memcached

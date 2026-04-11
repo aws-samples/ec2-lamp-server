@@ -29,7 +29,6 @@ The template provides the following features:
 - [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) or [Ubuntu](https://ubuntu.com/aws)/[Ubuntu Pro](https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-ubuntu-pro-subscription-model/) 22.04/24.04
   - [NVIDIA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type) GPU driver and NVIDIA Container Toolkit install (NVIDIA [instance types](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html#nvidia-driver-instance-type))
 - Applications
-- R Applications
   - [Apache](https://www.apache.org/) or [Nginx](https://www.nginx.com/) web server with valid [IP address certificate](#ssltls-certificate-on-ec2-instance)
   - [MySQL](https://www.mysql.com/), [MariaDB](https://mariadb.org/) or [PostgreSQL](https://www.postgresql.org/) database server (optional)
   - PHP (optional)
@@ -40,12 +39,12 @@ The template provides the following features:
   - [Valkey](https://valkey.io/)/[Redis](https://redis.io/) and [Memcached](https://memcached.org/) in memory database
   - [Certbot](https://certbot.eff.org/) for [free HTTPS certificate](#ssltls-certificate-on-ec2-instance)
     - [Amazon Route 53](https://aws.amazon.com/route53/) hosted zone access for [ACME DNS-01 challenge](https://letsencrypt.org/docs/challenge-types/#dns-01-challenge) support (optional)
-  - [Docker Engine](https://docs.docker.com/engine/) (optional)
-  - [MountPoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/) for mounting S3 bucket as local file system
-    - [Amazon S3](https://aws.amazon.com/s3/) bucket access for use by Mountpoint with S3 (optional)
   - [AWS CLI v2](https://aws.amazon.com/cli/) with [auto-prompt](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
   - [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) agent
+  - [Amazon EFS client](https://docs.aws.amazon.com/efs/latest/ug/using-amazon-efs-utils.html): mount [Amazon EFS](https://aws.amazon.com/efs/) and [Amazon S3 Files](https://aws.amazon.com/s3/features/files/)
+  - [Mountpoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/): mount [Amazon S3](https://aws.amazon.com/s3/) bucket as local file system  
   - [AWS CodeDeploy](https://aws.amazon.com/codedeploy/) agent
+  - [Docker Engine](https://docs.docker.com/engine/) (optional)
 - Remote Administration
   - [Amazon DCV](https://aws.amazon.com/hpc/dcv/) remote display protocol server for graphical desktop access (optional)
   - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)  secure terminal access

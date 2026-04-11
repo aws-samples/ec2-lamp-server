@@ -346,17 +346,16 @@ Parameters:
     Type: String
     #Description: Database to install
     AllowedValues:
-      - "MariaDB 10.5"
+      - "MariaDB"
       - "MySQL8.0"
       - "MySQL8.4"
       - "PostgreSQL"
       - "none"
-    Default: "MariaDB 10.5"
+    Default: "MariaDB"
   phpVersion:
     Type: String
     #Description: PHP version to install
     AllowedValues:
-      - "php8.1"
       - "php8.2"
       - "none"
     Default: "php8.2"
@@ -1648,7 +1647,7 @@ Resources:
                 # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
                 yum install -q -y augeas-libs
                 amazon-linux-extras install -q -y python3.8
-                yum install -q -y python-augeas
+                yum install -q -y python38-devel augeas-devel
 
                 /usr/bin/python3.8 -m venv /opt/certbot/
                 /opt/certbot/bin/pip install --upgrade pip
@@ -1662,6 +1661,22 @@ Resources:
                 chmod og-rwx /etc/sysconfig/certbot
                 systemctl daemon-reload
                 systemctl enable --now certbot-renew.timer
+
+                # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
+                yum install -q -y mount-s3
+                if (yum info mount-s3  | grep -q Installed); then
+                  rm -f /home/ec2-user/update-mountpoint-s3
+                else
+                  if (uname -a | grep -q x86); then
+                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+                  else
+                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
+                  fi
+                  yum install -q -y ./mount-s3.rpm
+                fi
+
+                # Amazon EFS Utils: https://docs.aws.amazon.com/efs/latest/ug/using-amazon-efs-utils.html
+                yum install -q -y amazon-efs-utils
 
                 rm -f ${!0}
               mode: "000740"
@@ -1944,21 +1959,8 @@ Resources:
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
 
-                # MountPoint-S3: https://github.com/awslabs/mountpoint-s3
-                yum install -q -y mount-s3
-                if (yum info mount-s3  | grep -q Installed); then
-                  rm -f /home/ec2-user/update-mountpoint-s3
-                else
-                  if (uname -a | grep -q x86); then
-                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
-                  else
-                    curl -s -L -O https://s3.amazonaws.com/mountpoint-s3-release/latest/arm64/mount-s3.rpm
-                  fi
-                  yum install -q -y ./mount-s3.rpm
-                fi
-
                 # Redis & Memcached
-                amazon-linux-extras install -y redis6 memcached1.5
+                yum install -q -y redis memcached
                 systemctl enable --now redis memcached
 
                 # Web server
@@ -2107,7 +2109,7 @@ Resources:
                     systemctl enable mysqld
                     ;;
                   MariaDB*)
-                    amazon-linux-extras install -y mariadb10.5
+                    yum install -q -y mariadb-server
                     systemctl enable mariadb
                     ;;
                   PostgreSQL)
