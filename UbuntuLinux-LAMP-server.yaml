@@ -1715,10 +1715,10 @@ Resources:
             "/opt/web-server-renew-cert.sh":
               content: |
                 #!/bin/bash
-                if (systemctl status httpd | grep -q running); then
+                if (systemctl list-units | grep -q apache2); then
                   systemctl reload httpd
                 fi
-                if (systemctl status nginx | grep -q running); then
+                if (systemctl list-units | grep -q nginx); then
                   systemctl reload nginx
                 fi
               mode: "000755"
