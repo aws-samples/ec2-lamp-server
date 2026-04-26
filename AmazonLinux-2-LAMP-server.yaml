@@ -2168,6 +2168,8 @@ Resources:
             VolumeSize: !Ref volumeSize
             DeleteOnTermination: true
             Encrypted: true
+      MetadataOptions:
+        HttpTokens: required
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
