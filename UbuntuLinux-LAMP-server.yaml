@@ -5,21 +5,16 @@ Transform: "AWS::LanguageExtensions"
 Metadata:
   License:
     Description: >
-      Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-      SPDX-License-Identifier: MIT-0
+      Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. SPDX-License-Identifier: MIT-0
 
-      Permission is hereby granted, free of charge, to any person obtaining a copy of this
-      software and associated documentation files (the "Software"), to deal in the Software
-      without restriction, including without limitation the rights to use, copy, modify,
-      merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-      permit persons to whom the Software is furnished to do so.
+      Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the
+      "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish,
+      distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so.
 
-      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-      INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-      PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-      HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-      OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-      SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+      MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+      CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+      OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
@@ -414,7 +409,8 @@ Parameters:
     Description: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html
     AllowedPattern: .+
     Default: "cron(0 1 ? * * *)"
-  scheduleExpressionTimezone: # https://nodatime.org/TimeZones?version=2024a&format=json
+  scheduleExpressionTimezone:
+    # https://nodatime.org/TimeZones?version=2024a&format=json
     Type: String
     Description: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#time-zones
     AllowedValues:
@@ -786,9 +782,9 @@ Parameters:
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
-      - "Moodle 4.5 (LTS)"
-      - "Moodle 5.0"
+      - "Moodle 5.2"
       - "Moodle 5.1"
+      - "Moodle 4.5 (LTS)"
       - "None"
     Default: "None"
 
@@ -817,35 +813,12 @@ Conditions:
   useUbuntuPro2204x86: !Equals [!Ref osVersion, "Ubuntu Pro 22.04 (x86_64)"]
 
   displayPublicIP: !Equals [!Ref displayPublicIP, "Yes"]
-  useElasticIP:
-    !And [!Condition displayPublicIP, !Equals [!Ref assignStaticIP, "Yes"]]
+  useElasticIP: !And [!Condition displayPublicIP, !Equals [!Ref assignStaticIP, "Yes"]]
   enableProtection: !Equals [!Ref ec2TerminationProtection, "Yes"]
 
-  hasEIC:
-    !Not [
-      !Equals [
-        !FindInMap [
-          EICprefixMap,
-          !Ref AWS::Region,
-          IpPrefix,
-          DefaultValue: 127.0.0.1/32,
-        ],
-        127.0.0.1/32,
-      ],
-    ]
+  hasEIC: !Not [!Equals [!FindInMap [EICprefixMap, !Ref AWS::Region, IpPrefix, {DefaultValue: 127.0.0.1/32}], 127.0.0.1/32]]
   createSgEIC: !And [!Condition hasEIC, !Condition displayPublicIP]
-  hasCFprefix:
-    !Not [
-      !Equals [
-        !FindInMap [
-          CFprefixMap,
-          !Ref AWS::Region,
-          PrefixList,
-          DefaultValue: pl-none,
-        ],
-        pl-none,
-      ],
-    ]
+  hasCFprefix: !Not [!Equals [!FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList, {DefaultValue: pl-none}], pl-none]]
 
   createSgSSH: !Equals [!Ref allowSSHport, "Yes"]
 
@@ -859,30 +832,15 @@ Conditions:
   createBackup: !Equals [!Ref enableBackup, "Yes"]
 
   createCloudFront: !Equals [!Ref enableCloudFront, "Yes"]
-  cfVPCOrigin:
-    !And [!Condition createCloudFront, !Equals [!Ref originType, "VPC Origin"]]
+  cfVPCOrigin: !And [!Condition createCloudFront, !Equals [!Ref originType, "VPC Origin"]]
 
   createALB: !Equals [!Ref enableALB, "Yes"]
-  albAllowIPv4:
-    !Or [
-      !Equals [!Ref albIpAddressType, "IPv4"],
-      !Equals [!Ref albIpAddressType, "IPv4-and-IPv6"],
-    ]
-  albAllowIPv6:
-    !Or [
-      !Equals [!Ref albIpAddressType, "IPv6"],
-      !Equals [!Ref albIpAddressType, "IPv4-and-IPv6"],
-    ]
+  albAllowIPv4: !Or [!Equals [!Ref albIpAddressType, "IPv4"], !Equals [!Ref albIpAddressType, "IPv4-and-IPv6"]]
+  albAllowIPv6: !Or [!Equals [!Ref albIpAddressType, "IPv6"], !Equals [!Ref albIpAddressType, "IPv4-and-IPv6"]]
 
-  createHttpsListener:
-    !And [!Condition createALB, !Not [!Equals [!Ref albCertificateArn, ""]]]
-  createHttpRedirectListener:
-    !And [
-      !Condition createHttpsListener,
-      !Equals [!Ref albRedirectHTTPtoHTTPS, "Yes"],
-    ]
-  createHttpListener:
-    !And [!Condition createALB, !Not [!Condition createHttpRedirectListener]]
+  createHttpsListener: !And [!Condition createALB, !Not [!Equals [!Ref albCertificateArn, ""]]]
+  createHttpRedirectListener: !And [!Condition createHttpsListener, !Equals [!Ref albRedirectHTTPtoHTTPS, "Yes"]]
+  createHttpListener: !And [!Condition createALB, !Not [!Condition createHttpRedirectListener]]
   sendHSTS: !Not [!Equals [!Ref albHstsHeaderValue, ""]]
 
 Mappings:
@@ -999,7 +957,8 @@ Mappings:
       IpPrefix: 18.237.140.160/29
       Ipv6Prefix: 2600:1f13:a0d:a700::/56
 
-  CFprefixMap: # aws ec2 describe-managed-prefix-lists --query "PrefixLists[?PrefixListName=='com.amazonaws.global.cloudfront.origin-facing']" --region <REGION>
+  CFprefixMap:
+    # aws ec2 describe-managed-prefix-lists --query "PrefixLists[?PrefixListName=='com.amazonaws.global.cloudfront.origin-facing']" --region <REGION>
     af-south-1:
       PrefixList: pl-c0aa4fa9
       Ipv6PrefixList: pl-08e545c506fc11b3d
@@ -1126,7 +1085,8 @@ Resources:
         - !If
           - installDCV
           - PolicyName: dcvLicensing
-            PolicyDocument: # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
+            PolicyDocument:
+              # https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html
               Version: "2012-10-17"
               Statement:
                 - Effect: Allow
@@ -1137,7 +1097,8 @@ Resources:
         - !If
           - hasS3Bucket
           - PolicyName: MountPointS3Access
-            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            PolicyDocument:
+              # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
               Version: "2012-10-17"
               Statement:
                 - Effect: Allow
@@ -1155,7 +1116,8 @@ Resources:
         - !If
           - hasS3Bucket
           - PolicyName: MountPointS3ExpressAccess
-            PolicyDocument: # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
+            PolicyDocument:
+              # MountPoint for S3: https://github.com/awslabs/mountpoint-s3/blob/main/doc/CONFIGURATION.md
               Version: "2012-10-17"
               Statement:
                 - Effect: Allow
@@ -1166,9 +1128,11 @@ Resources:
         - !If
           - hasR53Zone
           - PolicyName: R53acmeAccess
-            PolicyDocument: # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
+            PolicyDocument:
+              # Certbot dns_route53 : https://certbot-dns-route53.readthedocs.io/en/stable/
               Version: "2012-10-17"
-              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+              Statement:
+                # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
                 - Effect: Allow
                   Action:
                     - route53:ListHostedZones
@@ -1184,15 +1148,15 @@ Resources:
                     ForAllValues:StringEquals:
                       route53:ChangeResourceRecordSetsRecordTypes: [TXT]
                     ForAllValues:StringLike:
-                      route53:ChangeResourceRecordSetsNormalizedRecordNames:
-                        [_acme-challenge.*]
+                      route53:ChangeResourceRecordSetsNormalizedRecordNames: [_acme-challenge.*]
           - !Ref AWS::NoValue
         - !If
           - hasR53Zone
           - PolicyName: Route53UpdaterAccess
             PolicyDocument:
               Version: "2012-10-17"
-              Statement: # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
+              Statement:
+                # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html
                 - Effect: Allow
                   Action:
                     - route53:ListHostedZones
@@ -1208,8 +1172,7 @@ Resources:
                     ForAllValues:StringEquals:
                       route53:ChangeResourceRecordSetsRecordTypes: [A]
                     ForAllValues:StringLike:
-                      route53:ChangeResourceRecordSetsNormalizedRecordNames:
-                        ["*.example.com"]
+                      route53:ChangeResourceRecordSetsNormalizedRecordNames: ["*.example.com"]
           - !Ref AWS::NoValue
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -1357,11 +1320,7 @@ Resources:
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-securityGroup-${UID}"
-            - UID:
-                !Select [
-                  3,
-                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-                ]
+            - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1376,15 +1335,13 @@ Resources:
           IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourcePrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
+          SourcePrefixListId: !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       SecurityGroupEgress:
         - Description: Ping (CloudFront origin IPv4)
           IpProtocol: icmp
           FromPort: -1
           ToPort: -1
-          DestinationPrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
+          DestinationPrefixListId: !FindInMap [CFprefixMap, !Ref AWS::Region, PrefixList]
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
@@ -1393,11 +1350,7 @@ Resources:
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-CloudFrontHTTP-${UID}"
-            - UID:
-                !Select [
-                  3,
-                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-                ]
+            - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1412,15 +1365,13 @@ Resources:
           IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourcePrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, Ipv6PrefixList]
+          SourcePrefixListId: !FindInMap [CFprefixMap, !Ref AWS::Region, Ipv6PrefixList]
       SecurityGroupEgress:
         - Description: Ping (CloudFront origin IPv6)
           IpProtocol: icmp
           FromPort: -1
           ToPort: -1
-          DestinationPrefixListId:
-            !FindInMap [CFprefixMap, !Ref AWS::Region, Ipv6PrefixList]
+          DestinationPrefixListId: !FindInMap [CFprefixMap, !Ref AWS::Region, Ipv6PrefixList]
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
@@ -1429,11 +1380,7 @@ Resources:
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-CloudFrontHTTPS-${UID}"
-            - UID:
-                !Select [
-                  3,
-                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-                ]
+            - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -1454,7 +1401,8 @@ Resources:
             - 01_php_install
           lamp_install:
             - 02_lamp_install
-        00_setup: # in the following order: packages, groups, users, sources, files, commands, and then services.
+        00_setup:
+          # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
             "/home/ubuntu/update-dcv":
               content: |
@@ -1649,7 +1597,7 @@ Resources:
                   mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
 
                   WEB_ROOT="/var/www/html/"
-                  if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                  if (echo '${installApp}' | grep -q "Moodle 5.[1-9]"); then
                     WEB_ROOT="/var/www/html/public/"
                   fi
 
@@ -1758,7 +1706,7 @@ Resources:
               group: "root"
             "/etc/systemd/system/systemd-networkd-wait-online.service.d/override.conf":
               content: |
-
+                
                 [Service]
                 ExecStart=
                 ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --timeout=3
@@ -2404,10 +2352,10 @@ Resources:
                       chmod g+rw -R /var/www/html
                       ;;
                     Moodle*)
-                      if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                      if (echo '${installApp}' | grep -q "Moodle 5.2"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable502/moodle-5.2.tgz -o moodle.tgz
+                      elif (echo '${installApp}' | grep -q "Moodle 5.1"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
-                      elif (echo '${installApp}' | grep -q "Moodle 5.0"); then
-                        curl -s -L https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.tgz -o moodle.tgz
                       else
                         curl -s -L https://download.moodle.org/download.php/direct/stable405/moodle-latest-405.tgz -o moodle.tgz
                       fi
@@ -2417,7 +2365,7 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
 
                           # Moodle 5.1: https://moodledev.io/general/releases/5.1
-                          if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                          if (echo '${installApp}' | grep -q "Moodle 5.[1-9]"); then
                             sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/apache2/sites-available/*.conf
                           fi
 
@@ -2426,7 +2374,7 @@ Resources:
                           rsync -r /tmp/cfn/moodle/ /var/www/html/
 
                           # Moodle 5.1: https://moodledev.io/general/releases/5.1
-                          if (echo '${installApp}' | grep -q "Moodle 5.1"); then
+                          if (echo '${installApp}' | grep -q "Moodle 5.[1-9]"); then
                             sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/nginx/sites-available/default
                           fi
 
@@ -2458,35 +2406,36 @@ Resources:
               command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
     Properties:
-      ImageId: # https://ubuntu.com/server/docs/cloud-images/amazon-ec2 https://ubuntu.com/blog/ubuntu-pro-is-now-part-of-the-aws-ec2-console
+      ImageId:
+        # https://ubuntu.com/server/docs/cloud-images/amazon-ec2 https://ubuntu.com/blog/ubuntu-pro-is-now-part-of-the-aws-ec2-console
         !If [
           useUbuntu2404x86,
           "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
           !If [
-            useUbuntu2404arm64,
-            "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
-            !If [
-              useUbuntu2204x86,
-              "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+              useUbuntu2404arm64,
+              "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
               !If [
-                useUbuntu2204arm64,
-                "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
-                !If [
-                  useUbuntuPro2404x86,
-                  "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
+                  useUbuntu2204x86,
+                  "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
                   !If [
-                    useUbuntuPro2404arm64,
-                    "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
-                    !If [
-                      useUbuntuPro2204x86,
-                      "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
-                      "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
-                    ],
-                  ],
-                ],
-              ],
-            ],
-          ],
+                      useUbuntu2204arm64,
+                      "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+                      !If [
+                          useUbuntuPro2404x86,
+                          "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
+                          !If [
+                              useUbuntuPro2404arm64,
+                              "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+                              !If [
+                                  useUbuntuPro2204x86,
+                                  "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+                                  "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}"
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
         ]
       InstanceType: !Ref instanceType
       IamInstanceProfile: !Ref instanceProfile
@@ -2587,11 +2536,7 @@ Resources:
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-elasticIP-${UID}"
-            - UID:
-                !Select [
-                  3,
-                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-                ]
+            - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -2772,11 +2717,7 @@ Resources:
         - Key: Name
           Value: !Sub
             - "${AWS::StackName}-albSecurityGroup-${UID}"
-            - UID:
-                !Select [
-                  3,
-                  !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-                ]
+            - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         - Key: GitHub
           Value: https://github.com/aws-samples/ec2-lamp-server
 
@@ -2787,30 +2728,17 @@ Resources:
       BackupPlan:
         BackupPlanName: !Sub
           - "${AWS::StackName}-backupPlan-${UID}"
-          - UID:
-              !Select [
-                3,
-                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-              ]
+          - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         BackupPlanRule:
           - RuleName: !Sub
               - "${AWS::StackName}-backupRule-${UID}"
-              - UID:
-                  !Select [
-                    3,
-                    !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-                  ]
+              - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
             TargetBackupVault: !Ref backupVault
             ScheduleExpression: !Ref scheduleExpression
             ScheduleExpressionTimezone: !Ref scheduleExpressionTimezone
             Lifecycle:
               DeleteAfterDays: !Ref deleteAfterDays
-      BackupPlanTags:
-        {
-          "StackName": !Ref AWS::StackName,
-          "StackId": !Ref AWS::StackId,
-          "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
-        }
+      BackupPlanTags: {"StackName": !Ref AWS::StackName, "StackId": !Ref AWS::StackId, "GitHub": "https://github.com/aws-samples/ec2-lamp-server"}
 
   backupVault:
     Type: AWS::Backup::BackupVault
@@ -2819,17 +2747,8 @@ Resources:
     Properties:
       BackupVaultName: !Sub
         - "${AWS::StackName}-backupVault-${UID}"
-        - UID:
-            !Select [
-              3,
-              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-            ]
-      BackupVaultTags:
-        {
-          "StackName": !Ref AWS::StackName,
-          "StackId": !Ref AWS::StackId,
-          "GitHub": "https://github.com/aws-samples/ec2-lamp-server",
-        }
+        - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
+      BackupVaultTags: {"StackName": !Ref AWS::StackName, "StackId": !Ref AWS::StackId, "GitHub": "https://github.com/aws-samples/ec2-lamp-server"}
 
   backupSelection:
     Type: AWS::Backup::BackupSelection
@@ -2842,11 +2761,7 @@ Resources:
           - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ec2Instance}"
         SelectionName: !Sub
           - "${AWS::StackName}-backupSelection-${UID}"
-          - UID:
-              !Select [
-                3,
-                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-              ]
+          - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
 
   backupRestoreRole:
     Type: AWS::IAM::Role
@@ -2861,7 +2776,8 @@ Resources:
             Action: sts:AssumeRole
       Policies:
         - PolicyName: restore-EC2-instance-profile
-          PolicyDocument: # https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-ec2.html
+          PolicyDocument:
+            # https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-ec2.html
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
@@ -2912,24 +2828,12 @@ Resources:
         Origins:
           - !If
             - cfVPCOrigin
-            - DomainName:
-                !If [
-                  createALB,
-                  !GetAtt alb.DNSName,
-                  !GetAtt ec2Instance.PrivateDnsName,
-                ]
-              Id:
-                !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
+            - DomainName: !If [createALB, !GetAtt alb.DNSName, !GetAtt ec2Instance.PrivateDnsName]
+              Id: !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               VpcOriginConfig:
                 VpcOriginId: !GetAtt cfVpcOrigin.Id
-            - DomainName:
-                !If [
-                  createALB,
-                  !GetAtt alb.DNSName,
-                  !GetAtt ec2Instance.PublicDnsName,
-                ]
-              Id:
-                !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
+            - DomainName: !If [createALB, !GetAtt alb.DNSName, !GetAtt ec2Instance.PublicDnsName]
+              Id: !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
               CustomOriginConfig:
                 OriginProtocolPolicy: http-only
                 OriginSSLProtocols:
@@ -2937,11 +2841,7 @@ Resources:
         Enabled: true
         Comment: !Sub
           - "${AWS::StackName}-${UID}"
-          - UID:
-              !Select [
-                3,
-                !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
-              ]
+          - UID: !Select [3, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
         HttpVersion: http2and3
         ViewerCertificate:
           CloudFrontDefaultCertificate: true
@@ -2955,8 +2855,7 @@ Resources:
           CachePolicyId: "4cc15a8a-d715-48a4-82b8-cc0b614638fe"
           OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3"
           ResponseHeadersPolicyId: "67f7725c-6f97-4210-82d7-5512b31e9d03"
-          TargetOriginId:
-            !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
+          TargetOriginId: !If [createALB, !GetAtt alb.LoadBalancerName, !Ref ec2Instance]
           ViewerProtocolPolicy: "redirect-to-https"
       Tags:
         - Key: StackName
@@ -3001,27 +2900,17 @@ Outputs:
       !If [
         displayPublicIP,
         !Sub "https://${ec2Instance.PublicIp}:8443/?username=ubuntu  ( dcv://ubuntu:@${ec2Instance.PublicIp} )",
-        !Sub "https://${ec2Instance.PrivateIp}:8443/?username=ubuntu ( dcv://ubuntu:@${ec2Instance.PrivateIp} )",
+        !Sub "https://${ec2Instance.PrivateIp}:8443/?username=ubuntu ( dcv://ubuntu:@${ec2Instance.PrivateIp} )"
       ]
 
   WebUrl:
     Description: Website
-    Value:
-      !If [
-        displayPublicIP,
-        !Sub "https://${ec2Instance.PublicIp}",
-        !Sub "https://${ec2Instance.PrivateIp}",
-      ]
+    Value: !If [displayPublicIP, !Sub "https://${ec2Instance.PublicIp}", !Sub "https://${ec2Instance.PrivateIp}"]
 
   WebminUrl:
     Condition: installWebmin
     Description: Webmin URL (login as ubuntu)
-    Value:
-      !If [
-        displayPublicIP,
-        !Sub "https://${ec2Instance.PublicIp}:10000",
-        !Sub "https://${ec2Instance.PrivateIp}:10000",
-      ]
+    Value: !If [displayPublicIP, !Sub "https://${ec2Instance.PublicIp}:10000", !Sub "https://${ec2Instance.PrivateIp}:10000"]
 
   CloudFrontUrl:
     Condition: createCloudFront
