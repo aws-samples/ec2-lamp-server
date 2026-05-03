@@ -4,7 +4,7 @@ Provision [Amazon EC2](https://aws.amazon.com/ec2/) web server with Apache/Nginx
 
 ## Description
 
-[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), [more than 70%](https://w3techs.com/technologies/overview/programming_language) of websites use PHP, and [more than 40%](https://w3techs.com/technologies/overview/content_management) of websites use WordPress.
+[LAMP](https://aws.amazon.com/what-is/lamp-stack/) is an acronym for the operating system, Linux; the web server, Apache; the database server, MySQL (or MariaDB); and the programming language, PHP. It is a common open source web platform for many of the web's popular applications.  Variations include LEMP which replaces web server with Nginx, LAPP which replaces database server with PostgreSQL, and LEPP which uses Nginx and PostgreSQL. According to [W3Techs](https://w3techs.com/), [more than half](https://w3techs.com/technologies/overview/programming_language) of websites use PHP, and [more than 40%](https://w3techs.com/technologies/overview/content_management) of websites use WordPress.
 
 This repo provides [CloudFormation](https://aws.amazon.com/cloudformation/) templates to provision EC2 instances with option to specify PHP version, web server and database engine, and [WordPress](https://wordpress.org/) or [Moodle](https://moodle.org/) installation.  The instances can be used to deploy PHP based web applications, or for application development.
 
@@ -343,7 +343,7 @@ To futher secure your EC2 instance, you may want to
   - Install public HTTPS certificate on your ALB/EC2 origin. Enable [HTTPS communication](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-https-cloudfront-to-custom-origin.html#using-https-cloudfront-to-origin-distribution-setting) between CloudFront and origin. For custom origin, configure [origin domain name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesDomainName) to match [certificate name](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html#https-requirements-domain-names-in-cert)
 - Enable [Amazon Inspector](https://aws.amazon.com/inspector/) to [scan EC2 instance](https://docs.aws.amazon.com/inspector/latest/user/scanning-ec2.html) for software vulnerabilities and unintended network exposure.
 - Enable [Amazon GuardDuty](https://aws.amazon.com/guardduty/) security monitoring service with [Runtime Monitoring](https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ec2.html) and [Malware Protection for EC2](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html)
-
+- Use [AWS Security Agent](https://aws.amazon.com/security-agent/) on-demand penetration testing to identify any security vulnerabilities
 
 ## Cost
 
