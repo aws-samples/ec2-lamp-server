@@ -1550,9 +1550,6 @@ Resources:
                   /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
                   sleep 45
 
-                  # web server reload script
-                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
-
                   case ${webOption} in
                     Apache)
                       WEB_ROOT="/var/www/html/"
@@ -1589,6 +1586,9 @@ Resources:
                         systemctl reload nginx
                         ;;
                     esac
+
+                    # web server reload script
+                    mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
 
                     # DCV TLS cert: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-cert.html
                     if [ "${installDCV}" = "Yes" ]; then
@@ -2449,7 +2449,7 @@ Resources:
                       ;;
                     Moodle*)
                       if (echo '${installApp}' | grep -q "Moodle 5.2"); then
-                        curl -s -L https://download.moodle.org/download.php/direct/stable502/moodle-5.2.tgz -o moodle.tgz
+                        curl -s -L https://download.moodle.org/download.php/direct/stable502/moodle-latest-502.tgz -o moodle.tgz
                       elif (echo '${installApp}' | grep -q "Moodle 5.1"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
                       else
@@ -2467,6 +2467,9 @@ Resources:
                             sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/httpd/conf/httpd.conf
                             sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/httpd/conf.d/ssl.conf
                             sed -i "s/\/var\/www\/html/\/var\/www\/html\/public/g" /etc/httpd/conf.d/www.conf
+
+                            # Routing Engine: https://docs.moodle.org/501/en/Configuring_the_Router
+                            sed -i "150s/^/\    \FallbackResource \/r.php/g" /etc/httpd/conf/httpd.conf
                           fi
 
                           # Moodle data
@@ -2475,7 +2478,7 @@ Resources:
                           chmod g+rw -R /var/www/moodledata
 
                           # Moodle cron : https://docs.moodle.org/405/en/Cron
-                          echo "* * * * * /usr/bin/php  /var/www/html/admin/cli/cron.php >/dev/null" > /home/ec2-user/moodle/cron
+                          echo "* * * * * /usr/bin/php  /var/www/html/admin/cli/cron.php >/dev/null" > /home/ec2-user/cron
                           ;;
                         Nginx)
                           rsync -r /tmp/cfn/moodle/ /usr/share/nginx/html/
@@ -2493,10 +2496,11 @@ Resources:
                           chmod g+rw -R /usr/share/nginx/moodledata
 
                           # Moodle cron : https://docs.moodle.org/405/en/Cron
-                          echo "* * * * * /usr/bin/php  /usr/share/nginx/html/admin/cli/cron.php >/dev/null" > /home/ec2-user/moodle/cron
+                          echo "* * * * * /usr/bin/php  /usr/share/nginx/html/admin/cli/cron.php >/dev/null" > /home/ec2-user/cron
                           ;;
                       esac
-                      crontab -u apache /home/ec2-user/moodle/cron
+                      crontab -u apache /home/ec2-user/cron
+                      rm -f /home/ec2-user/cron
                       chown -R ec2-user:ec2-user /home/ec2-user/moodle
                       ;;
                   esac
@@ -2511,12 +2515,7 @@ Resources:
               command: "/root/install-lamp.sh > /var/log/install-lamp.log 2>&1"
               ignoreErrors: "true"
     Properties:
-      ImageId:
-        !If [
-          useARM64,
-          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-arm64}}",
-          "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-x86_64}}"
-        ]
+      ImageId: !If [useARM64, "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-arm64}}", "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-x86_64}}"]
       InstanceType: !Ref instanceType
       IamInstanceProfile: !Ref instanceProfile
       KeyName: !Ref ec2KeyPair
