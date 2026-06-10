@@ -342,6 +342,7 @@ Parameters:
     Type: String
     #Description: Database to install
     AllowedValues:
+      - "MariaDB 11.8"
       - "MariaDB 11.4"
       - "MariaDB 10.11"
       - "MySQL8.4"
@@ -2332,6 +2333,15 @@ Resources:
                   "MariaDB 11.4")
                     dnf install -q -y mariadb114-server
                     dnf install -q -y mariadb114-backup
+                    if (ec2-metadata -t | grep -q large$); then
+                      sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
+                    fi
+                    systemctl enable --now mariadb
+
+                    ;;
+                  "MariaDB 11.8")
+                    dnf install -q -y mariadb118-server
+                    dnf install -q -y mariadb118-backup
                     if (ec2-metadata -t | grep -q large$); then
                       sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
                     fi
