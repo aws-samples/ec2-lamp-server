@@ -342,6 +342,7 @@ Parameters:
     Type: String
     #Description: Database to install
     AllowedValues:
+      - "MariaDB 12.3"
       - "MariaDB 11.8"
       - "MariaDB 11.4"
       - "MariaDB 10.11"
@@ -349,7 +350,7 @@ Parameters:
       - "MySQL8.0"
       - "PostgreSQL"
       - "none"
-    Default: "MariaDB 11.4"
+    Default: "MariaDB 12.3"
   phpVersion:
     Type: String
     #Description: PHP version to install
@@ -1640,6 +1641,7 @@ Resources:
             "/opt/web-server-renew-cert.sh":
               content: |
                 #!/bin/bash
+                systemctl daemon-reload
                 if (systemctl list-units | grep -q httpd); then
                   systemctl reload httpd
                 fi
@@ -2342,6 +2344,15 @@ Resources:
                   "MariaDB 11.8")
                     dnf install -q -y mariadb118-server
                     dnf install -q -y mariadb118-backup
+                    if (ec2-metadata -t | grep -q large$); then
+                      sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
+                    fi
+                    systemctl enable --now mariadb
+
+                    ;;
+                  "MariaDB 12.3")
+                    dnf install -q -y mariadb123-server
+                    dnf install -q -y mariadb123-backup
                     if (ec2-metadata -t | grep -q large$); then
                       sed -i '/^\[mysqld\]/a innodb_buffer_pool_size=1G' /etc/my.cnf.d/mariadb-server.cnf
                     fi
