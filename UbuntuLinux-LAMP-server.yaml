@@ -804,10 +804,14 @@ Parameters:
     Default: "Custom Origin"
 
 Conditions:
+  useUbuntu2604x86: !Equals [!Ref osVersion, "Ubuntu 26.04 (x86_64)"]
+  useUbuntu2604arm64: !Equals [!Ref osVersion, "Ubuntu 26.04 (arm64)"]
   useUbuntu2404x86: !Equals [!Ref osVersion, "Ubuntu 24.04 (x86_64)"]
   useUbuntu2404arm64: !Equals [!Ref osVersion, "Ubuntu 24.04 (arm64)"]
   useUbuntu2204x86: !Equals [!Ref osVersion, "Ubuntu 22.04 (x86_64)"]
   useUbuntu2204arm64: !Equals [!Ref osVersion, "Ubuntu 22.04 (arm64)"]
+  useUbuntuPro2604x86: !Equals [!Ref osVersion, "Ubuntu Pro 26.04 (x86_64)"]
+  useUbuntuPro2604arm64: !Equals [!Ref osVersion, "Ubuntu Pro 26.04 (arm64)"]
   useUbuntuPro2404x86: !Equals [!Ref osVersion, "Ubuntu Pro 24.04 (x86_64)"]
   useUbuntuPro2404arm64: !Equals [!Ref osVersion, "Ubuntu Pro 24.04 (arm64)"]
   useUbuntuPro2204x86: !Equals [!Ref osVersion, "Ubuntu Pro 22.04 (x86_64)"]
@@ -1718,7 +1722,7 @@ Resources:
               group: "root"
             "/etc/systemd/system/systemd-networkd-wait-online.service.d/override.conf":
               content: |
-                
+
                 [Service]
                 ExecStart=
                 ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --timeout=3
@@ -1969,9 +1973,15 @@ Resources:
                 export PHP="${phpVersion}"
                 export PHP_VERSION=`echo ${phpVersion} | cut -c 4-7`
 
-                # Enable Ondřej Surý PHP repo: https://launchpad.net/~ondrej/+archive/ubuntu/php/
+                # https://packages.sury.org/php/README.txt
                 apt-get install -q -y ca-certificates apt-transport-https software-properties-common lsb-release
-                add-apt-repository -y ppa:ondrej/php
+                curl -s -L -O https://packages.sury.org/debsuryorg-archive-keyring.deb
+                dpkg -i ./debsuryorg-archive-keyring.deb
+                echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
+
+                # Enable Ondřej Surý PHP repo: https://launchpad.net/~ondrej/+archive/ubuntu/php/                
+                #add-apt-repository -y ppa:ondrej/php
+
                 sudo apt update
 
                 case $PHP in
@@ -2421,33 +2431,49 @@ Resources:
       ImageId:
         # https://ubuntu.com/server/docs/cloud-images/amazon-ec2 https://ubuntu.com/blog/ubuntu-pro-is-now-part-of-the-aws-ec2-console
         !If [
-          useUbuntu2404x86,
-          "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
+          useUbuntu2604x86,
+          "{{resolve:ssm:/aws/service/canonical/ubuntu/server/26.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
           !If [
-              useUbuntu2404arm64,
-              "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+            useUbuntu2604arm64,
+            "{{resolve:ssm:/aws/service/canonical/ubuntu/server/26.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+            !If [
+              useUbuntu2404x86,
+              "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
               !If [
+                useUbuntu2404arm64,
+                "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+                !If [
                   useUbuntu2204x86,
                   "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
                   !If [
-                      useUbuntu2204arm64,
-                      "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+                    useUbuntu2204arm64,
+                    "{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}",
+                    !If [
+                      useUbuntuPro2604x86,
+                      "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/26.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
                       !If [
+                        useUbuntuPro2604arm64,
+                        "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/26.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+                        !If [
                           useUbuntuPro2404x86,
                           "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}",
                           !If [
-                              useUbuntuPro2404arm64,
-                              "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
-                              !If [
-                                  useUbuntuPro2204x86,
-                                  "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
-                                  "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}"
-                                ]
+                            useUbuntuPro2404arm64,
+                            "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id}}",
+                            !If [
+                              useUbuntuPro2204x86,
+                              "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}",
+                              "{{resolve:ssm:/aws/service/canonical/ubuntu/pro-server/22.04/stable/current/arm64/hvm/ebs-gp2/ami-id}}"
                             ]
+                          ]
                         ]
+                      ]
                     ]
+                  ]
                 ]
+              ]
             ]
+          ]
         ]
       InstanceType: !Ref instanceType
       IamInstanceProfile: !Ref instanceProfile
