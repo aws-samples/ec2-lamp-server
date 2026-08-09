@@ -316,7 +316,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "Yes"
+    Default: "No"
   installDCV:
     Type: String
     Description: https://aws.amazon.com/hpc/dcv/
@@ -1210,7 +1210,11 @@ Resources:
             FromPort: 22
             ToPort: 22
             CidrIp: !Ref ingressIPv4
-          - !Ref AWS::NoValue
+          - Description: SSH (IPv4)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: 127.0.0.1/32
         - !If
           - createSgSSH
           - Description: SSH (IPv6)
@@ -1218,7 +1222,11 @@ Resources:
             FromPort: 22
             ToPort: 22
             CidrIpv6: !Ref ingressIPv6
-          - !Ref AWS::NoValue
+          - Description: SSH (IPv6)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIpv6: ::1/128
         - !If
           - installDCV
           - Description: DCV (IPv4)
@@ -2462,7 +2470,7 @@ Resources:
 
                           rsync -r /tmp/cfn/wordpress/ /var/www/html/
                           chown apache:apache -R /var/www/html
-                          chmod g+rw -R /var/www/htmlp
+                          chmod g+rw -R /var/www/html
                           ;;
                         Nginx)
                           rsync -r /tmp/cfn/wordpress/ /usr/share/nginx/html/

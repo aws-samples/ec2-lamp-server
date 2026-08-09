@@ -322,7 +322,7 @@ Parameters:
     AllowedValues:
       - "Yes"
       - "No"
-    Default: "Yes"
+    Default: "No"
   installDCV:
     Type: String
     Description: https://aws.amazon.com/hpc/dcv/
@@ -1225,7 +1225,11 @@ Resources:
             FromPort: 22
             ToPort: 22
             CidrIp: !Ref ingressIPv4
-          - !Ref AWS::NoValue
+          - Description: SSH (IPv4)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: 127.0.0.1/32
         - !If
           - createSgSSH
           - Description: SSH (IPv6)
@@ -1233,7 +1237,11 @@ Resources:
             FromPort: 22
             ToPort: 22
             CidrIpv6: !Ref ingressIPv6
-          - !Ref AWS::NoValue
+          - Description: SSH (IPv6)
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIpv6: ::1/128
         - !If
           - installDCV
           - Description: DCV (IPv4)
@@ -1596,9 +1604,6 @@ Resources:
                   python3 /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ec2Instance --region ${AWS::Region}
                   sleep 45
 
-                  # web server reload script
-                  mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
-
                   WEB_ROOT="/var/www/html/"
                   if (echo '${installApp}' | grep -q "Moodle 5.[1-9]"); then
                     WEB_ROOT="/var/www/html/public/"
@@ -1622,6 +1627,9 @@ Resources:
                         systemctl reload nginx
                         ;;
                     esac
+
+                    # web server reload script
+                    mv /opt/web-server-renew-cert.sh /etc/letsencrypt/renewal-hooks/deploy/web-server-renew-cert.sh
 
                     # DCV TLS cert: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-cert.html
                     if [ "${installDCV}" = "Yes" ]; then
@@ -1666,6 +1674,7 @@ Resources:
             "/opt/web-server-renew-cert.sh":
               content: |
                 #!/bin/bash
+                systemctl daemon-reload
                 if (systemctl list-units | grep -q apache2); then
                   systemctl reload httpd
                 fi
@@ -1903,8 +1912,8 @@ Resources:
                 sed -i "s/Prompt=lts/Prompt=never/g" /etc/update-manager/release-upgrades
                 chown -R ubuntu:ubuntu /home/ubuntu/.config
 
-                # Ubuntu 24.04: reduce systemd-networkd-wait-online.service 2+ min timeout
-                if (lsb_release -r -s | grep -q 24); then
+                # Ubuntu 24+: reduce systemd-networkd-wait-online.service 2+ min timeout
+                if (! lsb_release -r -s | grep -q 22); then
                   sed -i "s/systemd-networkd-wait-online$/& --timeout=3/g" /usr/lib/systemd/system/systemd-networkd-wait-online.service
                 fi
 
