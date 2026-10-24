@@ -174,15 +174,19 @@ Parameters:
     Type: String
     Description: https://aws.amazon.com/ec2/graviton/ https://ubuntu.com/aws/pro
     AllowedValues:
+      - Ubuntu 26.04 (arm64)
       - Ubuntu 24.04 (arm64)
       - Ubuntu 22.04 (arm64)
+      - Ubuntu Pro 26.04 (arm64)
       - Ubuntu Pro 24.04 (arm64)
       - Ubuntu Pro 22.04 (arm64)
+      - Ubuntu 26.04 (x86_64)
       - Ubuntu 24.04 (x86_64)
       - Ubuntu 22.04 (x86_64)
+      - Ubuntu Pro 26.04 (x86_64)
       - Ubuntu Pro 24.04 (x86_64)
       - Ubuntu Pro 22.04 (x86_64)
-    Default: Ubuntu 24.04 (arm64)
+    Default: Ubuntu 26.04 (arm64)
 
   ec2Name:
     Type: String
@@ -1429,7 +1433,9 @@ Resources:
                 tar -xvzf nice-dcv-ubuntu$OS_VERSION-$(arch).tgz && cd nice-dcv-*-ubuntu$OS_VERSION-$(arch)
                 sudo apt-get install -y ./nice-dcv-server_*.deb
                 sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
-                sudo apt-get install -y ./nice-xdcv_*.deb
+                if (! echo $OS_VERSION | grep -q "2[6-8]"); then
+                  sudo apt-get install -y ./nice-xdcv_*.deb
+                fi
                 sudo systemctl daemon-reload
               mode: "000755"
               owner: "ubuntu"
@@ -1521,6 +1527,25 @@ Resources:
 
                 #sysctl -w net.ipv6.conf.all.disable_ipv6=0
                 #sysctl -w net.ipv6.conf.default.disable_ipv6=0
+
+                if (systemctl status ufw | grep -q Loaded); then
+                  ufw allow 8443/tcp
+                  ufw allow 8443/udp
+                  ufw allow https
+                  ufw allow http
+                  if [ "${installWebmin}" = "Yes" ]; then
+                    ufw allow 10000/tcp
+                  fi
+                fi
+
+                # Ubuntu 26+ is Wayland
+                OS_VERSION=$(lsb_release -r -s)
+
+                if ( echo "${installDCV}" | grep -q "Yes"); then
+                  if (echo $OS_VERSION | grep -q "2[6-8]"); then
+                    systemctl set-default graphical.target && systemctl isolate graphical.target && sleep 2
+                  fi
+                fi
 
                 # DCV?
                 export installDCV="${installDCV}"
@@ -1680,7 +1705,7 @@ Resources:
                 #!/bin/bash
                 systemctl daemon-reload
                 if (systemctl list-units | grep -q apache2); then
-                  systemctl reload httpd
+                  systemctl reload apache2
                 fi
                 if (systemctl list-units | grep -q nginx); then
                   systemctl reload nginx
@@ -1812,8 +1837,8 @@ Resources:
                 sudo snap set certbot trust-plugin-with-root=ok
                 sudo snap install certbot-dns-route53
 
-                # Ubuntu 24.04: reduce systemd-networkd-wait-online.service 2+ min timeout
-                if (lsb_release -r -s | grep -q 24); then
+                # Ubuntu 24+: reduce systemd-networkd-wait-online.service 2+ min timeout
+                if (lsb_release -r -s | grep -q "2[4-8]"); then
                   sed -i "s/systemd-networkd-wait-online$/& --timeout=3/g" /usr/lib/systemd/system/systemd-networkd-wait-online.service
                 else
                   rm -f /etc/systemd/system/systemd-networkd-wait-online.service.d/override.conf
@@ -1862,6 +1887,8 @@ Resources:
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
 
+                OS_VERSION=$(. /etc/os-release;echo $VERSION_ID | sed -e 's/\.//g')
+
                 # Update OS
                 apt-get update -q
                 apt-get upgrade -q -y
@@ -1870,9 +1897,12 @@ Resources:
                 apt-get install -q -y ubuntu-desktop-minimal
                 apt-get install -q -y gdm3
                 apt-get install -q -y amazon-ec2-utils
+                apt-get install -q -y gnome-software
 
                 # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
-                sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm3/custom.conf
+                if [ -f /etc/gdm3/custom.conf ]; then
+                  sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm3/custom.conf
+                fi
 
                 # resolve "/var/lib/dpkg/info/nice-dcv-server.postinst: 8: dpkg-architecture: not found" when installing dcv-server
                 apt-get install -q -y dpkg-dev
@@ -1885,13 +1915,15 @@ Resources:
                 # DCV: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
                 gpg --import NICE-GPG-KEY
-                OS_VERSION=$(. /etc/os-release;echo $VERSION_ID | sed -e 's/\.//g')
+
                 curl -s -L -O https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu$OS_VERSION-$(arch).tgz
                 tar -xvzf nice-dcv-ubuntu*.tgz && cd nice-dcv-*-$(arch)
                 apt-get install -q -y ./nice-dcv-server_*.deb
                 apt-get install -q -y ./nice-dcv-web-viewer_*.deb
                 usermod -aG video dcv
-                apt-get install -q -y ./nice-xdcv_*.deb
+                if (! echo $OS_VERSION | grep -q "2[6-8]"); then
+                  apt-get install -q -y ./nice-xdcv_*.deb
+                fi
 
                 # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
                 apt-get install -q -y cups
@@ -1909,7 +1941,7 @@ Resources:
                 sed -i "/^\[session-management\/automatic-console-session/a owner=\"ubuntu\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
                 # Disable reporting : https://wiki.ubuntu.com/Apport
-                sed -i "s/enabled=1/enable=0/g" /etc/default/apport
+                sed -i "s/enabled=1/enabled=0/g" /etc/default/apport
                 apt-get remove -q -y ubuntu-report whoopsie apport
                 apt-get autoremove -q -y
                 # Disable upgrade prompt: https://help.ubuntu.com/community/Upgrades#Upgrade_policy
@@ -1917,7 +1949,7 @@ Resources:
                 chown -R ubuntu:ubuntu /home/ubuntu/.config
 
                 # Ubuntu 24+: reduce systemd-networkd-wait-online.service 2+ min timeout
-                if (! lsb_release -r -s | grep -q 22); then
+                if (echo $OS_VERSION | grep -q "2[4-8]"); then
                   sed -i "s/systemd-networkd-wait-online$/& --timeout=3/g" /usr/lib/systemd/system/systemd-networkd-wait-online.service
                 fi
 
