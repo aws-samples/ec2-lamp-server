@@ -793,7 +793,6 @@ Conditions:
   hasR53Zone: !Equals [!Ref enableR53acmeSupport, "Yes"]
 
   installDCV: !Equals [!Ref installDCV, "Yes"]
-  noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
 
   createBackup: !Equals [!Ref enableBackup, "Yes"]
@@ -1382,20 +1381,6 @@ Resources:
         00_setup:
           # in the following order: packages, groups, users, sources, files, commands, and then services.
           files:
-            "/home/ec2-user/update-dcv":
-              content: |
-                #!/bin/bash
-                cd /tmp
-                sudo rm -f /tmp/nice-dcv-amzn2-$(arch).tgz
-                wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2-$(arch).tgz
-                tar -xvzf nice-dcv-amzn2-$(arch).tgz && cd nice-dcv-*-amzn2-$(arch)
-                sudo yum install -y ./nice-dcv-server-*.rpm
-                sudo yum install -y ./nice-dcv-web-viewer-*.rpm
-                sudo yum install -y ./nice-xdcv-*.rpm
-                sudo systemctl daemon-reload
-              mode: "000755"
-              owner: "ec2-user"
-              group: "ec2-user"
             "/home/ec2-user/update-awscli":
               content: |
                 #!/bin/bash
@@ -1430,30 +1415,39 @@ Resources:
                 After=default.target network.target
 
                 [Service]
-                ExecStart=/opt/dcv-virtual-session.sh
+                ExecStart=/opt/dcv/dcv-virtual-session.sh
 
                 [Install]
                 WantedBy=default.target
               mode: "000644"
               owner: "root"
               group: "root"
-            "/opt/dcv-virtual-session.sh":
+            "/opt/dcv/dcv-virtual-session.sh":
               content: |
                 #!/bin/bash
-                dcvUsers=( "ec2-user" )
                 while true;
                 do
-                  for dcvUser in "${dcvUsers[@]}"
-                  do
-                    if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                      /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root %home% --type virtual
+                  while IFS= read -r dcvUser; do
+                    if ( echo "$dcvUser" | grep -q "^[[:space:]#]" ); then
+                      continue
                     fi
-                  done
-                  date
-                  /usr/bin/dcv list-sessions
-                  sleep 5
+                    if (getent passwd "$dcvUser" >/dev/null); then
+                      if (! /usr/bin/dcv describe-session "$dcvUser" | grep owner | grep -q "$dcvUser"); then
+                        /usr/bin/dcv create-session "$dcvUser" --owner "$dcvUser" --storage-root %home% --type virtual
+                        /usr/bin/dcv describe-session "$dcvUser"
+                      fi
+                    fi
+                  done < /opt/dcv/dcv-users.txt
+                  sleep 2
                 done
               mode: "000744"
+              owner: "root"
+              group: "root"
+            "/opt/dcv/dcv-users.txt":
+              content: |
+                # List of DCV users, one per line. Virtual sessions will be created for these users
+                ec2-user
+              mode: "000640"
               owner: "root"
               group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
@@ -1493,7 +1487,6 @@ Resources:
                   No)
                     rm -f /etc/systemd/system/dcv-virtual-session.service
                     rm -f /opt/dcv-virtual-session.sh
-                    rm -f /home/ec2-user/update-dcv
                     ;;
                 esac
 
@@ -1542,9 +1535,9 @@ Resources:
                 cd /tmp/cfn
 
                 # Change password
-                PWD=$(cat /var/lib/cloud/data/instance-id)
-                USER=ec2-user
-                echo "$USER:$PWD" | chpasswd
+                DCVPASSWORD=$(cat /var/lib/cloud/data/instance-id)
+                DCVUSER=ec2-user
+                echo "$DCVUSER:$DCVPASSWORD" | chpasswd
 
                 # EPEL: https://docs.fedoraproject.org/en-US/epel/
                 amazon-linux-extras install -y epel
@@ -1591,7 +1584,7 @@ Resources:
                 if [ "${installDocker}" = "Yes" ]; then
                   amazon-linux-extras install -y docker
                   systemctl enable docker
-                  usermod -aG docker ec2-user
+                  usermod -aG docker $DCVUSER
                 fi
 
                 # AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
@@ -1602,6 +1595,10 @@ Resources:
                 unzip -q -o awscliv2.zip
                 ./aws/install -b /usr/bin
                 echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ec2-user/.bashrc
+
+                # Separate AWS profile to use EC2 metadata: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-metadata.html
+                su - $DCVUSER -c "aws configure set --profile EC2 credential_source Ec2InstanceMetadata"
+                su - $DCVUSER -c "aws configure set --profile EC2 region ${AWS::Region}"
 
                 # Certbot: https://certbot.eff.org/instructions?ws=other&os=pip
                 amazon-linux-extras install -q -y python3.8
@@ -1617,11 +1614,11 @@ Resources:
                 /opt/certbot/bin/pip install certbot-dns-route53
                 /opt/certbot/bin/pip install certbot-apache
                 /opt/certbot/bin/pip install certbot-nginx
-
-                ln -sf /opt/certbot/bin/certbot /usr/bin/certbot
+                ln -s -f /opt/certbot/bin/certbot /usr/bin/certbot
 
                 touch /etc/sysconfig/certbot
                 chmod og-rwx /etc/sysconfig/certbot
+
                 systemctl daemon-reload
                 systemctl enable --now certbot-renew.timer
 
@@ -1718,11 +1715,13 @@ Resources:
                 # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
                 cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
                 sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+                # User
+                DCVUSER=ec2-user
 
                 # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
                 # Console session support
-                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"$DCVUSER\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
                 #
                 systemctl daemon-reload
@@ -1837,7 +1836,7 @@ Resources:
 
                     # php-redis: https://github.com/phpredis/phpredis/blob/develop/package.xml
                     yum install -q -y redis-devel lz4-devel
-                    yes 'no' | pecl install --configureoptions ' enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
+                    yes 'no' | pecl install --configureoptions 'enable-redis-igbinary="yes" enable-redis-lzf="yes" enable-redis-zstd="yes" enable-redis-msgpack="yes" enable-redis-lz4="yes" with-liblz4="yes"' redis
                     if [ $? -eq 0 ]; then
                       echo 'extension=redis.so' > /etc/php.d/41-redis.ini
                     fi

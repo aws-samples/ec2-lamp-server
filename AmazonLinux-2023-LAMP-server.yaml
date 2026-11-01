@@ -773,6 +773,7 @@ Parameters:
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
+      - "Moodle 5.3"
       - "Moodle 5.2"
       - "Moodle 5.1"
       - "Moodle 4.5 (LTS)"
@@ -811,7 +812,6 @@ Conditions:
   hasR53Zone: !Equals [!Ref enableR53acmeSupport, "Yes"]
 
   installDCV: !Equals [!Ref installDCV, "Yes"]
-  noDCV: !Not [!Condition installDCV]
   installWebmin: !Equals [!Ref installWebmin, "Yes"]
 
   createBackup: !Equals [!Ref enableBackup, "Yes"]
@@ -1405,11 +1405,22 @@ Resources:
                 #!/bin/bash
                 cd /tmp
                 sudo rm -f /tmp/nice-dcv-amzn2023-$(arch).tgz
+                rm -rf /tmp/nice-dcv-*-amzn2023-$(arch)/
                 wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-$(arch).tgz
                 tar -xvzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
                 sudo dnf install -y ./nice-dcv-server-*.rpm
-                sudo dnf install -y ./nice-dcv-web-viewer-*.rpm
-                sudo dnf install -y ./nice-xdcv-*.rpm
+                if (dnf info nice-dcv-web-viewer | grep -iq installed); then
+                  sudo dnf install -y ./nice-dcv-web-viewer-*.rpm
+                fi
+                if (dnf info nice-xdcv | grep -iq installed); then
+                  sudo dnf install -y ./nice-xdcv-*.rpm
+                fi
+                if (dnf info nice-dcv-gltest | grep -iq installed); then
+                  sudo dnf install -y ./nice-dcv-gltest-*.rpm
+                fi
+                if (dnf info nice-dcv-gl | grep -iq installed); then
+                  sudo dnf install -y ./nice-dcv-gl-*.rpm
+                fi
                 sudo systemctl daemon-reload
               mode: "000755"
               owner: "ec2-user"
@@ -1421,30 +1432,39 @@ Resources:
                 After=default.target network.target
 
                 [Service]
-                ExecStart=/opt/dcv-virtual-session.sh
+                ExecStart=/opt/dcv/dcv-virtual-session.sh
 
                 [Install]
                 WantedBy=default.target
               mode: "000644"
               owner: "root"
               group: "root"
-            "/opt/dcv-virtual-session.sh":
+            "/opt/dcv/dcv-virtual-session.sh":
               content: |
                 #!/bin/bash
-                dcvUsers=( "ec2-user" )
                 while true;
                 do
-                  for dcvUser in "${dcvUsers[@]}"
-                  do
-                    if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                      /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root %home% --type virtual
+                  while IFS= read -r dcvUser; do
+                    if ( echo "$dcvUser" | grep -q "^[[:space:]#]" ); then
+                      continue
                     fi
-                  done
-                  date
-                  /usr/bin/dcv list-sessions
-                  sleep 5
+                    if (getent passwd "$dcvUser" >/dev/null); then
+                      if (! /usr/bin/dcv describe-session "$dcvUser" | grep owner | grep -q "$dcvUser"); then
+                        /usr/bin/dcv create-session "$dcvUser" --owner "$dcvUser" --storage-root %home% --type virtual
+                        /usr/bin/dcv describe-session "$dcvUser"
+                      fi
+                    fi
+                  done < /opt/dcv/dcv-users.txt
+                  sleep 2
                 done
-              mode: "000744"
+              mode: "000740"
+              owner: "root"
+              group: "root"
+            "/opt/dcv/dcv-users.txt":
+              content: |
+                # List of DCV users, one per line. Virtual sessions will be created for these users
+                ec2-user
+              mode: "000640"
               owner: "root"
               group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
@@ -1504,14 +1524,14 @@ Resources:
 
                   K_VER=$(uname -r)
                   K_MAJOR_VER=$(echo $K_VER | cut -d. -f1-2)
-                  case $KVER in
+                  case $K_VER in
                     6.1.*)
                       dnf install -q -y kernel
                       dnf install -q -y kernel-headers kernel-devel kernel-modules-extra kernel-modules-extra-common --allowerasing
                       ;;
                     *)
                       dnf install -q -y kernel$K_MAJOR_VER
-                      dnf install -q -y kernel$K_MAJOR_VER-headers kernel$K_MAJOR_VER8-devel kernel$K_MAJOR_VER-modules-extra kernel$K_MAJOR_VER-modules-extra-common --allowerasing
+                      dnf install -q -y kernel$K_MAJOR_VER-headers kernel$K_MAJOR_VER-devel kernel$K_MAJOR_VER-modules-extra kernel$K_MAJOR_VER-modules-extra-common --allowerasing
                       ;;
                   esac
 
@@ -1716,9 +1736,14 @@ Resources:
                 cd /tmp/cfn
 
                 # Change password
-                PWD=$(cat /var/lib/cloud/data/instance-id)
-                USER=ec2-user
-                echo "$USER:$PWD" | chpasswd
+                DCVPASSWORD=$(cat /var/lib/cloud/data/instance-id)
+                DCVUSER=ec2-user
+                echo "$DCVUSER:$DCVPASSWORD" | chpasswd
+
+                # https://docs.aws.amazon.com/linux/al2023/ug/deterministic-upgrades-usage.html#deterministic-upgrade-override-persist
+                dnf clean all
+                dnf upgrade --releasever=latest
+                echo latest | tee /etc/dnf/vars/releasever
 
                 # Update OS
                 dnf clean all
@@ -1734,9 +1759,6 @@ Resources:
                 sed -i 's/apply_updates = no/apply_updates = yes/g' /etc/dnf/automatic.conf
                 sed -i 's/emit_via = stdio/emit_via = motd/g' /etc/dnf/automatic.conf
                 systemctl enable dnf-automatic-install.timer
-
-                # https://docs.aws.amazon.com/linux/al2023/ug/deterministic-upgrades-usage.html#deterministic-upgrade-override-persist
-                echo latest | sudo tee /etc/dnf/vars/releasever
 
                 # CloudWatch agent: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
                 dnf install -q -y amazon-cloudwatch-agent
@@ -1765,14 +1787,14 @@ Resources:
                 # Kernel headers for GPU and USB remotization
                 K_VER=$(uname -r)
                 K_MAJOR_VER=$(echo $K_VER | cut -d. -f1-2)
-                case $KVER in
+                case $K_VER in
                   6.1.*)
                     dnf install -q -y kernel
-                    dnf install -q -y kernel-headers kernel-devel kernel-modules-extra kernel-modules-extra-common --allowerasing
+                    dnf install -q -y kernel-headers kernel-devel kernel-modules-extra --allowerasing
                     ;;
                   *)
                     dnf install -q -y kernel$K_MAJOR_VER
-                    dnf install -q -y kernel$K_MAJOR_VER-headers kernel$K_MAJOR_VER8-devel kernel$K_MAJOR_VER-modules-extra kernel$K_MAJOR_VER-modules-extra-common --allowerasing
+                    dnf install -q -y kernel$K_MAJOR_VER-headers kernel$K_MAJOR_VER-devel kernel$K_MAJOR_VER-modules-extra --allowerasing
                     ;;
                 esac
 
@@ -1780,7 +1802,7 @@ Resources:
                 if [ "${installDocker}" = "Yes" ]; then
                   dnf install -q -y docker
                   systemctl enable docker
-                  usermod -aG docker ec2-user
+                  usermod -aG docker $DCVUSER
 
                   # docker-compose: https://github.com/amazonlinux/amazon-linux-2023/issues/186
                   mkdir -p /usr/local/lib/docker/cli-plugins
@@ -1788,7 +1810,15 @@ Resources:
                   chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
                 fi
 
-                # Certbot: https://repost.aws/articles/ARnkXnIN5GQ-G5GySZTH9P_w/install-certbot-on-amazon-linux-2023-al2023
+                # AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/$DCVUSER/.bashrc
+
+                # Separate AWS profile to use EC2 metadata: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-metadata.html
+                su - $DCVUSER -c "aws configure set --profile EC2 credential_source Ec2InstanceMetadata"
+                su - $DCVUSER -c "aws configure set --profile EC2 region ${AWS::Region}"
+
+                # Certbot PIP: https://certbot.eff.org/instructions?ws=other&os=pip
+                # Certbot: https://github.com/amazonlinux/amazon-linux-2023/issues/444
                 PY_VER=python3.14
                 dnf install -q -y $PY_VER $PY_VER-{pip,devel}
                 # AL2023 python3-augeas version is 1.1.0
@@ -1875,6 +1905,7 @@ Resources:
 
                 # DCV prereq: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html
                 dnf groupinstall "Desktop" -y -q
+                dnf install -q -y gnome-software
 
                 # Disable the Wayland protocol: https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-prereq.html#linux-prereq-wayland
                 sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm/custom.conf
@@ -1888,7 +1919,12 @@ Resources:
                 tar -xzf nice-dcv-amzn2023-$(arch).tgz && cd nice-dcv-*-amzn2023-$(arch)
                 dnf install -q -y ./nice-dcv-server-*.rpm
                 dnf install -q -y ./nice-dcv-web-viewer-*.rpm
-                dnf install -q -y ./nice-xdcv-*.rpm
+                if [ -f ./nice-xdcv* ]; then
+                  dnf install -q -y ./nice-xdcv*.rpm
+                fi
+                if [ -f ./nice-dcv-gltest* ]; then
+                  dnf install -q -y ./nice-dcv-gltest*.rpm
+                fi
 
                 # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
                 dnf install -q -y cups
@@ -1899,11 +1935,13 @@ Resources:
                 # QUIC: https://docs.aws.amazon.com/dcv/latest/adminguide/enable-quic.html
                 cp /etc/dcv/dcv.conf /etc/dcv/dcv.conf."`date +"%Y-%m-%d"`"
                 sed -i "s/^#enable-quic-frontend=true/enable-quic-frontend=true/g" /etc/dcv/dcv.conf
+                # User
+                DCVUSER=ec2-user
 
                 # Higher web client max resolution: https://docs.aws.amazon.com/dcv/latest/adminguide/config-param-ref.html
                 sed -i "/^\[display/a web-client-max-head-resolution=(4096, 2160)" /etc/dcv/dcv.conf
                 # Console session support
-                sed -i "/^\[session-management\/automatic-console-session/a owner=\"ec2-user\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
+                sed -i "/^\[session-management\/automatic-console-session/a owner=\"$DCVUSER\"\nstorage-root=\"%home%\"" /etc/dcv/dcv.conf
 
                 #
                 systemctl daemon-reload
@@ -2480,7 +2518,9 @@ Resources:
                       esac
                       ;;
                     Moodle*)
-                      if (echo '${installApp}' | grep -q "Moodle 5.2"); then
+                      if (echo '${installApp}' | grep -q "Moodle 5.3"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable503/moodle-latest-503.tgz -o moodle.tgz       
+                      elif (echo '${installApp}' | grep -q "Moodle 5.2"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable502/moodle-latest-502.tgz -o moodle.tgz
                       elif (echo '${installApp}' | grep -q "Moodle 5.1"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
@@ -2524,7 +2564,7 @@ Resources:
 
                           # Moodle data
                           mkdir -p /usr/share/nginx/moodledata
-                          chown apache:nginx -R /usr/share/nginx/html
+                          chown apache:nginx -R /usr/share/nginx/
                           chmod g+rw -R /usr/share/nginx/moodledata
 
                           # Moodle cron : https://docs.moodle.org/405/en/Cron

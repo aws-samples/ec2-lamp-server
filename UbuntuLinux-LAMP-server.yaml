@@ -786,6 +786,7 @@ Parameters:
     Description: https://make.wordpress.org/hosting/handbook/compatibility/ https://moodledev.io/general/releases
     AllowedValues:
       - "WordPress"
+      - "Moodle 5.3"
       - "Moodle 5.2"
       - "Moodle 5.1"
       - "Moodle 4.5 (LTS)"
@@ -1429,12 +1430,24 @@ Resources:
                 cd /tmp
                 OS_VERSION=$(. /etc/os-release;echo $VERSION_ID | sed -e 's/\.//g')
                 sudo rm -f /tmp/nice-dcv-ubuntu$OS_VERSION-$(arch).tgz
+                rm -rf /tmp/nice-dcv-*-ubuntu$OS_VERSION-$(arch)
                 wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-ubuntu$OS_VERSION-$(arch).tgz
                 tar -xvzf nice-dcv-ubuntu$OS_VERSION-$(arch).tgz && cd nice-dcv-*-ubuntu$OS_VERSION-$(arch)
                 sudo apt-get install -y ./nice-dcv-server_*.deb
-                sudo apt-get install -y ./nice-dcv-web-viewer_*.deb
-                if (! echo $OS_VERSION | grep -q "2[6-8]"); then
+                if (apt info nice-dcv-web-viewer | grep -iq installed); then
+                  sudo apt-get install -y ./nice-dcv-web-viewer*.deb
+                fi
+                if (apt info nice-xdcv | grep -iq installed); then
                   sudo apt-get install -y ./nice-xdcv_*.deb
+                fi
+                if (apt info nice-dcv-gnome-shell-extension | grep -iq installed); then
+                  sudo apt-get install -y ./nice-dcv-gnome-shell-extension*.deb
+                fi
+                if (apt info nice-dcv-gltest | grep -iq installed); then
+                  sudo apt-get install -y ./nice-dcv-gltest_*.deb
+                fi
+                if (apt info nice-dcv-gl | grep -iq installed); then
+                  sudo apt-get install -y ./nice-dcv-gl_*.deb
                 fi
                 sudo systemctl daemon-reload
               mode: "000755"
@@ -1474,30 +1487,39 @@ Resources:
                 After=default.target network.target
 
                 [Service]
-                ExecStart=/opt/dcv-virtual-session.sh
+                ExecStart=/opt/dcv/dcv-virtual-session.sh
 
                 [Install]
                 WantedBy=default.target
               mode: "000644"
               owner: "root"
               group: "root"
-            "/opt/dcv-virtual-session.sh":
+            "/opt/dcv/dcv-virtual-session.sh":
               content: |
                 #!/bin/bash
-                dcvUsers=( "ubuntu" )
                 while true;
                 do
-                  for dcvUser in "${dcvUsers[@]}"
-                  do
-                    if (! /usr/bin/dcv list-sessions | grep -q $dcvUser); then
-                      /usr/bin/dcv create-session $dcvUser --owner $dcvUser --storage-root %home% --type virtual
+                  while IFS= read -r dcvUser; do
+                    if ( echo "$dcvUser" | grep -q "^[[:space:]#]" ); then
+                      continue
                     fi
-                  done
-                  date
-                  /usr/bin/dcv list-sessions
-                  sleep 5
+                    if (getent passwd "$dcvUser" >/dev/null); then
+                      if (! /usr/bin/dcv describe-session "$dcvUser" | grep owner | grep -q "$dcvUser"); then
+                        /usr/bin/dcv create-session "$dcvUser" --owner "$dcvUser" --storage-root %home% --type virtual
+                        /usr/bin/dcv describe-session "$dcvUser"
+                      fi
+                    fi
+                  done < /opt/dcv/dcv-users.txt
+                  sleep 2
                 done
-              mode: "000744"
+              mode: "000740"
+              owner: "root"
+              group: "root"
+            "/opt/dcv/dcv-users.txt":
+              content: |
+                # List of DCV users, one per line. Virtual sessions will be created for these users
+                ubuntu
+              mode: "000640"
               owner: "root"
               group: "root"
             "/etc/systemd/system/dcv-post-reboot.service":
@@ -1760,11 +1782,12 @@ Resources:
                 #!/bin/bash
                 mkdir -p /tmp/cfn
                 cd /tmp/cfn
+                export DEBIAN_FRONTEND=noninteractive
 
                 # Change password
-                PWD=$(cat /var/lib/cloud/data/instance-id)
-                USER=ubuntu
-                echo "$USER:$PWD" | chpasswd
+                DCVPASSWORD=$(cat /var/lib/cloud/data/instance-id)
+                DCVUSER=ubuntu
+                echo "$DCVUSER:$DCVPASSWORD" | chpasswd
 
                 # Update OS
                 apt-get update -q
@@ -1801,6 +1824,7 @@ Resources:
                 apt-get install -q -y dkms
 
                 # Kernel headers for GPU and USB remotization
+                apt-get install -q -y linux-image-aws
                 apt-get install -q -y linux-headers-aws
                 apt-get install -q -y linux-modules-extra-aws
                 apt-get install -q -y usbutils
@@ -1818,24 +1842,32 @@ Resources:
                   apt-get update -q
                   apt-get install -q -y docker-ce
                   systemctl enable docker
-                  usermod -aG docker ubuntu
+                  usermod -aG docker $DCVUSER
                 fi
 
                 # AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
                 apt-get remove -q -y awscli
                 sudo snap install aws-cli --classic
                 if [ -e /snap/bin/aws ]; then
-                  rm -f /home/ubuntu/update-awscli
+                  rm -f /home/$DCVUSER/update-awscli
                 else
-                  /home/ubuntu/update-awscli
+                  /home/$DCVUSER/update-awscli
                 fi
-                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/ubuntu/.bashrc
+                echo "export AWS_CLI_AUTO_PROMPT=on-partial" >> /home/$DCVUSER/.bashrc
+
+                # Separate AWS profile to use EC2 metadata: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-metadata.html
+                su - $DCVUSER -c "aws configure set --profile EC2 credential_source Ec2InstanceMetadata"
+                su - $DCVUSER -c "aws configure set --profile EC2 region ${AWS::Region}"
 
                 # Certbot: https://eff-certbot.readthedocs.io/en/stable/install.html#snap-recommended
                 sudo snap install certbot --classic
-                ln -s /snap/bin/certbot /usr/bin/certbot
-                sudo snap set certbot trust-plugin-with-root=ok
-                sudo snap install certbot-dns-route53
+                if [ -e /snap/bin/certbot ]; then
+                  ln -s /snap/bin/certbot /usr/bin/certbot
+                  sudo snap set certbot trust-plugin-with-root=ok
+                  sudo snap install certbot-dns-route53
+                else
+                  apt-get install -q -y python3-certbot python3-certbot-apache python3-certbot-nginx python3-certbot-dns-route53
+                fi
 
                 # Ubuntu 24+: reduce systemd-networkd-wait-online.service 2+ min timeout
                 if (lsb_release -r -s | grep -q "2[4-8]"); then
@@ -1921,8 +1953,14 @@ Resources:
                 apt-get install -q -y ./nice-dcv-server_*.deb
                 apt-get install -q -y ./nice-dcv-web-viewer_*.deb
                 usermod -aG video dcv
-                if (! echo $OS_VERSION | grep -q "2[6-8]"); then
-                  apt-get install -q -y ./nice-xdcv_*.deb
+                if [ -f ./nice-xdcv* ]; then
+                  apt-get install -q -y ./nice-xdcv*.deb
+                fi
+                if [ -f ./nice-dcv-gnome-shell-extension* ]; then
+                  apt-get install -q -y ./nice-dcv-gnome-shell-extension*.deb
+                fi
+                if [ -f ./nice-dcv-gltest* ]; then
+                  apt-get install -q -y ./nice-dcv-gltest*.deb
                 fi
 
                 # Printer redirection: https://docs.aws.amazon.com/dcv/latest/adminguide/manage-printer.html
@@ -1947,6 +1985,10 @@ Resources:
                 # Disable upgrade prompt: https://help.ubuntu.com/community/Upgrades#Upgrade_policy
                 sed -i "s/Prompt=lts/Prompt=never/g" /etc/update-manager/release-upgrades
                 chown -R ubuntu:ubuntu /home/ubuntu/.config
+                # 
+                if ( apt info gnome-initial-setup | grep -i -q install ); then
+                  apt-get remove -q -y gnome-initial-setup
+                fi
 
                 # Ubuntu 24+: reduce systemd-networkd-wait-online.service 2+ min timeout
                 if (echo $OS_VERSION | grep -q "2[4-8]"); then
@@ -2406,7 +2448,9 @@ Resources:
                       chmod g+rw -R /var/www/html
                       ;;
                     Moodle*)
-                      if (echo '${installApp}' | grep -q "Moodle 5.2"); then
+                      if (echo '${installApp}' | grep -q "Moodle 5.3"); then
+                        curl -s -L https://download.moodle.org/download.php/direct/stable503/moodle-latest-503.tgz -o moodle.tgz
+                      elif (echo '${installApp}' | grep -q "Moodle 5.2"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable502/moodle-5.2.tgz -o moodle.tgz
                       elif (echo '${installApp}' | grep -q "Moodle 5.1"); then
                         curl -s -L https://download.moodle.org/download.php/direct/stable501/moodle-latest-501.tgz -o moodle.tgz
@@ -2527,6 +2571,7 @@ Resources:
             Encrypted: true
       MetadataOptions:
         HttpTokens: required
+      PropagateTagsToVolumeOnCreation: true
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -2537,7 +2582,7 @@ Resources:
           #sysctl -w net.ipv6.conf.all.disable_ipv6=1
           #sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
-          # https://stackoverflow.com/questions/33370297/apt-get-update-non-interactive
+          # https://www.cyberciti.biz/faq/explain-debian_frontend-apt-get-variable-for-ubuntu-debian/
           export DEBIAN_FRONTEND=noninteractive
 
           systemctl stop apt-daily.timer apt-daily-upgrade.timer
@@ -2546,6 +2591,7 @@ Resources:
           sleep 10
           apt-get install -q -y procps
           pkill apt
+          pkill dpkg
           apt-get install -q -y wget tmux unzip tar curl sed
 
           # CfN scripts: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-helper-scripts-reference.html
